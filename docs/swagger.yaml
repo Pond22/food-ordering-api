@@ -1,0 +1,220 @@
+basePath: /
+definitions:
+  models.Category:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  models.MenuItem:
+    properties:
+      category:
+        allOf:
+        - $ref: '#/definitions/models.Category'
+        description: ลิงก์ไปยังตาราง Category
+      categoryID:
+        description: foreign key ที่เชื่อมกับ Category
+        type: integer
+      createdAt:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      image:
+        description: ฟิลด์ Image เป็น type bytea
+        items:
+          type: integer
+        type: array
+      name:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+    url: https://www.example.com/support
+  description: This is a simple API for ordering food.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://example.com/terms
+  title: Food Ordering API
+  version: "1.0"
+paths:
+  /categories:
+    post:
+      consumes:
+      - application/json
+      description: ฟังก์ชันนี้ใช้สำหรับสร้างหมวดหมู่ใหม่ โดยต้องระบุข้อมูลชื่อหมวดหมู่
+      parameters:
+      - description: ข้อมูลหมวดหมู่ใหม่
+        in: body
+        name: category
+        required: true
+        schema:
+          $ref: '#/definitions/models.Category'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของหมวดหมู่ที่สร้างเสร็จแล้ว
+          schema:
+            $ref: '#/definitions/models.Category'
+        "400":
+          description: เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการสร้างหมวดหมู่ใหม่
+          schema:
+            additionalProperties: true
+            type: object
+      summary: สร้างหมวดหมู่ใหม่
+  /getCategory:
+    get:
+      description: ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลหมวดหมู่ทั้งหมดที่มีอยู่ในระบบ
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายการหมวดหมู่ทั้งหมด
+          schema:
+            items:
+              $ref: '#/definitions/models.Category'
+            type: array
+        "500":
+          description: เกิดข้อผิดพลาดในการดึงข้อมูลหมวดหมู่
+          schema:
+            additionalProperties: true
+            type: object
+      summary: เรียกรายการหมวดหมู่ทั้งหมด
+  /menu:
+    get:
+      description: ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลเมนู โดยสามารถระบุ action ได้ 3
+        แบบ คือ getByID, getByCategory, และ getAll เพื่อกำหนดรูปแบบการค้นหาเมนูตาม
+        action ที่ระบุเนื่องจากใช้หลักการ Switchcase ทำให้ใน Document มีตัวอย่างเพัยงแค่การเลือก
+        Actions
+      parameters:
+      - description: 'รูปแบบการค้นหาเมนู: getByID, getByCategory หรือ getAll'
+        in: query
+        name: action
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของเมนูที่ค้นพบจากการค้นหา
+          schema:
+            $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: เกิดข้อผิดพลาดจาก action ที่ไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+      summary: เลือกการดำเนินการกับข้อมูลเมนู
+    post:
+      consumes:
+      - application/json
+      description: ฟังก์ชันนี้ใช้สำหรับสร้างเมนูใหม่ โดยต้องระบุข้อมูลที่จำเป็นในการสร้าง
+        เช่น ชื่อเมนูและ ID ของหมวดหมู่ที่เกี่ยวข้อง
+      parameters:
+      - description: ข้อมูลเมนูใหม่
+        in: body
+        name: menuItem
+        required: true
+        schema:
+          $ref: '#/definitions/models.MenuItem'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของเมนูที่สร้างเสร็จแล้ว
+          schema:
+            $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการสร้างเมนูใหม่
+          schema:
+            additionalProperties: true
+            type: object
+      summary: สร้างเมนูใหม่
+  /migrate:
+    post:
+      description: api เส้นนี้ใช้เพื่อ migrate ฐานข้อมูลของ orm
+      produces:
+      - application/json
+      responses: {}
+      summary: อัปเดต orm
+  /order:
+    get:
+      description: เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ
+        url ของแต่ละโต๊ะจะสามารถเข้าได้ผ่าน qr_code เท่านั้นจากฟังก์ชัน
+      parameters:
+      - description: เลขโต๊ะ
+        in: query
+        name: action
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของเมนูที่ค้นพบจากการค้นหา
+          schema:
+            $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: เกิดข้อผิดพลาดจาก action ที่ไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+      summary: เข้าถึง dynamic link โต๊ะนั้นๆ
+    post:
+      description: สั่งอาหารของโต๊ะ
+      parameters:
+      - description: เลขโต๊ะ
+        in: query
+        name: action
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของเมนูที่ค้นพบจากการค้นหา
+          schema:
+            $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: เกิดข้อผิดพลาดจาก action ที่ไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+      summary: สั่งอาหาร
+  /qr_code:
+    get:
+      description: เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ
+        url ของแต่ละโต๊ะจะสามารถเข้าได้ผ่าน qr_code เท่านั้นจากฟังก์ชัน
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของเมนูที่ค้นพบจากการค้นหา
+          schema:
+            $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: เกิดข้อผิดพลาดจาก action ที่ไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+      summary: เข้าถึง dynamic link โต๊ะนั้นๆ
+swagger: "2.0"
