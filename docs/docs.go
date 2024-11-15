@@ -193,7 +193,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "เลขโต๊ะ",
-                        "name": "action",
+                        "name": "table",
                         "in": "query",
                         "required": true
                     }
@@ -246,18 +246,27 @@ const docTemplate = `{
                 }
             }
         },
-        "/qr_code": {
+        "/qr_code/{table}": {
             "get": {
                 "description": "เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ url ของแต่ละโต๊ะจะสามารถเข้าได้ผ่าน qr_code เท่านั้นจากฟังก์ชัน",
                 "produces": [
                     "application/json"
                 ],
                 "summary": "เข้าถึง dynamic link โต๊ะนั้นๆ",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "เลขโต๊ะ",
+                        "name": "table",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "รายละเอียดของเมนูที่ค้นพบจากการค้นหา",
+                        "description": "รายละเอียดของตาราง qr_code",
                         "schema": {
-                            "$ref": "#/definitions/models.MenuItem"
+                            "$ref": "#/definitions/models.QRCode"
                         }
                     },
                     "400": {
@@ -318,6 +327,36 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.QRCode": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "expiry_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "qr_Image": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "table_id": {
+                    "description": "One-to-One กับ Table",
+                    "type": "integer"
+                },
+                "uuid": {
                     "type": "string"
                 }
             }

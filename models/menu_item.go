@@ -20,11 +20,19 @@ type Category struct {
 	Name string `gorm:"not null"`
 }
 
+type Table struct {
+	ID        uint   `gorm:"primaryKey"`
+	Name      string `gorm:"not null"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 type QRCode struct {
-	ID        string    `json:"id" db:"id"`                 // UUID of the table
-	TableID   string    `json:"table_id" db:"table_id"`     // Table ID
-	CreatedAt time.Time `json:"created_at" db:"created_at"` // Time when the QR code was created
+	ID        uint      `gorm:"primaryKey"`
+	TableID   int       `gorm:"not null;unique" json:"table_id"` // One-to-One กับ Table
+	UUID      string    `gorm:"not null"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	Qr_Image  []byte    `gorm:"type:bytea"`
-	ExpiryAt  time.Time `json:"expiry_at" db:"expiry_at"` // Expiration time for the QR code
-	IsActive  bool      `json:"is_active" db:"is_active"` // Whether the QR code is still active
+	ExpiryAt  time.Time `json:"expiry_at" db:"expiry_at"`
+	IsActive  bool      `json:"is_active" db:"is_active"`
 }

@@ -22,7 +22,7 @@ func SetupRoutes(app *fiber.App) {
 
 	app.Get("/api/action", api_handlers.GetMenu)
 
-	app.Get("/qr_code", qr_service.HandleQRCodeRequest)
+	app.Get("/qr_code/:table", qr_service.HandleQRCodeRequest)
 
 	app.Get("/order", qr_service.Table)
 

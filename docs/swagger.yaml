@@ -32,6 +32,26 @@ definitions:
       updatedAt:
         type: string
     type: object
+  models.QRCode:
+    properties:
+      created_at:
+        type: string
+      expiry_at:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      qr_Image:
+        items:
+          type: integer
+        type: array
+      table_id:
+        description: One-to-One กับ Table
+        type: integer
+      uuid:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -163,7 +183,7 @@ paths:
       parameters:
       - description: เลขโต๊ะ
         in: query
-        name: action
+        name: table
         required: true
         type: string
       produces:
@@ -200,17 +220,23 @@ paths:
             additionalProperties: true
             type: object
       summary: สั่งอาหาร
-  /qr_code:
+  /qr_code/{table}:
     get:
       description: เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ
         url ของแต่ละโต๊ะจะสามารถเข้าได้ผ่าน qr_code เท่านั้นจากฟังก์ชัน
+      parameters:
+      - description: เลขโต๊ะ
+        in: path
+        name: table
+        required: true
+        type: string
       produces:
       - application/json
       responses:
         "200":
-          description: รายละเอียดของเมนูที่ค้นพบจากการค้นหา
+          description: รายละเอียดของตาราง qr_code
           schema:
-            $ref: '#/definitions/models.MenuItem'
+            $ref: '#/definitions/models.QRCode'
         "400":
           description: เกิดข้อผิดพลาดจาก action ที่ไม่ถูกต้อง
           schema:

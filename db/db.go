@@ -26,5 +26,6 @@ func migrate() {
 	DB.AutoMigrate(&models.QRCode{})
 	DB.AutoMigrate(&models.MenuItem{})
 	DB.AutoMigrate(&models.Category{})
+	DB.AutoMigrate(&models.Table{})
 
 }
