@@ -24,7 +24,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/categories": {
+        "/add_category": {
             "post": {
                 "description": "ฟังก์ชันนี้ใช้สำหรับสร้างหมวดหมู่ใหม่ โดยต้องระบุข้อมูลชื่อหมวดหมู่",
                 "consumes": [
@@ -41,7 +41,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.Category"
+                            "$ref": "#/definitions/models.CreateCategoryRequest"
                         }
                     }
                 ],
@@ -61,6 +61,51 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "เกิดข้อผิดพลาดในการสร้างหมวดหมู่ใหม่",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/add_menu": {
+            "post": {
+                "description": "ฟังก์ชันนี้ใช้สำหรับสร้างเมนูใหม่ โดยต้องระบุข้อมูลที่จำเป็นในการสร้าง เช่น ชื่อเมนูและ ID ของหมวดหมู่ที่เกี่ยวข้อง",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "สร้างเมนูใหม่",
+                "parameters": [
+                    {
+                        "description": "ข้อมูลเมนูใหม่",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateMenuRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของเมนูที่สร้างเสร็จแล้ว",
+                        "schema": {
+                            "$ref": "#/definitions/models.MenuItem"
+                        }
+                    },
+                    "400": {
+                        "description": "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการสร้างเมนูใหม่",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -121,49 +166,6 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "เกิดข้อผิดพลาดจาก action ที่ไม่ถูกต้อง",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "ฟังก์ชันนี้ใช้สำหรับสร้างเมนูใหม่ โดยต้องระบุข้อมูลที่จำเป็นในการสร้าง เช่น ชื่อเมนูและ ID ของหมวดหมู่ที่เกี่ยวข้อง",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "สร้างเมนูใหม่",
-                "parameters": [
-                    {
-                        "description": "ข้อมูลเมนูใหม่",
-                        "name": "menuItem",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.MenuItem"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "รายละเอียดของเมนูที่สร้างเสร็จแล้ว",
-                        "schema": {
-                            "$ref": "#/definitions/models.MenuItem"
-                        }
-                    },
-                    "400": {
-                        "description": "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "เกิดข้อผิดพลาดในการสร้างเมนูใหม่",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -289,6 +291,47 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "models.CreateCategoryRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.CreateMenuRequest": {
+            "type": "object",
+            "required": [
+                "CategoryID",
+                "name"
+            ],
+            "properties": {
+                "CategoryID": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "image": {
+                    "description": "max 5MB",
+                    "type": "array",
+                    "maxItems": 5242880,
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 2
                 }
             }
         },

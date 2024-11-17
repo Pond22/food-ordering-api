@@ -140,8 +140,11 @@ func Table(c *fiber.Ctx) error {
 	uuid := c.Query("uuid")
 	fmt.Printf("TableIDDDDDD = %v \n", tableID)
 	fmt.Printf("uuid = %v \n", uuid)
-	if tableID == "" {
-		return c.Status(400).JSON(fiber.Map{"error": "Table ID is required"})
+
+	if tableID == "" || uuid == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Both table ID and UUID are required",
+		})
 	}
 
 	// โหลดข้อมูลโต๊ะ (หรือสร้าง session)

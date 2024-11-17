@@ -7,6 +7,35 @@ definitions:
       name:
         type: string
     type: object
+  models.CreateCategoryRequest:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  models.CreateMenuRequest:
+    properties:
+      CategoryID:
+        minimum: 1
+        type: integer
+      description:
+        maxLength: 255
+        type: string
+      image:
+        description: max 5MB
+        items:
+          type: integer
+        maxItems: 5242880
+        type: array
+      name:
+        maxLength: 100
+        minLength: 2
+        type: string
+    required:
+    - CategoryID
+    - name
+    type: object
   models.MenuItem:
     properties:
       category:
@@ -66,7 +95,7 @@ info:
   title: Food Ordering API
   version: "1.0"
 paths:
-  /categories:
+  /add_category:
     post:
       consumes:
       - application/json
@@ -77,7 +106,7 @@ paths:
         name: category
         required: true
         schema:
-          $ref: '#/definitions/models.Category'
+          $ref: '#/definitions/models.CreateCategoryRequest'
       produces:
       - application/json
       responses:
@@ -96,6 +125,37 @@ paths:
             additionalProperties: true
             type: object
       summary: สร้างหมวดหมู่ใหม่
+  /add_menu:
+    post:
+      consumes:
+      - application/json
+      description: ฟังก์ชันนี้ใช้สำหรับสร้างเมนูใหม่ โดยต้องระบุข้อมูลที่จำเป็นในการสร้าง
+        เช่น ชื่อเมนูและ ID ของหมวดหมู่ที่เกี่ยวข้อง
+      parameters:
+      - description: ข้อมูลเมนูใหม่
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateMenuRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของเมนูที่สร้างเสร็จแล้ว
+          schema:
+            $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการสร้างเมนูใหม่
+          schema:
+            additionalProperties: true
+            type: object
+      summary: สร้างเมนูใหม่
   /getCategory:
     get:
       description: ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลหมวดหมู่ทั้งหมดที่มีอยู่ในระบบ
@@ -139,36 +199,6 @@ paths:
             additionalProperties: true
             type: object
       summary: เลือกการดำเนินการกับข้อมูลเมนู
-    post:
-      consumes:
-      - application/json
-      description: ฟังก์ชันนี้ใช้สำหรับสร้างเมนูใหม่ โดยต้องระบุข้อมูลที่จำเป็นในการสร้าง
-        เช่น ชื่อเมนูและ ID ของหมวดหมู่ที่เกี่ยวข้อง
-      parameters:
-      - description: ข้อมูลเมนูใหม่
-        in: body
-        name: menuItem
-        required: true
-        schema:
-          $ref: '#/definitions/models.MenuItem'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: รายละเอียดของเมนูที่สร้างเสร็จแล้ว
-          schema:
-            $ref: '#/definitions/models.MenuItem'
-        "400":
-          description: เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: เกิดข้อผิดพลาดในการสร้างเมนูใหม่
-          schema:
-            additionalProperties: true
-            type: object
-      summary: สร้างเมนูใหม่
   /migrate:
     post:
       description: api เส้นนี้ใช้เพื่อ migrate ฐานข้อมูลของ orm

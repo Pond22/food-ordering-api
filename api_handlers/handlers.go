@@ -14,13 +14,14 @@ import (
 // @Description ฟังก์ชันนี้ใช้สำหรับสร้างเมนูใหม่ โดยต้องระบุข้อมูลที่จำเป็นในการสร้าง เช่น ชื่อเมนูและ ID ของหมวดหมู่ที่เกี่ยวข้อง
 // @Accept json
 // @Produce json
-// @Param menuItem body models.MenuItem true "ข้อมูลเมนูใหม่"
+// @Param request body models.CreateMenuRequest true "ข้อมูลเมนูใหม่"
 // @Success 200 {object} models.MenuItem "รายละเอียดของเมนูที่สร้างเสร็จแล้ว"
 // @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง"
 // @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการสร้างเมนูใหม่"
-// @Router /menu [post]
+// @Router /add_menu [post]
 func CreateMenuItemHandler(c *fiber.Ctx) error {
 	var menuItem models.MenuItem
+
 	if err := c.BodyParser(&menuItem); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{
 			"error": "Invalid input",
@@ -34,10 +35,16 @@ func CreateMenuItemHandler(c *fiber.Ctx) error {
 	}
 
 	var category models.Category
-	if err := db.DB.First(&category, menuItem.CategoryID).Error; err != nil {
+	if err := db.DB.First(&category, "ID = ?", menuItem.CategoryID).Error; err != nil {
 		// ถ้าไม่พบ CategoryID ในตาราง categories
 		return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{
 			"error": "Invalid CategoryID, category not found",
+		})
+	}
+
+	if err := db.DB.First(&menuItem, "Name = ?", menuItem.Name).Error; err == nil {
+		return c.Status(http.StatusConflict).JSON(fiber.Map{
+			"error": "Name name already exists",
 		})
 	}
 
@@ -54,11 +61,11 @@ func CreateMenuItemHandler(c *fiber.Ctx) error {
 // @Description ฟังก์ชันนี้ใช้สำหรับสร้างหมวดหมู่ใหม่ โดยต้องระบุข้อมูลชื่อหมวดหมู่
 // @Accept json
 // @Produce json
-// @Param category body models.Category true "ข้อมูลหมวดหมู่ใหม่"
+// @Param category body models.CreateCategoryRequest true "ข้อมูลหมวดหมู่ใหม่"
 // @Success 200 {object} models.Category "รายละเอียดของหมวดหมู่ที่สร้างเสร็จแล้ว"
 // @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง"
 // @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการสร้างหมวดหมู่ใหม่"
-// @Router /categories [post]
+// @Router /add_category [post]
 func CreateCategoryHandler(c *fiber.Ctx) error {
 	var category models.Category
 
@@ -74,6 +81,12 @@ func CreateCategoryHandler(c *fiber.Ctx) error {
 		})
 	}
 
+	// db.DB.First(&category, "Name = ?", category.Name)
+	if err := db.DB.First(&category, "Name = ?", category.Name).Error; err == nil {
+		return c.Status(http.StatusConflict).JSON(fiber.Map{
+			"error": "Category name already exists",
+		})
+	}
 	if err := db.DB.Create(&category).Error; err != nil {
 		return c.Status(500).JSON(map[string]interface{}{
 			"error": fmt.Sprintf("Error creating category: %v", err),

@@ -15,6 +15,16 @@ type MenuItem struct {
 	UpdatedAt   time.Time
 }
 
+type CreateCategoryRequest struct {
+	Name string `json:"name" binding:"required"`
+}
+
+type CreateMenuRequest struct {
+	Name        string `json:"Name" binding:"required,min=2,max=100"`
+	Description string `json:"description" binding:"max=255"`
+	Image       []byte `json:"image" binding:"max=5242880"` // max 5MB
+	CategoryID  uint   `json:"CategoryID" binding:"required,min=1"`
+}
 type Category struct {
 	ID   uint   `gorm:"primaryKey"`
 	Name string `gorm:"not null"`
