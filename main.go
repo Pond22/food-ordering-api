@@ -2,7 +2,7 @@ package main
 
 import (
 	"food-ordering-api/db"
-	_ "food-ordering-api/docs" // สำคัญ: ต้องมี import docs
+	_ "food-ordering-api/docs"
 	"food-ordering-api/routes"
 
 	"github.com/gofiber/fiber/v2"
@@ -21,8 +21,10 @@ import (
 // @license.name MIT
 // @license.url https://opensource.org/licenses/MIT
 
-// @host localhost:8080
+// @host 127.0.0.1:8080
 // @BasePath /
+// @schemes http
+
 func main() {
 
 	db.InitDatabase()

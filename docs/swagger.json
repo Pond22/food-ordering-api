@@ -1,4 +1,7 @@
 {
+    "schemes": [
+        "http"
+    ],
     "swagger": "2.0",
     "info": {
         "description": "This is a simple API for ordering food.",
@@ -15,7 +18,7 @@
         },
         "version": "1.0"
     },
-    "host": "localhost:8080",
+    "host": "127.0.0.1:8080",
     "basePath": "/",
     "paths": {
         "/add_category": {
@@ -137,29 +140,49 @@
         },
         "/menu": {
             "get": {
-                "description": "ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลเมนู โดยสามารถระบุ action ได้ 3 แบบ คือ getByID, getByCategory, และ getAll เพื่อกำหนดรูปแบบการค้นหาเมนูตาม action ที่ระบุเนื่องจากใช้หลักการ Switchcase ทำให้ใน Document มีตัวอย่างเพัยงแค่การเลือก Actions",
+                "description": "ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลเมนู โดยสามารถระบุ action ได้ 3 แบบ",
                 "produces": [
                     "application/json"
                 ],
                 "summary": "เลือกการดำเนินการกับข้อมูลเมนู",
                 "parameters": [
                     {
+                        "enum": [
+                            "getByID",
+                            "getByCategory",
+                            "getAll"
+                        ],
                         "type": "string",
                         "description": "รูปแบบการค้นหาเมนู: getByID, getByCategory หรือ getAll",
                         "name": "action",
                         "in": "query",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ของเมนู (ใช้กับ action=getByID)",
+                        "name": "id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ของหมวดหมู่ (ใช้กับ action=getByCategory)",
+                        "name": "category_id",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "รายละเอียดของเมนูที่ค้นพบจากการค้นหา",
+                        "description": "รายการเมนูที่ค้นพบ",
                         "schema": {
-                            "$ref": "#/definitions/models.MenuItem"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.MenuItem"
+                            }
                         }
                     },
                     "400": {
-                        "description": "เกิดข้อผิดพลาดจาก action ที่ไม่ถูกต้อง",
+                        "description": "เกิดข้อผิดพลาดจากการระบุพารามิเตอร์",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -211,29 +234,41 @@
                 }
             },
             "post": {
-                "description": "สั่งอาหารของโต๊ะ",
+                "description": "สั่งอาหารสำหรับโต๊ะที่ระบุ",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "สั่งอาหาร",
+                "summary": "สั่งอาหาร......",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "เลขโต๊ะ",
-                        "name": "action",
-                        "in": "query",
-                        "required": true
+                        "description": "ข้อมูลการสั่งอาหาร",
+                        "name": "order",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.OrderRequest"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "รายละเอียดของเมนูที่ค้นพบจากการค้นหา",
+                        "description": "รายละเอียดออเดอร์ที่สร้าง",
                         "schema": {
-                            "$ref": "#/definitions/models.MenuItem"
+                            "$ref": "#/definitions/models.Order"
                         }
                     },
                     "400": {
-                        "description": "เกิดข้อผิดพลาดจาก action ที่ไม่ถูกต้อง",
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการประมวลผล",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -277,6 +312,37 @@
         }
     },
     "definitions": {
+        "api_handlers.OrderItemRequest": {
+            "type": "object",
+            "properties": {
+                "menu_item_id": {
+                    "type": "integer"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api_handlers.OrderRequest": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api_handlers.OrderItemRequest"
+                    }
+                },
+                "table_id": {
+                    "type": "integer"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
         "models.Category": {
             "type": "object",
             "properties": {
@@ -303,10 +369,20 @@
             "type": "object",
             "required": [
                 "CategoryID",
-                "name"
+                "Name",
+                "Price"
             ],
             "properties": {
                 "CategoryID": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "Name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 2
+                },
+                "Price": {
                     "type": "integer",
                     "minimum": 1
                 },
@@ -321,11 +397,6 @@
                     "items": {
                         "type": "integer"
                     }
-                },
-                "name": {
-                    "type": "string",
-                    "maxLength": 100,
-                    "minLength": 2
                 }
             }
         },
@@ -361,6 +432,83 @@
                     }
                 },
                 "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "integer"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Order": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.OrderItem"
+                    }
+                },
+                "status": {
+                    "description": "e.g., \"pending\", \"cooking\", \"served\", \"completed\"",
+                    "type": "string"
+                },
+                "tableID": {
+                    "description": "Foreign key to Table",
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "number"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.OrderItem": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "menuItem": {
+                    "$ref": "#/definitions/models.MenuItem"
+                },
+                "menuItemID": {
+                    "description": "Foreign key to MenuItem",
+                    "type": "integer"
+                },
+                "notes": {
+                    "description": "Special instructions",
+                    "type": "string"
+                },
+                "order": {
+                    "$ref": "#/definitions/models.Order"
+                },
+                "orderID": {
+                    "description": "Foreign key to Order",
+                    "type": "integer"
+                },
+                "price": {
+                    "description": "Price at time of order",
+                    "type": "number"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "e.g., \"pending\", \"cooking\", \"served\"",
                     "type": "string"
                 },
                 "updatedAt": {

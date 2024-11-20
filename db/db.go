@@ -23,9 +23,13 @@ func InitDatabase() {
 }
 
 func migrate() {
+	DB.AutoMigrate(&models.Users{})
 	DB.AutoMigrate(&models.QRCode{})
 	DB.AutoMigrate(&models.MenuItem{})
+	DB.AutoMigrate(&models.MenuItemStats{})
 	DB.AutoMigrate(&models.Category{})
 	DB.AutoMigrate(&models.Table{})
-
+	DB.AutoMigrate(&models.DailySales{})
+	DB.AutoMigrate(&models.Order{})
+	DB.AutoMigrate(&models.OrderItem{})
 }

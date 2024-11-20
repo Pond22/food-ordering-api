@@ -26,7 +26,8 @@ func SetupRoutes(app *fiber.App) {
 
 	app.Get("/order", qr_service.Table)
 
-	app.Post("/order", qr_service.Order)
+	app.Post("/order", api_handlers.Order_test)
+
 	//-----
 
 	app.Get("/ping", pingHandler)
@@ -64,7 +65,7 @@ func helloHandler(c *fiber.Ctx) error {
 // @Produce json
 // @Router /migrate [post]
 func migrate() error {
-	if err := db.DB.AutoMigrate(&models.MenuItem{}); err != nil {
+	if err := db.DB.AutoMigrate(&models.Users{}); err != nil {
 		return err
 	}
 	return nil

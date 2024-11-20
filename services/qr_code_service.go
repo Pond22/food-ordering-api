@@ -155,27 +155,3 @@ func Table(c *fiber.Ctx) error {
 		"uuid":    uuid,
 	})
 }
-
-// @Summary สั่งอาหาร
-// @Description สั่งอาหารของโต๊ะ
-// @Produce json
-// @Param action query string true "เลขโต๊ะ"
-// @Success 200 {object} models.MenuItem "รายละเอียดของเมนูที่ค้นพบจากการค้นหา"
-// @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจาก action ที่ไม่ถูกต้อง"
-// @Router /order [post]
-func Order(c *fiber.Ctx) error {
-	var order struct {
-		TableID string   `json:"tableID"`
-		Items   []string `json:"items"` // รายการอาหาร
-	}
-	if err := c.BodyParser(&order); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
-	}
-
-	// บันทึกคำสั่งซื้อในฐานข้อมูล
-	fmt.Printf("Order received: %+v\n", order)
-	return c.JSON(fiber.Map{
-		"message": "Order received successfully",
-		"order":   order,
-	})
-}

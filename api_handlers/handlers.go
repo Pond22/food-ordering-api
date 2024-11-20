@@ -6,6 +6,7 @@ import (
 	"food-ordering-api/models"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -161,13 +162,14 @@ func GetMenuByID(c *fiber.Ctx) error {
 	return c.JSON(menuItem)
 }
 
-// @Summary ดึงรายการเมนูตามหมวดหมู่
-// @Description ฟังก์ชันนี้ใช้สำหรับดึงข้อมูลเมนูทั้งหมดที่อยู่ในหมวดหมู่ที่ระบุ โดยระบุ ID ของหมวดหมู่นั้น
+// @Summary เลือกการดำเนินการกับข้อมูลเมนู
+// @Description ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลเมนู โดยสามารถระบุ action ได้ 3 แบบ
 // @Produce json
-// @Param category_id query string true "ID ของหมวดหมู่"
-// @Success 200 {array} models.MenuItem "รายการเมนูที่อยู่ในหมวดหมู่ที่ระบุ"
-// @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจาก ID ของหมวดหมู่ที่ไม่ถูกต้อง"
-// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการดึงข้อมูลเมนูตามหมวดหมู่"
+// @Param action query string true "รูปแบบการค้นหาเมนู: getByID, getByCategory หรือ getAll" Enums(getByID, getByCategory, getAll)
+// @Param id query integer false "ID ของเมนู (ใช้กับ action=getByID)"
+// @Param category_id query integer false "ID ของหมวดหมู่ (ใช้กับ action=getByCategory)"
+// @Success 200 {array} models.MenuItem "รายการเมนูที่ค้นพบ"
+// @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจากการระบุพารามิเตอร์"
 // @Router /menu [get]
 func GetMenuByCategory(c *fiber.Ctx) error {
 	var menuItems []models.MenuItem
@@ -182,8 +184,7 @@ func GetMenuByCategory(c *fiber.Ctx) error {
 		})
 	}
 
-	// ค้นหา MenuItems ตาม CategoryID ที่ระบุ
-	if err := db.DB.Where("category_id = ?", categoryID).Find(&menuItems).Error; err != nil {
+	if err := db.DB.Preload("Category").Where("category_id = ?", categoryID).Find(&menuItems).Error; err != nil {
 		return c.Status(500).JSON(map[string]interface{}{
 			"error": fmt.Sprintf("Error fetching menu items: %v", err),
 		})
@@ -194,11 +195,13 @@ func GetMenuByCategory(c *fiber.Ctx) error {
 }
 
 // @Summary เลือกการดำเนินการกับข้อมูลเมนู
-// @Description ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลเมนู โดยสามารถระบุ action ได้ 3 แบบ คือ getByID, getByCategory, และ getAll เพื่อกำหนดรูปแบบการค้นหาเมนูตาม action ที่ระบุเนื่องจากใช้หลักการ Switchcase ทำให้ใน Document มีตัวอย่างเพัยงแค่การเลือก Actions
+// @Description ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลเมนู โดยสามารถระบุ action ได้ 3 แบบ
 // @Produce json
-// @Param action query string true "รูปแบบการค้นหาเมนู: getByID, getByCategory หรือ getAll"
-// @Success 200 {object} models.MenuItem "รายละเอียดของเมนูที่ค้นพบจากการค้นหา"
-// @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจาก action ที่ไม่ถูกต้อง"
+// @Param action query string true "รูปแบบการค้นหาเมนู: getByID, getByCategory หรือ getAll" Enums(getByID, getByCategory, getAll)
+// @Param id query integer false "ID ของเมนู (ใช้กับ action=getByID)"
+// @Param category_id query integer false "ID ของหมวดหมู่ (ใช้กับ action=getByCategory)"
+// @Success 200 {array} models.MenuItem "รายการเมนูที่ค้นพบ"
+// @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจากการระบุพารามิเตอร์"
 // @Router /menu [get]
 func GetMenu(c *fiber.Ctx) error {
 	action := c.Query("action") // รับ action จาก query parameter
@@ -219,4 +222,154 @@ func GetMenu(c *fiber.Ctx) error {
 			"error": "Invalid action",
 		})
 	}
+}
+
+// ---------------------------------------------------------------------
+type OrderRequest struct {
+	TableID uint               `json:"table_id"`
+	Items   []OrderItemRequest `json:"items"`
+	UUID    string             `json:"uuid"`
+}
+
+type OrderItemRequest struct {
+	MenuItemID uint   `json:"menu_item_id"`
+	Quantity   int    `json:"quantity"`
+	Notes      string `json:"notes"`
+}
+
+// @Summary สั่งอาหาร......
+// @Description สั่งอาหารสำหรับโต๊ะที่ระบุ
+// @Accept json
+// @Produce json
+// @Param order body OrderRequest true "ข้อมูลการสั่งอาหาร"
+// @Success 200 {object} models.Order "รายละเอียดออเดอร์ที่สร้าง"
+// @Failure 400 {object} map[string]interface{} "ข้อมูลไม่ถูกต้อง"
+// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการประมวลผล"
+// @Router /order [post]
+func Order_test(c *fiber.Ctx) error {
+
+	var orderReq OrderRequest
+	if err := c.BodyParser(&orderReq); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request format",
+		})
+	}
+
+	// ตรวจสอบ UUID
+	if orderReq.UUID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "UUID is required",
+		})
+	}
+	fmt.Printf(orderReq.UUID)
+	// ตรวจสอบว่าโต๊ะมีอยู่จริง
+	// var table models.Table
+	// if err := db.DB.First(&table, orderReq.TableID).Error; err != nil {
+	// 	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+	// 		"error": "Table not found",
+	// 	})
+	// }
+
+	// ตรวจสอบว่าโต๊ะนี้มี QR code ที่ active อยู่หรือไม่
+	var qrCode models.QRCode
+	if err := db.DB.Where("table_id = ? AND uuid = ? AND is_active = true AND expiry_at > ?",
+		orderReq.TableID, orderReq.UUID, time.Now()).First(&qrCode).Error; err != nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "Invalid table access",
+		})
+	}
+
+	// ตรวจสอบความถูกต้องของ UUID กับ table
+	// if err := db.DB.Where("table_id = ? AND uuid = ? AND is_active = true AND expiry_at > ?",
+	// 	orderReq.TableID, orderReq.UUID, time.Now()).First(&qrCode).Error; err != nil {
+	// 	return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+	// 		"error": "Invalid or expired table access",
+	// 	})
+	// }
+
+	// Validate order
+	if len(orderReq.Items) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Order must contain at least one item",
+		})
+	}
+
+	// Start transaction
+	tx := db.DB.Begin()
+
+	// Create new order
+	order := models.Order{
+		TableID: orderReq.TableID,
+		Status:  "pending",
+		Total:   0, // Will calculate later
+		Items:   []models.OrderItem{},
+	}
+
+	if err := tx.Create(&order).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to create order",
+		})
+	}
+
+	// Process each order item
+	var totalAmount float64
+	for _, item := range orderReq.Items {
+		// Get menu item to get current price
+		var menuItem models.MenuItem
+		if err := tx.First(&menuItem, item.MenuItemID).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": fmt.Sprintf("Menu item %d not found", item.MenuItemID),
+			})
+		}
+
+		// Create order item
+		orderItem := models.OrderItem{
+			OrderID:    order.ID,
+			MenuItemID: item.MenuItemID,
+			Quantity:   item.Quantity,
+			Price:      float64(menuItem.Price), // ราคาในฐานข้อมูล
+			Notes:      item.Notes,
+			Status:     "pending",
+		}
+
+		if err := tx.Create(&orderItem).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to create order item",
+			})
+		}
+
+		// Calculate item total and add to order total
+		totalAmount += float64(menuItem.Price) * float64(item.Quantity)
+	}
+
+	// Update order with total amount
+	order.Total = totalAmount
+	if err := tx.Save(&order).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update order total",
+		})
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to commit transaction",
+		})
+	}
+
+	var completeOrder models.Order
+	if err := db.DB.Preload("Items.MenuItem.Category").
+		Preload("Items.Order").
+		Preload("Items").
+		First(&completeOrder, order.ID).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to load complete order",
+		})
+	}
+
+	return c.JSON(completeOrder)
 }

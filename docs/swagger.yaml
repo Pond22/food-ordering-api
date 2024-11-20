@@ -1,5 +1,25 @@
 basePath: /
 definitions:
+  api_handlers.OrderItemRequest:
+    properties:
+      menu_item_id:
+        type: integer
+      notes:
+        type: string
+      quantity:
+        type: integer
+    type: object
+  api_handlers.OrderRequest:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/api_handlers.OrderItemRequest'
+        type: array
+      table_id:
+        type: integer
+      uuid:
+        type: string
+    type: object
   models.Category:
     properties:
       id:
@@ -19,6 +39,13 @@ definitions:
       CategoryID:
         minimum: 1
         type: integer
+      Name:
+        maxLength: 100
+        minLength: 2
+        type: string
+      Price:
+        minimum: 1
+        type: integer
       description:
         maxLength: 255
         type: string
@@ -28,13 +55,10 @@ definitions:
           type: integer
         maxItems: 5242880
         type: array
-      name:
-        maxLength: 100
-        minLength: 2
-        type: string
     required:
     - CategoryID
-    - name
+    - Name
+    - Price
     type: object
   models.MenuItem:
     properties:
@@ -57,6 +81,59 @@ definitions:
           type: integer
         type: array
       name:
+        type: string
+      price:
+        type: integer
+      updatedAt:
+        type: string
+    type: object
+  models.Order:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/models.OrderItem'
+        type: array
+      status:
+        description: e.g., "pending", "cooking", "served", "completed"
+        type: string
+      tableID:
+        description: Foreign key to Table
+        type: integer
+      total:
+        type: number
+      updatedAt:
+        type: string
+    type: object
+  models.OrderItem:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      menuItem:
+        $ref: '#/definitions/models.MenuItem'
+      menuItemID:
+        description: Foreign key to MenuItem
+        type: integer
+      notes:
+        description: Special instructions
+        type: string
+      order:
+        $ref: '#/definitions/models.Order'
+      orderID:
+        description: Foreign key to Order
+        type: integer
+      price:
+        description: Price at time of order
+        type: number
+      quantity:
+        type: integer
+      status:
+        description: e.g., "pending", "cooking", "served"
         type: string
       updatedAt:
         type: string
@@ -81,7 +158,7 @@ definitions:
       uuid:
         type: string
     type: object
-host: localhost:8080
+host: 127.0.0.1:8080
 info:
   contact:
     email: support@example.com
@@ -177,24 +254,36 @@ paths:
   /menu:
     get:
       description: ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลเมนู โดยสามารถระบุ action ได้ 3
-        แบบ คือ getByID, getByCategory, และ getAll เพื่อกำหนดรูปแบบการค้นหาเมนูตาม
-        action ที่ระบุเนื่องจากใช้หลักการ Switchcase ทำให้ใน Document มีตัวอย่างเพัยงแค่การเลือก
-        Actions
+        แบบ
       parameters:
       - description: 'รูปแบบการค้นหาเมนู: getByID, getByCategory หรือ getAll'
+        enum:
+        - getByID
+        - getByCategory
+        - getAll
         in: query
         name: action
         required: true
         type: string
+      - description: ID ของเมนู (ใช้กับ action=getByID)
+        in: query
+        name: id
+        type: integer
+      - description: ID ของหมวดหมู่ (ใช้กับ action=getByCategory)
+        in: query
+        name: category_id
+        type: integer
       produces:
       - application/json
       responses:
         "200":
-          description: รายละเอียดของเมนูที่ค้นพบจากการค้นหา
+          description: รายการเมนูที่ค้นพบ
           schema:
-            $ref: '#/definitions/models.MenuItem'
+            items:
+              $ref: '#/definitions/models.MenuItem'
+            type: array
         "400":
-          description: เกิดข้อผิดพลาดจาก action ที่ไม่ถูกต้อง
+          description: เกิดข้อผิดพลาดจากการระบุพารามิเตอร์
           schema:
             additionalProperties: true
             type: object
@@ -230,26 +319,34 @@ paths:
             type: object
       summary: เข้าถึง dynamic link โต๊ะนั้นๆ
     post:
-      description: สั่งอาหารของโต๊ะ
+      consumes:
+      - application/json
+      description: สั่งอาหารสำหรับโต๊ะที่ระบุ
       parameters:
-      - description: เลขโต๊ะ
-        in: query
-        name: action
+      - description: ข้อมูลการสั่งอาหาร
+        in: body
+        name: order
         required: true
-        type: string
+        schema:
+          $ref: '#/definitions/api_handlers.OrderRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: รายละเอียดของเมนูที่ค้นพบจากการค้นหา
+          description: รายละเอียดออเดอร์ที่สร้าง
           schema:
-            $ref: '#/definitions/models.MenuItem'
+            $ref: '#/definitions/models.Order'
         "400":
-          description: เกิดข้อผิดพลาดจาก action ที่ไม่ถูกต้อง
+          description: ข้อมูลไม่ถูกต้อง
           schema:
             additionalProperties: true
             type: object
-      summary: สั่งอาหาร
+        "500":
+          description: เกิดข้อผิดพลาดในการประมวลผล
+          schema:
+            additionalProperties: true
+            type: object
+      summary: สั่งอาหาร......
   /qr_code/{table}:
     get:
       description: เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ
@@ -273,4 +370,6 @@ paths:
             additionalProperties: true
             type: object
       summary: เข้าถึง dynamic link โต๊ะนั้นๆ
+schemes:
+- http
 swagger: "2.0"
