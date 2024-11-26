@@ -1,0 +1,15 @@
+.menuList {
+    padding: 10px;
+  }
+  
+  .menuGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+  }
+  @media (min-width: 100px) and (max-width: 790px){
+    .menuGrid{
+      /* display:inline; */
+      gap: 0px;
+    }
+  }

@@ -1,0 +1,35 @@
+/* .container {
+  display: flex;
+  gap: 16px;
+}
+
+.tableGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  flex: 3;
+}
+
+.table {
+  background: #ccc;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.table.open {
+  background: #a0f0a0;
+  transform: scale(1.05);
+}
+
+.table:hover {
+  transform: scale(1.1);
+} */
+.custom-button{
+  background-color: black;
+}
+.bt-save:hover{
+  background-color: gray;
+}

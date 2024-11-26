@@ -1,0 +1,25 @@
+.header {
+    /* display: flex; */
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #ff5733;
+    color: white;
+  }
+  
+  .logo {
+    font-size: 24px;
+    font-weight: bold;
+    padding-bottom: 10px;
+  }
+  
+  .nav a {
+    margin-top: 10px;
+    margin-left: 20px;
+    color: black;
+    background-color: whitesmoke;
+    padding: 3px;
+    border-radius: 15%;
+    text-decoration: none;
+  }
+  
