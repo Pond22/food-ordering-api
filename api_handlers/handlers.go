@@ -202,7 +202,7 @@ func GetMenuByCategory(c *fiber.Ctx) error {
 // @Param category_id query integer false "ID ของหมวดหมู่ (ใช้กับ action=getByCategory)"
 // @Success 200 {array} models.MenuItem "รายการเมนูที่ค้นพบ"
 // @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจากการระบุพารามิเตอร์"
-// @Router /menu [get]
+// @Router /getmenu [get]
 func GetMenu(c *fiber.Ctx) error {
 	action := c.Query("action") // รับ action จาก query parameter
 

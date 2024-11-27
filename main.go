@@ -6,6 +6,7 @@ import (
 	"food-ordering-api/routes"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/swagger"
 )
 
@@ -21,7 +22,7 @@ import (
 // @license.name MIT
 // @license.url https://opensource.org/licenses/MIT
 
-// @host 127.0.0.1:8080
+// @host http://localhost/8080
 // @BasePath /
 // @schemes http
 
@@ -30,6 +31,13 @@ func main() {
 	db.InitDatabase()
 
 	app := fiber.New()
+
+	app.Use(cors.New(cors.Config{
+		// AllowOrigins: "http://localhost:5173, http://127.0.0.1:8080",      // ระบุ React app ที่จะอนุญาต
+		AllowOrigins: "*",
+		AllowMethods: "GET,POST,HEAD,PUT,DELETE",   // อนุญาตวิธีการ HTTP
+		AllowHeaders: "Content-Type,Authorization", // อนุญาต headers
+	}))
 
 	app.Get("/swagger/*", swagger.HandlerDefault)
 

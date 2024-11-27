@@ -13,8 +13,9 @@ const MenuManagement = () => {
 
   const fetchMenus = async () => {
     try {
-      const response = await axios.get("http://127.0.0.1:8080/getMenus");
+      const response = await axios.get("http://127.0.0.1:8080/getmenu?action=getAll");
       if (response.status === 200) {
+        console.log(response.data)
         setMenus(response.data);
       }
     } catch (error) {
@@ -58,10 +59,10 @@ const MenuManagement = () => {
           <tbody>
             {menus.map((menu) => (
               <tr key={menu.id} className="border-t">
-                <td className="py-2 px-4">{menu.name}</td>
-                <td className="py-2 px-4">{menu.categoryName}</td>
-                <td className="py-2 px-4">{menu.price}</td>
-                <td className="py-2 px-4">{menu.description}</td>
+                <td className="py-2 px-4">{menu.Name}</td>
+                <td className="py-2 px-4">{menu.CategoryID}</td>
+                <td className="py-2 px-4">{menu.Price}</td>
+                <td className="py-2 px-4">{menu.Description}</td>
               </tr>
             ))}
           </tbody>
@@ -94,6 +95,7 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
       try {
         const response = await axios.get("http://localhost:8080/getCategory");
         if (response.status === 200) {
+          console.log(response.data)
           setCategories(response.data);
         }
       } catch (error) {
@@ -159,8 +161,8 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
               เลือกหมวดหมู่
             </option>
             {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
+              <option key={cat.ID} value={cat.ID}>
+                {cat.Name}
               </option>
             ))}
           </select>
@@ -197,7 +199,8 @@ const AddCategoryModal = ({ onClose }) => {
         name: categoryName.trim(),
       });
       if (response.status === 200) {
-        alert(`เพิ่มหมวดหมู่ "${response.data.name}" สำเร็จ!`);
+        console.log(response.data)
+        alert(`เพิ่มหมวดหมู่ "${response.data.Name}" สำเร็จ!`);
         onClose(); // ปิด modal
       }
       else {
