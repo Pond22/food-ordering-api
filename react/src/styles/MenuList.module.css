@@ -1,15 +1,256 @@
+.header {
+  /* display: flex; */
+  justify-content: space-between;
+  /* align-items: center; */
+  padding: 10px;
+  background-color: #231F20;
+  color: #E6C65C;
+  /* color: #ef4040; */
+  font-family: Cursive;
+  width: 100%;
+  position:fixed;
+  top:0;
+  z-index: 10;
+}
+
+.logo {
+  font-size: 24px;
+  font-weight: bold;
+  padding-bottom: 10px;
+  /* background-image:image/images (1).jpg ; */
+  
+}
+
+
 .menuList {
-    padding: 10px;
+    padding: 2px;
+    padding-top: 20px;
+    
   }
   
   .menuGrid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
   }
+  /* .menuGrid2{
+    width: 100%;
+  } */
   @media (min-width: 100px) and (max-width: 790px){
     .menuGrid{
       /* display:inline; */
-      gap: 0px;
+      gap: 5px;
     }
   }
+/* image{
+  width: 400px;
+  height: 300px;
+} */
+h4{
+  font-size: 12px;
+  color: #ffff;
+}
+h2{
+  margin-top: 10%;
+  margin-bottom: 3%;
+}
+h1{
+  font-size: 20px;
+}
+.nav {
+  top: 0;
+  display: flex;
+  overflow-x: auto; /* ทำให้สามารถเลื่อนแนวนอนได้ */
+  white-space: nowrap; /* ไม่ให้ลิงก์เมนูขึ้นบรรทัดใหม่ */
+  opacity: 1;
+  position: relative;
+}
+
+.nav a {
+  margin-right: 10px;
+  color: black;
+  background-color: whitesmoke;
+  padding: 5px;
+  border-radius: 30px;
+  text-decoration: none;
+  transition: background-color 0.3s ease;
+  z-index: 0;
+}
+
+/* เมื่อ a ถูกคลิกหรือกำลังอยู่ในมุมมอง (active) */
+.nav a.active {
+  background-color: #E6C65C;
+  color: white;
+  
+}
+
+/* เพิ่ม transition สำหรับการเลื่อนเมนู */
+.nav {
+  transition: scroll-left 0.3s ease;
+}
+
+.promotionSection {
+  margin-top: 50px;
+  padding: 10px;
+  text-align: center;
+}
+
+.promotionBanner {
+  position: relative;
+  width: 100%;
+  height: 400px;
+  overflow: hidden;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f8f8f8;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.promotionItem {
+  position: absolute;
+  top: 0;
+  /* left: 100%; */
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  transition: transform 0.8s ease-in-out, opacity 0.8s ease-in-out;
+  opacity: 0;
+}
+
+.promotionItem.active {
+  left: 0;
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.promotionImage {
+  width: 100%;
+  max-width: 500px;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 10px;
+  margin-bottom: 15px;
+}
+
+.promotionItem h4 {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+  margin: 10px 0;
+}
+
+.promotionItem p {
+  font-size: 14px;
+  color: #555;
+  margin: 5px 0;
+}
+
+.promotionItem span {
+  font-size: 16px;
+  font-weight: bold;
+  color: #e63946;
+}
+.navigator {
+  margin-top: 15px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.navigatorDot {
+  width: 10px;
+  height: 10px;
+  background-color: #ccc;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.navigatorDot.active {
+  background-color: #e63946;
+}
+/* Arrow buttons for navigating between items */
+.arrow {
+  position: relative;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  border: none;
+  padding: 10px;
+  cursor: pointer;
+  font-size: 18px;
+  z-index: 1;
+}
+
+.arrow:hover {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.arrow:focus {
+  outline: none;
+}
+
+/* Left and right arrows positioning */
+.arrow.left {
+  left: 10px;
+}
+
+.arrow.right {
+  right: 10px;
+}
+
+.cartIcon {
+  /* position: fixed; */
+  /* bottom: 20px; */
+  /* right: 20px; */
+  /* background-color: #000; */
+  color: white;
+  /* padding: 10px; */
+  /* border-radius: 50%; */
+  cursor: pointer;
+  z-index: 10000;
+}
+
+.cartButton {
+  position: relative; /* ทำให้สามารถใช้ absolute positioning สำหรับ badge ได้ */
+  background-color: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 10px;
+}
+
+.cartDetails {
+  position: absolute;
+  top:60px;
+  right: 0;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  padding: 10px;
+  color: #000;
+  width: 200px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.cartBadge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: red;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 5px 10px;
+  border-radius: 50%;
+  width: 25px;
+  height: 25px;
+}

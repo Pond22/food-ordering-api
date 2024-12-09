@@ -33,18 +33,15 @@ const TableDetail = ({ tables, onTableAction, onClearTable }) => (
                 จัดการ
               </button>
               {table.status !== 'ว่าง' && (
-                <button 
+                <button className="px-2 py-4 rounded-md bg-white "
                   onClick={() => onClearTable(table.id)}
                   style={{
-                    padding: '8px 16px',
                     border: '1px solid #dc3545',
-                    borderRadius: '4px',
-                    backgroundColor: '#fff',
                     color: '#dc3545',
                     cursor: 'pointer'
                   }}
                 >
-                  เคลียร์โต๊ะ
+                  ดูรายละเอียด
                 </button>
               )}
             </div>
@@ -87,60 +84,5 @@ const TableDetail = ({ tables, onTableAction, onClearTable }) => (
     </div>
   </div>
 );
-
-// const TableDetail = ({ tableIndex, tableData, onClose, onUpdate }) => {
-//   const [customerCount, setCustomerCount] = useState(tableData.customers || 0);
-
-//   const handleConfirm = () => {
-//     if (tableData.status === "closed") {
-//       onUpdate({ status: "open", customers: customerCount });
-//     }
-//   };
-
-//   return (
-//     <div className={styles.detailContainer}>
-//       <div className={styles.header}>
-//         <h2>โต๊ะ {tableIndex + 1}</h2>
-//         <button className={styles.closeButton} onClick={onClose}>
-//           ✕
-//         </button>
-//       </div>
-//       {tableData.status === "closed" ? (
-//         <>
-//           <label>จำนวนลูกค้า</label>
-//           <input
-//             type="number"
-//             value={customerCount}
-//             min={0}
-//             onChange={(e) => setCustomerCount(Number(e.target.value))}
-//           />
-//           <div className={styles.numPad}>
-//             {[...Array(10).keys()].map((num) => (
-//               <button key={num} onClick={() => setCustomerCount((prev) => prev * 10 + num)}>
-//                 {num}
-//               </button>
-//             ))}
-//           </div>
-//           <button className={styles.confirmButton} onClick={handleConfirm}>
-//             ยืนยัน
-//           </button>
-//         </>
-//       ) : (
-//         <>
-//           <p>จำนวนลูกค้า: {tableData.customers}</p>
-//           <button className={styles.viewOrdersButton}>
-//             ดูรายการอาหาร
-//           </button>
-//           <button className={styles.closeTableButton} onClick={() => onUpdate({ status: "closed", customers: 0, orders: [] })}>
-//             ปิดโต๊ะ
-//           </button>
-//         </>
-//       )}
-//     </div>
-//   );
-// };
-
-
-
 
 export default TableDetail;

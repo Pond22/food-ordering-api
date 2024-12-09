@@ -3,57 +3,6 @@ import axios from "axios";
 import TableDetail from "./TableDetail";
 import styles from "../styles/TableManager.module.css";
 
-// const TableManager = () => {
-//   const [tables, setTables] = useState(
-//     Array(10).fill({ id: null, status: "closed", customers: 0, orders: [] })
-//   );
-//   const [selectedTable, setSelectedTable] = useState(null);
-
-//   const handleTableClick = (index) => {
-//     setSelectedTable(index);
-//   };
-
-//   const updateTable = async (index, data) => {
-//     const updatedTables = [...tables];
-//     updatedTables[index] = { ...updatedTables[index], ...data };
-
-//     try {
-//       await axios.post("http://your-api-endpoint/tables", {
-//         tableId: index + 1,
-//         ...data,
-//       });
-//       setTables(updatedTables);
-//       setSelectedTable(null); // ปิดหน้าต่างเมื่อยืนยัน
-//     } catch (error) {
-//       console.error("Failed to update table", error);
-//     }
-//   };
-
-//   return (
-//     <div className={styles.container}>
-//       <div className={styles.tableGrid}>
-//         {tables.map((table, index) => (
-//           <div
-//             key={index}
-//             className={`${styles.table} ${table.status === "open" ? styles.open : ""}`}
-//             onClick={() => handleTableClick(index)}
-//           >
-//             โต๊ะ {index + 1}
-//           </div>
-//         ))}
-//       </div>
-//       {selectedTable !== null && (
-//         <TableDetail
-//           tableIndex={selectedTable}
-//           tableData={tables[selectedTable]}
-//           onClose={() => setSelectedTable(null)}
-//           onUpdate={(data) => updateTable(selectedTable, data)}
-//         />
-//       )}
-//     </div>
-//   );
-// };
-
 const initialTables = [
   { id: 1, number: 1, seats: 4, status: 'ว่าง', time: null, customerName: null, customerCount: null },
   { id: 2, number: 2, seats: 2, status: 'ไม่ว่าง', time: '18:30', customerName: 'คุณสมชาย', customerCount: 2 },
@@ -135,28 +84,12 @@ const TableManager = () => {
         onClearTable={handleClearTable}
       />
       {isDialogOpen && (
-        <div
+        <div className="fixed top-0 left-0 w-full h-full flex justify-center items-center"
           style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
             backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
           }}
         >
-          <div
-            style={{
-              backgroundColor: 'white',
-              padding: '20px',
-              borderRadius: '8px',
-              width: '400px',
-              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-            }}
-          >
+          <div className="bg-white p-10 border rounded-xl w-96 shadow-md">
             <h2>จัดการโต๊ะ</h2>
             <form onSubmit={(e) => {
               e.preventDefault();
