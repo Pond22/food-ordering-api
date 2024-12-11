@@ -1,5 +1,11 @@
 basePath: /
 definitions:
+  api_handlers.DeleteCategoryOption:
+    properties:
+      force_delete:
+        description: true = ถ้าลบหมวดหมู่จะลบเมนูต่างๆ ที่เชื่อมอยู่ด้วย
+        type: boolean
+    type: object
   api_handlers.OrderItemRequest:
     properties:
       menu_item_id:
@@ -26,6 +32,10 @@ definitions:
         type: integer
       name:
         type: string
+      nameCh:
+        type: string
+      nameEn:
+        type: string
     type: object
   models.CreateCategoryRequest:
     properties:
@@ -36,29 +46,12 @@ definitions:
     type: object
   models.CreateMenuRequest:
     properties:
-      CategoryID:
-        minimum: 1
-        type: integer
-      Name:
-        maxLength: 100
-        minLength: 2
-        type: string
-      Price:
-        minimum: 1
-        type: integer
-      description:
-        maxLength: 255
-        type: string
-      image:
-        description: max 5MB
+      menu_item:
+        $ref: '#/definitions/models.MenuItemRequest'
+      option_groups:
         items:
-          type: integer
-        maxItems: 5242880
+          $ref: '#/definitions/models.OptionGroupRequest'
         type: array
-    required:
-    - CategoryID
-    - Name
-    - Price
     type: object
   models.MenuItem:
     properties:
@@ -73,6 +66,10 @@ definitions:
         type: string
       description:
         type: string
+      descriptionCh:
+        type: string
+      descriptionEn:
+        type: string
       id:
         type: integer
       image:
@@ -82,10 +79,129 @@ definitions:
         type: array
       name:
         type: string
+      nameCh:
+        type: string
+      nameEn:
+        type: string
+      optionGroups:
+        items:
+          $ref: '#/definitions/models.OptionGroup'
+        type: array
       price:
         type: integer
       updatedAt:
         type: string
+    type: object
+  models.MenuItemRequest:
+    properties:
+      category_id:
+        type: integer
+      description:
+        type: string
+      description_ch:
+        type: string
+      description_en:
+        type: string
+      image:
+        items:
+          type: integer
+        type: array
+      name:
+        type: string
+      name_ch:
+        type: string
+      name_en:
+        type: string
+      price:
+        type: integer
+    required:
+    - category_id
+    - name
+    - name_ch
+    - name_en
+    - price
+    type: object
+  models.MenuOption:
+    properties:
+      createdAt:
+        type: string
+      groupID:
+        type: integer
+      id:
+        type: integer
+      name:
+        type: string
+      nameCh:
+        type: string
+      nameEn:
+        type: string
+      price:
+        type: number
+      updatedAt:
+        type: string
+    type: object
+  models.OptionGroup:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      isRequired:
+        type: boolean
+      maxSelections:
+        description: จำนวนที่เลือกได้
+        type: integer
+      menuItemID:
+        type: integer
+      name:
+        description: เช่น "น้ำซุป", "ความเผ็ด"
+        type: string
+      nameCh:
+        type: string
+      nameEn:
+        type: string
+      options:
+        items:
+          $ref: '#/definitions/models.MenuOption'
+        type: array
+      updatedAt:
+        type: string
+    type: object
+  models.OptionGroupRequest:
+    properties:
+      MaxSelections:
+        type: integer
+      is_required:
+        type: boolean
+      name:
+        type: string
+      name_ch:
+        type: string
+      name_en:
+        type: string
+      options:
+        items:
+          $ref: '#/definitions/models.OptionRequest'
+        type: array
+    required:
+    - name
+    - name_ch
+    - name_en
+    type: object
+  models.OptionRequest:
+    properties:
+      name:
+        type: string
+      name_ch:
+        type: string
+      name_en:
+        type: string
+      price:
+        type: number
+    required:
+    - name
+    - name_ch
+    - name_en
     type: object
   models.Order:
     properties:
@@ -100,12 +216,11 @@ definitions:
       status:
         description: e.g., "pending", "cooking", "served", "completed"
         type: string
-      tableID:
-        description: Foreign key to Table
-        type: integer
       total:
         type: number
       updatedAt:
+        type: string
+      uuid:
         type: string
     type: object
   models.OrderItem:
@@ -117,25 +232,50 @@ definitions:
       menuItem:
         $ref: '#/definitions/models.MenuItem'
       menuItemID:
-        description: Foreign key to MenuItem
         type: integer
       notes:
-        description: Special instructions
         type: string
+      options:
+        description: เพิ่ม relation กับ options
+        items:
+          $ref: '#/definitions/models.OrderItemOption'
+        type: array
       order:
         $ref: '#/definitions/models.Order'
       orderID:
-        description: Foreign key to Order
         type: integer
       price:
-        description: Price at time of order
         type: number
       quantity:
         type: integer
       status:
-        description: e.g., "pending", "cooking", "served"
         type: string
       updatedAt:
+        type: string
+    type: object
+  models.OrderItemOption:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      menuOption:
+        $ref: '#/definitions/models.MenuOption'
+      menuOptionID:
+        description: Foreign key to MenuOption
+        type: integer
+      orderItem:
+        $ref: '#/definitions/models.OrderItem'
+      orderItemID:
+        description: Foreign key to OrderItem
+        type: integer
+      price:
+        description: ราคา ณ เวลาที่สั่ง
+        type: number
+      updatedAt:
+        type: string
+      value:
+        description: ค่าที่เลือก เช่น "เผ็ดมาก", "เพิ่มไข่ดาว"
         type: string
     type: object
   models.QRCode:
@@ -146,7 +286,7 @@ definitions:
         type: string
       id:
         type: integer
-      is_active:
+      isActive:
         type: boolean
       qr_Image:
         items:
@@ -158,7 +298,7 @@ definitions:
       uuid:
         type: string
     type: object
-host: 127.0.0.1:8080
+host: localhost:8080
 info:
   contact:
     email: support@example.com
@@ -202,14 +342,57 @@ paths:
             additionalProperties: true
             type: object
       summary: สร้างหมวดหมู่ใหม่
+      tags:
+      - categories
+  /add_group_option:
+    post:
+      consumes:
+      - application/json
+      description: สร้าง (group options) ของเมนูนั้นๆ
+      parameters:
+      - description: ID ของเมนูที่ต้องการเพิ่ม group option
+        in: query
+        name: menu_id
+        required: true
+        type: integer
+      - description: ข้อมูลเมนูและ group options
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.OptionGroupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของเมนูและ group options ที่สร้างเสร็จแล้ว
+          schema:
+            $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: ชื่อเมนูซ้ำกับที่มีอยู่แล้ว
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการสร้างเมนูหรือ options
+          schema:
+            additionalProperties: true
+            type: object
+      summary: เพิ่ม group options แยกถ้าสร้างเมนูไปแล้ว
+      tags:
+      - menu
   /add_menu:
     post:
       consumes:
       - application/json
-      description: ฟังก์ชันนี้ใช้สำหรับสร้างเมนูใหม่ โดยต้องระบุข้อมูลที่จำเป็นในการสร้าง
-        เช่น ชื่อเมนูและ ID ของหมวดหมู่ที่เกี่ยวข้อง
+      description: สร้างเมนูอาหารใหม่พร้อมกับตัวเลือกเพิ่มเติม (options) ของเมนูนั้นๆ
       parameters:
-      - description: ข้อมูลเมนูใหม่
+      - description: ข้อมูลเมนูและ options
         in: body
         name: request
         required: true
@@ -219,20 +402,118 @@ paths:
       - application/json
       responses:
         "200":
-          description: รายละเอียดของเมนูที่สร้างเสร็จแล้ว
+          description: รายละเอียดของเมนูและ options ที่สร้างเสร็จแล้ว
           schema:
             $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: ชื่อเมนูซ้ำกับที่มีอยู่แล้ว
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการสร้างเมนูหรือ options
+          schema:
+            additionalProperties: true
+            type: object
+      summary: สร้างเมนูใหม่พร้อม options
+      tags:
+      - menu
+  /add_more_option:
+    post:
+      consumes:
+      - application/json
+      description: สร้าง (options) ของเมนูนั้นๆ
+      parameters:
+      - description: ID ของกลุ่มตัวเลือกที่ต้องการเพิ่ม option
+        in: query
+        name: OptionGroupID
+        required: true
+        type: integer
+      - description: ข้อมูลเมนูและ options
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.OptionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของเมนูและ options ที่สร้างเสร็จแล้ว
+          schema:
+            $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: ชื่อเมนูซ้ำกับที่มีอยู่แล้ว
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการสร้างเมนูหรือ options
+          schema:
+            additionalProperties: true
+            type: object
+      summary: เพิ่ม options แยกจากกลุ่มที่มีอยู่
+      tags:
+      - menu
+  /delete_categories/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: ฟังก์ชันนี้ใช้สำหรับลบหมวดหมู่ถ้าต้องการลบทั้งหมดรวมถึงอาหารในหมวดหมู่ให้ใช้
+        true ลบแค่หมวดหมู่ false แต่ต้องระวังถ้าระบุ false แล้วมีเมนูในหมวดหมู่จะ
+        error
+      parameters:
+      - description: ID ของหมวดหมู่
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ture ถ้ามีเมนูอยู่ในหมวดหมู่จะลบเมนูไปด้วย
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.DeleteCategoryOption'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ลบหมวดหมู่สำเร็จ
+          schema:
+            $ref: '#/definitions/models.Category'
         "400":
           description: เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง
           schema:
             additionalProperties: true
             type: object
-        "500":
-          description: เกิดข้อผิดพลาดในการสร้างเมนูใหม่
+        "404":
+          description: ไม่พบหมวดหมู่ที่ต้องการแก้ไข
           schema:
             additionalProperties: true
             type: object
-      summary: สร้างเมนูใหม่
+        "409":
+          description: ชื่อหมวดหมู่ซ้ำกับที่มีอยู่แล้ว
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการอัพเดตหมวดหมู่
+          schema:
+            additionalProperties: true
+            type: object
+      summary: ลบหมวดหมู่
+      tags:
+      - categories
   /getCategory:
     get:
       description: ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลหมวดหมู่ทั้งหมดที่มีอยู่ในระบบ
@@ -251,6 +532,47 @@ paths:
             additionalProperties: true
             type: object
       summary: เรียกรายการหมวดหมู่ทั้งหมด
+      tags:
+      - categories
+  /getmenu:
+    get:
+      description: ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลเมนู โดยสามารถระบุ action ได้ 3
+        แบบ
+      parameters:
+      - description: 'รูปแบบการค้นหาเมนู: getByID, getByCategory หรือ getAll'
+        enum:
+        - getByID
+        - getByCategory
+        - getAll
+        in: query
+        name: action
+        required: true
+        type: string
+      - description: ID ของเมนู (ใช้กับ action=getByID)
+        in: query
+        name: id
+        type: integer
+      - description: ID ของหมวดหมู่ (ใช้กับ action=getByCategory)
+        in: query
+        name: category_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายการเมนูที่ค้นพบ
+          schema:
+            items:
+              $ref: '#/definitions/models.MenuItem'
+            type: array
+        "400":
+          description: เกิดข้อผิดพลาดจากการระบุพารามิเตอร์
+          schema:
+            additionalProperties: true
+            type: object
+      summary: เลือกการดำเนินการกับข้อมูลเมนู
+      tags:
+      - menu
   /menu:
     get:
       description: ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลเมนู โดยสามารถระบุ action ได้ 3
@@ -288,6 +610,8 @@ paths:
             additionalProperties: true
             type: object
       summary: เลือกการดำเนินการกับข้อมูลเมนู
+      tags:
+      - menu
   /migrate:
     post:
       description: api เส้นนี้ใช้เพื่อ migrate ฐานข้อมูลของ orm
@@ -318,6 +642,8 @@ paths:
             additionalProperties: true
             type: object
       summary: เข้าถึง dynamic link โต๊ะนั้นๆ
+      tags:
+      - tables
     post:
       consumes:
       - application/json
@@ -347,6 +673,8 @@ paths:
             additionalProperties: true
             type: object
       summary: สั่งอาหาร......
+      tags:
+      - orders
   /qr_code/{table}:
     get:
       description: เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ
@@ -370,6 +698,104 @@ paths:
             additionalProperties: true
             type: object
       summary: เข้าถึง dynamic link โต๊ะนั้นๆ
+      tags:
+      - tables
+  /softDelete_Menu/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: ฟังก์ชันนี้ใช้สำหรับลบเมนูโดยจะเป็นการ soft delete งิงิ
+      parameters:
+      - description: ID ของอาหารนั้นๆ
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ลบเมนูสำเร็จ
+        "400":
+          description: เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+      summary: ลบเมนู/รายการอาหาร
+      tags:
+      - menu
+  /softDelete_Option/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: ฟังก์ชันนี้ใช้สำหรับลบตัวเลือกโดยจะเป็นการ soft delete
+      parameters:
+      - description: ID ของตัวเลือกนั้นๆ
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ลบตัตัวเลือกสำเร็จ
+        "400":
+          description: เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+      summary: ลบตัวเลือกอาหาร
+      tags:
+      - menu
+  /update_categories/{id}:
+    put:
+      consumes:
+      - application/json
+      description: ฟังก์ชันนี้ใช้สำหรับแก้ไขชื่อของหมวดหมู่ที่มีอยู่แล้ว โดยระบุ ID
+        และชื่อใหม่
+      parameters:
+      - description: ID ของหมวดหมู่
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ข้อมูลหมวดหมู่ที่ต้องการอัพเดต
+        in: body
+        name: category
+        required: true
+        schema:
+          $ref: '#/definitions/models.Category'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของหมวดหมู่ที่อัพเดตแล้ว
+          schema:
+            $ref: '#/definitions/models.Category'
+        "400":
+          description: เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: ไม่พบหมวดหมู่ที่ต้องการแก้ไข
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: ชื่อหมวดหมู่ซ้ำกับที่มีอยู่แล้ว
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการอัพเดตหมวดหมู่
+          schema:
+            additionalProperties: true
+            type: object
+      summary: อัพเดตชื่อหมวดหมู่
+      tags:
+      - categories
 schemes:
 - http
 swagger: "2.0"

@@ -53,6 +53,7 @@ func SaveQRCode(qrCode models.QRCode) error {
 // @Success 200 {object} models.QRCode "รายละเอียดของตาราง qr_code"
 // @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจาก action ที่ไม่ถูกต้อง"
 // @Router /qr_code/{table} [get]
+// @Tags tables
 func HandleQRCodeRequest(c *fiber.Ctx) error {
 	// สร้าง tableID ใหม่ด้วย UUID
 	UUID := uuid.New().String()
@@ -135,6 +136,7 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 // @Success 200 {object} models.MenuItem "รายละเอียดของเมนูที่ค้นพบจากการค้นหา"
 // @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจาก action ที่ไม่ถูกต้อง"
 // @Router /order [get]
+// @Tags tables
 func Table(c *fiber.Ctx) error {
 	tableID := c.Query("table") // ดึง Table ID จาก query string
 	uuid := c.Query("uuid")
@@ -155,3 +157,4 @@ func Table(c *fiber.Ctx) error {
 		"uuid":    uuid,
 	})
 }
+	
