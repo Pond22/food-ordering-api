@@ -7,11 +7,13 @@
   color: #E6C65C;
   /* color: #ef4040; */
   font-family: Cursive;
+min-width: fit-content;
   width: 100%;
   position:fixed;
   top:0;
   z-index: 10;
 }
+
 
 .logo {
   font-size: 24px;
@@ -30,15 +32,16 @@
   
   .menuGrid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
   }
   /* .menuGrid2{
     width: 100%;
   } */
-  @media (min-width: 100px) and (max-width: 790px){
+  @media (min-width: 100px) and (max-width: 1000px){
     .menuGrid{
       /* display:inline; */
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 5px;
     }
   }
@@ -51,7 +54,7 @@ h4{
   color: #ffff;
 }
 h2{
-  margin-top: 10%;
+  
   margin-bottom: 3%;
 }
 h1{

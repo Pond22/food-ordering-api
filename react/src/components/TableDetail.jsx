@@ -1,79 +1,80 @@
 import React, { useState } from "react";
 import styles from "../styles/TableDetail.module.css";
 
-const TableDetail = ({ tables, onTableAction, onClearTable }) => (
-  <div style={{ padding: '16px' }}>
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+const TableDetail = ({ tables, onTableAction, onClearTable, onTableCombine }) => (
+  <div className="p-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {tables.map((table) => (
-        <div 
-          key={table.id} 
-          style={{
-            backgroundColor: table.status === 'ว่าง' ? '#e6ffe6' : 
-                             table.status === 'จอง' ? '#fff8cc' : '#ffe6e6',
-            border: '1px solid #ccc',
-            borderRadius: '8px',
-            padding: '16px',
-            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-          }}
+        <div
+          key={table.id}
+          className={`
+            ${table.status === 'ว่าง' ? 'bg-green-100' :
+              table.status === 'จอง' ? 'bg-yellow-100' : 
+               table.status === 'ไม่ว่าง' ? 'bg-red-100' :'bg-blue-100'}
+            border border-gray-300 rounded-lg p-4 shadow-md
+          `}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <h3 style={{ margin: 0 }}>โต๊ะ {table.number}</h3>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button 
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="m-0">โต๊ะ {table.number}</h3>
+            <div className="flex gap-2">
+              {/* ปุ่มรวมโต๊ะ */}
+              <button
+                onClick={() => onTableCombine(table)}
+                className="px-2 py-2 border border-green-500 rounded bg-white text-green-500 hover:bg-green-100"
+              >
+                รวมโต๊ะ
+              </button>
+              {/* สิ้นสุดปุ่มรวมโต๊ะ */}
+
+              {/* ปุ่มจัดการโต๊ะ */}
+              <button
                 onClick={() => onTableAction(table)}
-                style={{
-                  padding: '8px 16px',
-                  border: '1px solid #007bff',
-                  borderRadius: '4px',
-                  backgroundColor: '#fff',
-                  color: '#007bff',
-                  cursor: 'pointer'
-                }}
+                className="px-2 py-2 border border-blue-500 rounded bg-white text-blue-500 hover:bg-blue-100"
               >
                 จัดการ
               </button>
+              {/* สิ้นสุดปุ่มจัดการโต๊ะ */}
+
+              {/* ปุ่มเคลียร์โต๊ะ */}
               {table.status !== 'ว่าง' && (
-                <button className="px-2 py-4 rounded-md bg-white "
+                <button
                   onClick={() => onClearTable(table.id)}
-                  style={{
-                    border: '1px solid #dc3545',
-                    color: '#dc3545',
-                    cursor: 'pointer'
-                  }}
+                  className="px-2 py-2 border border-red-500 rounded bg-white text-red-500 hover:bg-red-100"
                 >
                   ดูรายละเอียด
                 </button>
               )}
+              {/* สิ้นสุดปุ่มเคลียร์โต๊ะ */}
             </div>
           </div>
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div className="flex justify-between mb-2">
               <span>สถานะ:</span>
-              <span style={{ 
-                color: table.status === 'ว่าง' ? '#28a745' : 
-                       table.status === 'จอง' ? '#ffc107' : '#dc3545' 
-              }}>
+              <span className={`
+                ${table.status === 'ว่าง' ? 'text-green-500' :
+                  table.status === 'จอง' ? 'text-yellow-500' : 'text-red-500'}
+              `}>
                 {table.status}
               </span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div className="flex justify-between mb-2">
               <span>ที่นั่ง:</span>
               <span>{table.seats} ที่นั่ง</span>
             </div>
             {table.customerName && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div className="flex justify-between mb-2">
                 <span>ลูกค้า:</span>
                 <span>{table.customerName}</span>
               </div>
             )}
             {table.customerCount && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div className="flex justify-between mb-2">
                 <span>จำนวน:</span>
                 <span>{table.customerCount} คน</span>
               </div>
             )}
             {table.time && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div className="flex justify-between mb-2">
                 <span>เวลา:</span>
                 <span>{table.time}</span>
               </div>
@@ -86,3 +87,4 @@ const TableDetail = ({ tables, onTableAction, onClearTable }) => (
 );
 
 export default TableDetail;
+

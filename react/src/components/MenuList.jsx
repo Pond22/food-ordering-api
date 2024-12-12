@@ -127,8 +127,8 @@ const MenuList = () => {
   return (
     <div>
       <header className={styles.header}>
-        <div className='flex justify-between'>
-          <div className='flex justify-center items-center'>
+        <div className='flex justify-between '>
+          <div className='flex justify-center items-center '>
         <h1>โต๊ะที่{}</h1></div>
         <div className={styles.cartIcon}>
           <button className={styles.cartButton} onClick={handleCartToggle}>
@@ -152,6 +152,8 @@ const MenuList = () => {
         </div>
 
         <nav className={styles.nav} ref={navRef}>
+          {/* ทำจริงใช้ลูป วน a  */}
+
           {/* ลิงก์เมนูที่กรองจากประเภทของเมนู */}
           <a
             href="#Promotion"
@@ -227,6 +229,7 @@ const MenuList = () => {
       </div>
 
 {/* แสดงเมนูตามประเภทที่เลือก */}
+{/* ลูป */}
       <div id="NewMenu" className={styles.menuList}>
         <h2>เมนูใหม่</h2>
         <div className={styles.menuGrid}>
@@ -241,7 +244,8 @@ const MenuList = () => {
           ))}
         </div>
       </div>
-
+          {/* ลูป */}
+          
       <div id="Aracart" className={styles.menuList}>
         <h2>อาหารจานเดียว</h2>
         <div className={styles.menuGrid}>

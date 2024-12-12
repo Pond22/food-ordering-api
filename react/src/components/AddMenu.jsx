@@ -25,7 +25,7 @@ const MenuManagement = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className=" bg-white max-h-full h-full">
       {/* Header */}
       <div className="flex justify-between items-center bg-white shadow p-4">
         <h1 className="text-xl font-bold text-gray-800">จัดการเมนูอาหาร</h1>
@@ -47,22 +47,24 @@ const MenuManagement = () => {
 
       {/* ตารางแสดงรายการเมนู */}
       <div className="p-4">
-        <table className="w-full bg-white rounded-lg shadow">
+        <table className="w-full bg-white rounded-lg shadow-lg">
           <thead>
             <tr className="bg-gray-200 text-left">
-              <th className="py-2 px-4">ชื่อเมนู</th>
-              <th className="py-2 px-4">หมวดหมู่</th>
-              <th className="py-2 px-4">ราคา</th>
-              <th className="py-2 px-4">คำอธิบาย</th>
+              <th className="p-4">รหัสสินค้า</th>
+              <th className="p-4">รูปสินค้า</th>
+              <th className="p-4">หมวดหมู่</th>
+              <th className="p-4">ราคา</th>
+              <th className="p-4">คำอธิบาย</th>
             </tr>
           </thead>
           <tbody>
             {menus.map((menu) => (
               <tr key={menu.id} className="border-t">
-                <td className="py-2 px-4">{menu.Name}</td>
-                <td className="py-2 px-4">{menu.CategoryID}</td>
-                <td className="py-2 px-4">{menu.Price}</td>
-                <td className="py-2 px-4">{menu.Description}</td>
+                <td className="p-4">{menu.Name}</td>
+                <td className="p-4">{menu.image}</td>
+                <td className="p-4">{menu.CategoryID}</td>
+                <td className="p-4">{menu.Price}</td>
+                <td className="p-4">{menu.Description}</td>
               </tr>
             ))}
           </tbody>
@@ -79,6 +81,7 @@ const MenuManagement = () => {
         <AddCategoryModal onClose={() => setShowAddCategoryModal(false)} />
       )}
     </div>
+    
   );
 };
 
@@ -88,7 +91,7 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
   const [categories, setCategories] = useState([]);
-  const [image, setImage] = useState(null);
+  const [image, setImage] = useState([]);
 
   useEffect(() => {
     const fetchCategories = async () => {
