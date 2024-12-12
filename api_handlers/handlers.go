@@ -15,11 +15,14 @@ import (
 // @Description ฟังก์ชันนี้ใช้สำหรับสร้างหมวดหมู่ใหม่ โดยต้องระบุข้อมูลชื่อหมวดหมู่
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param category body models.CreateCategoryRequest true "ข้อมูลหมวดหมู่ใหม่"
 // @Success 200 {object} models.Category "รายละเอียดของหมวดหมู่ที่สร้างเสร็จแล้ว"
 // @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง"
+// @Failure 401 {object} map[string]interface{} "ไม่ได้รับอนุญาต (Unauthorized)"
+// @Failure 403 {object} map[string]interface{} "ไม่มีสิทธิ์เข้าถึง (Forbidden)"
 // @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการสร้างหมวดหมู่ใหม่"
-// @Router /add_category [post]
+// @Router /api/categories [post]
 // @Tags categories
 func CreateCategoryHandler(c *fiber.Ctx) error {
 	var category models.Category
@@ -59,14 +62,17 @@ type DeleteCategoryOption struct {
 // @Description ฟังก์ชันนี้ใช้สำหรับลบหมวดหมู่ถ้าต้องการลบทั้งหมดรวมถึงอาหารในหมวดหมู่ให้ใช้ true ลบแค่หมวดหมู่ false แต่ต้องระวังถ้าระบุ false แล้วมีเมนูในหมวดหมู่จะ error
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param id path integer true "ID ของหมวดหมู่"
 // @Param order body DeleteCategoryOption true "ture ถ้ามีเมนูอยู่ในหมวดหมู่จะลบเมนูไปด้วย"
 // @Success 200 {object} models.Category "ลบหมวดหมู่สำเร็จ"
 // @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง"
+// @Failure 401 {object} map[string]interface{} "ไม่ได้รับอนุญาต (Unauthorized)"
+// @Failure 403 {object} map[string]interface{} "ไม่มีสิทธิ์เข้าถึง (Forbidden)"
 // @Failure 404 {object} map[string]interface{} "ไม่พบหมวดหมู่ที่ต้องการแก้ไข"
 // @Failure 409 {object} map[string]interface{} "ชื่อหมวดหมู่ซ้ำกับที่มีอยู่แล้ว"
 // @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการอัพเดตหมวดหมู่"
-// @Router /delete_categories/{id} [delete]
+// @Router /api/categories/{id} [delete]
 // @Tags categories
 func Delete_categoryHandler(c *fiber.Ctx) error { //เหลือทำให้ลบเมนูไม่กระทบออเดอร์
 	id := c.Params("id")
@@ -111,14 +117,17 @@ func Delete_categoryHandler(c *fiber.Ctx) error { //เหลือทำให�
 // @Description ฟังก์ชันนี้ใช้สำหรับแก้ไขชื่อของหมวดหมู่ที่มีอยู่แล้ว โดยระบุ ID และชื่อใหม่
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param id path integer true "ID ของหมวดหมู่"
 // @Param category body models.Category true "ข้อมูลหมวดหมู่ที่ต้องการอัพเดต"
 // @Success 200 {object} models.Category "รายละเอียดของหมวดหมู่ที่อัพเดตแล้ว"
 // @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง"
 // @Failure 404 {object} map[string]interface{} "ไม่พบหมวดหมู่ที่ต้องการแก้ไข"
+// @Failure 401 {object} map[string]interface{} "ไม่ได้รับอนุญาต (Unauthorized)"
+// @Failure 403 {object} map[string]interface{} "ไม่มีสิทธิ์เข้าถึง (Forbidden)"
 // @Failure 409 {object} map[string]interface{} "ชื่อหมวดหมู่ซ้ำกับที่มีอยู่แล้ว"
 // @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการอัพเดตหมวดหมู่"
-// @Router /update_categories/{id} [put]
+// @Router /api/categories/{id} [put]
 // @Tags categories
 func UpdateCategoryHandler(c *fiber.Ctx) error {
 	// รับ ID จาก parameter
@@ -176,9 +185,12 @@ func UpdateCategoryHandler(c *fiber.Ctx) error {
 // @Summary เรียกรายการหมวดหมู่ทั้งหมด
 // @Description ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลหมวดหมู่ทั้งหมดที่มีอยู่ในระบบ
 // @Produce json
+// @Security BearerAuth
 // @Success 200 {array} models.Category "รายการหมวดหมู่ทั้งหมด"
+// @Failure 401 {object} map[string]interface{} "ไม่ได้รับอนุญาต (Unauthorized)"
+// @Failure 403 {object} map[string]interface{} "ไม่มีสิทธิ์เข้าถึง (Forbidden)"
 // @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการดึงข้อมูลหมวดหมู่"
-// @Router /getCategory [get]
+// @Router /api/categories [get]
 // @Tags categories
 func GetCategoriesHandler(c *fiber.Ctx) error {
 	var categories []models.Category

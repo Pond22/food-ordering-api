@@ -27,6 +27,10 @@ import (
 // @BasePath /
 // @schemes http
 
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+
 // @tags categories - การจัดการหมวดหมู่อาหาร
 // @tags menu - การจัดการเมนูอาหาร
 // @tags orders - การจัดการคำสั่งซื้อ
