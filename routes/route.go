@@ -1,88 +1,93 @@
 package routes
 
 import (
-	"fmt"
 	"food-ordering-api/api_handlers"
-	"food-ordering-api/db"
 	"food-ordering-api/models"
 	qr_service "food-ordering-api/services"
-	"net/http"
-	"strconv"
+	utils "food-ordering-api/utility"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func SetupRoutes(app *fiber.App) {
+	// API Group
+	api := app.Group("/api")
 
-	app.Post("/add_menu", api_handlers.CreateMenuItemHandler)
-
-	app.Post("/add_category", api_handlers.CreateCategoryHandler)
-
-	app.Get("/getCategory", api_handlers.GetCategoriesHandler)
-
-	app.Put("/update_categories/:id", api_handlers.UpdateCategoryHandler)
-
-	app.Get("/getmenu", api_handlers.GetMenu)
-
-	app.Delete("/delete_categories/:id", api_handlers.Delete_categoryHandler)
-
-	app.Get("/qr_code/:table", qr_service.HandleQRCodeRequest)
-
-	app.Get("/order", qr_service.Table)
-
-	app.Post("/order", api_handlers.Order_test)
-
-	app.Post("/add_group_option", api_handlers.AddMoreGroup)
-
-	app.Post("/add_more_option", api_handlers.AddMoreMenuOption)
-
-	app.Delete("/softDelete_Menu/:id", api_handlers.SoftDelete_Menu)
-
-	app.Delete("/softDelete_Option/:id", api_handlers.SoftDelete_Option)
-
-	//-----
-
-	app.Get("/ping", pingHandler)
-
-	app.Post("/migrate", migrateHandler)
-
-	app.Get("/hello/:name/:num", helloHandler)
-
-}
-
-func pingHandler(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "pong"})
-}
-
-func migrateHandler(c *fiber.Ctx) error {
-	err := migrate()
-	if err != nil {
-		return c.Status(500).SendString(fmt.Sprintf("Migration failed: %v", err))
+	// Auth Routes
+	auth := api.Group("/auth")
+	{
+		auth.Post("/login", api_handlers.Login)
+		auth.Get("/verify-token", api_handlers.VerifyToken)
 	}
-	return c.SendString("Database migration successful")
-}
-
-func helloHandler(c *fiber.Ctx) error {
-	num, err := strconv.Atoi(c.Params("num"))
-	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"error": fmt.Sprintf("Invalid number:%s , you are not a human bruh", c.Params("num")),
-		})
+	// User Routes
+	// user := api.Group("/member", utils.AuthRequired())
+	user := api.Group("/member") //เอา middleware ออก deploy อย่าลืมเอาใส่
+	{
+		user.Post("/", api_handlers.CreateUser, utils.RoleRequired(models.RoleManager))
+		user.Get("/", api_handlers.GetUsers, utils.RoleRequired(models.RoleManager))
+		user.Get("/get_member_profile", api_handlers.GetUserProfile)
+		user.Put("/change-password", api_handlers.ChangePassword)
+		user.Put("/:id/reset-password", api_handlers.ResetUserPassword, utils.RoleRequired(models.RoleManager)) // ผจก. เปลี่ยนรหัสผ่านพนักงาน
+		user.Delete("/:id/Delete-member", api_handlers.Delete_user, utils.RoleRequired(models.RoleManager))     // ผจก. ลบพนักงาน
 	}
-	return c.JSON(fiber.Map{"message": hello(c.Params("name"), num)})
-}
 
-// @Summary อัปเดต orm
-// @Description api เส้นนี้ใช้เพื่อ migrate ฐานข้อมูลของ orm
-// @Produce json
-// @Router /migrate [post]
-func migrate() error {
-	if err := db.DB.AutoMigrate(&models.Users{}); err != nil {
-		return err
+	// Menu Management Routes - ต้องการการยืนยันตัวตนต้อง manager
+	// menu := api.Group("/menu", utils.AuthRequired(), utils.RoleRequired(models.RoleManager))
+	menu := api.Group("/menu")
+	{
+		// เมนูพื้นฐาน
+		menu.Post("/", api_handlers.CreateMenuItemHandler)
+		menu.Get("/", api_handlers.GetMenu)
+		menu.Put("/:id", api_handlers.UpdateMenuItem)
+		menu.Put("/image/:id", api_handlers.UpdateMenuImage)
+		menu.Delete("/:id", api_handlers.SoftDelete_Menu)
+
+		// Option Groups
+		menu.Post("/option-groups", api_handlers.AddMoreGroup)
+		menu.Put("/option-groups/:id", api_handlers.UpdateOptionGroup)
+
+		// Options
+		menu.Post("/options", api_handlers.AddMoreMenuOption)
+		menu.Put("/options/:id", api_handlers.UpdateOption)
+		menu.Delete("/options/:id", api_handlers.SoftDelete_Option)
+
+		// Deleted Items Management
+		menu.Get("/deleted", api_handlers.GetDeletedMenus) //ดูเมน฿ที่ถูก softdelete
+		menu.Post("/restore/:id", api_handlers.RestoreMenu)
+		menu.Post("/restore-group/:id", api_handlers.RestoreOptionGroup)
+		menu.Post("/restore-option/:id", api_handlers.RestoreOption)
 	}
-	return nil
-}
 
-func hello(name string, round int) string {
-	return "bello " + name + " " + strconv.Itoa(round) + " times,i'm not human"
+	// Category Management Routes - ต้องการการยืนยันตัวตน และต้องเป็น manager
+	// categories := api.Group("/categories", utils.AuthRequired(), utils.RoleRequired(models.RoleManager))
+	categories := api.Group("/categories")
+	{
+		categories.Post("/", api_handlers.CreateCategoryHandler)
+		categories.Get("/", api_handlers.GetCategoriesHandler)
+		categories.Put("/:id", api_handlers.UpdateCategoryHandler)
+		categories.Delete("/:id", api_handlers.Delete_categoryHandler)
+	}
+
+	// Order Management Routes
+	orders := api.Group("/orders")
+	{
+		// สำหรับลูกค้า (ไม่ต้องการการยืนยันตัวตน)
+		orders.Post("/", api_handlers.Order_test) //สั่งอาหาร
+
+		// สำหรับพนักงาน (ต้องการการยืนยันตัวตน)
+		// orderStaff := orders.Group("/", utils.AuthRequired())
+		// {
+		// 	orderStaff.Get("/", api_handlers.GetOrders) // ต้องสร้างฟังก์ชันนี้เพิ่ม
+		// 	orderStaff.Put("/:id/status", api_handlers.UpdateOrderStatus)// ต้องสร้างฟังก์ชันนี้เพิ่ม
+		// }
+	}
+
+	// QR Code Management Routes
+	// qr := api.Group("/qr", utils.AuthRequired(), utils.RoleRequired(models.RoleStaff, models.RoleManager))
+	qr := api.Group("/qr", utils.AuthRequired())
+	{
+		qr.Get("/:table", qr_service.HandleQRCodeRequest)
+		qr.Get("/tables", qr_service.Table)
+	}
+	SetupUserRoutes(app)
 }

@@ -2,3 +2,8 @@
 /node_modules
 /vendor
 *.log.env
+
+/react
+/.vscode
+docker-compose.yml
+Dockerfile

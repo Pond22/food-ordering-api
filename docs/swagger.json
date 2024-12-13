@@ -21,8 +21,140 @@
     "host": "localhost:8080",
     "basePath": "/",
     "paths": {
-        "/add_category": {
+        "/api/auth/login": {
             "post": {
+                "description": "ล็อกอินเข้าสู่ระบบโดยใช้ username และ password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "authentication"
+                ],
+                "summary": "เข้าสู่ระบบ",
+                "parameters": [
+                    {
+                        "description": "ข้อมูลสำหรับเข้าสู่ระบบ (username, password)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ข้อมูลการเข้าสู่ระบบและ token",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/verify-token": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ตรวจสอบความถูกต้องของ token และส่งข้อมูลผู้ใช้กลับ โดยส่ง token ในรูปแบบ \"Bearer \u003ctoken\u003e\"",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "authentication"
+                ],
+                "summary": "ตรวจสอบ token",
+                "responses": {
+                    "200": {
+                        "description": "ข้อมูลผู้ใช้",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.UserProfile"
+                        }
+                    },
+                    "401": {
+                        "description": "Token ไม่ถูกต้องหรือหมดอายุ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/categories": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลหมวดหมู่ทั้งหมดที่มีอยู่ในระบบ",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "categories"
+                ],
+                "summary": "เรียกรายการหมวดหมู่ทั้งหมด",
+                "responses": {
+                    "200": {
+                        "description": "รายการหมวดหมู่ทั้งหมด",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Category"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต (Unauthorized)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง (Forbidden)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการดึงข้อมูลหมวดหมู่",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "ฟังก์ชันนี้ใช้สำหรับสร้างหมวดหมู่ใหม่ โดยต้องระบุข้อมูลชื่อหมวดหมู่",
                 "consumes": [
                     "application/json"
@@ -59,6 +191,20 @@
                             "additionalProperties": true
                         }
                     },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต (Unauthorized)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง (Forbidden)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
                     "500": {
                         "description": "เกิดข้อผิดพลาดในการสร้างหมวดหมู่ใหม่",
                         "schema": {
@@ -69,9 +215,14 @@
                 }
             }
         },
-        "/add_group_option": {
-            "post": {
-                "description": "สร้าง (group options) ของเมนูนั้นๆ",
+        "/api/categories/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ฟังก์ชันนี้ใช้สำหรับแก้ไขชื่อของหมวดหมู่ที่มีอยู่แล้ว โดยระบุ ID และชื่อใหม่",
                 "consumes": [
                     "application/json"
                 ],
@@ -79,177 +230,84 @@
                     "application/json"
                 ],
                 "tags": [
-                    "menu"
+                    "categories"
                 ],
-                "summary": "เพิ่ม group options แยกถ้าสร้างเมนูไปแล้ว",
+                "summary": "อัพเดตชื่อหมวดหมู่",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "ID ของเมนูที่ต้องการเพิ่ม group option",
-                        "name": "menu_id",
-                        "in": "query",
+                        "description": "ID ของหมวดหมู่",
+                        "name": "id",
+                        "in": "path",
                         "required": true
                     },
                     {
-                        "description": "ข้อมูลเมนูและ group options",
-                        "name": "request",
+                        "description": "ข้อมูลหมวดหมู่ที่ต้องการอัพเดต",
+                        "name": "category",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.OptionGroupRequest"
+                            "$ref": "#/definitions/models.Category"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "รายละเอียดของเมนูและ group options ที่สร้างเสร็จแล้ว",
+                        "description": "รายละเอียดของหมวดหมู่ที่อัพเดตแล้ว",
                         "schema": {
-                            "$ref": "#/definitions/models.MenuItem"
+                            "$ref": "#/definitions/models.Category"
                         }
                     },
                     "400": {
-                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
+                        "description": "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต (Unauthorized)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง (Forbidden)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบหมวดหมู่ที่ต้องการแก้ไข",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "409": {
-                        "description": "ชื่อเมนูซ้ำกับที่มีอยู่แล้ว",
+                        "description": "ชื่อหมวดหมู่ซ้ำกับที่มีอยู่แล้ว",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "500": {
-                        "description": "เกิดข้อผิดพลาดในการสร้างเมนูหรือ options",
+                        "description": "เกิดข้อผิดพลาดในการอัพเดตหมวดหมู่",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     }
                 }
-            }
-        },
-        "/add_menu": {
-            "post": {
-                "description": "สร้างเมนูอาหารใหม่พร้อมกับตัวเลือกเพิ่มเติม (options) ของเมนูนั้นๆ",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "menu"
-                ],
-                "summary": "สร้างเมนูใหม่พร้อม options",
-                "parameters": [
-                    {
-                        "description": "ข้อมูลเมนูและ options",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.CreateMenuRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "รายละเอียดของเมนูและ options ที่สร้างเสร็จแล้ว",
-                        "schema": {
-                            "$ref": "#/definitions/models.MenuItem"
-                        }
-                    },
-                    "400": {
-                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "409": {
-                        "description": "ชื่อเมนูซ้ำกับที่มีอยู่แล้ว",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "เกิดข้อผิดพลาดในการสร้างเมนูหรือ options",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/add_more_option": {
-            "post": {
-                "description": "สร้าง (options) ของเมนูนั้นๆ",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "menu"
-                ],
-                "summary": "เพิ่ม options แยกจากกลุ่มที่มีอยู่",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID ของกลุ่มตัวเลือกที่ต้องการเพิ่ม option",
-                        "name": "OptionGroupID",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "description": "ข้อมูลเมนูและ options",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.OptionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "รายละเอียดของเมนูและ options ที่สร้างเสร็จแล้ว",
-                        "schema": {
-                            "$ref": "#/definitions/models.MenuItem"
-                        }
-                    },
-                    "400": {
-                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "409": {
-                        "description": "ชื่อเมนูซ้ำกับที่มีอยู่แล้ว",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "เกิดข้อผิดพลาดในการสร้างเมนูหรือ options",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/delete_categories/{id}": {
+            },
             "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "ฟังก์ชันนี้ใช้สำหรับลบหมวดหมู่ถ้าต้องการลบทั้งหมดรวมถึงอาหารในหมวดหมู่ให้ใช้ true ลบแค่หมวดหมู่ false แต่ต้องระวังถ้าระบุ false แล้วมีเมนูในหมวดหมู่จะ error",
                 "consumes": [
                     "application/json"
@@ -293,6 +351,20 @@
                             "additionalProperties": true
                         }
                     },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต (Unauthorized)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง (Forbidden)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
                     "404": {
                         "description": "ไม่พบหมวดหมู่ที่ต้องการแก้ไข",
                         "schema": {
@@ -317,28 +389,479 @@
                 }
             }
         },
-        "/getCategory": {
+        "/api/member": {
             "get": {
-                "description": "ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลหมวดหมู่ทั้งหมดที่มีอยู่ในระบบ",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ดึงรายชื่อผู้ใช้ทั้งหมดในระบบ (เฉพาะ manager เท่านั้น)",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "categories"
+                    "users"
                 ],
-                "summary": "เรียกรายการหมวดหมู่ทั้งหมด",
+                "summary": "ดูรายชื่อผู้ใช้ทั้งหมด",
                 "responses": {
                     "200": {
-                        "description": "รายการหมวดหมู่ทั้งหมด",
+                        "description": "รายการผู้ใช้ทั้งหมด",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Category"
+                                "$ref": "#/definitions/api_handlers.UserProfile"
                             }
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "สร้างผู้ใช้ใหม่ในระบบ (เฉพาะ manager เท่านั้น)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "สร้างผู้ใช้ใหม่",
+                "parameters": [
+                    {
+                        "description": "ข้อมูลผู้ใช้ใหม่",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "ข้อมูลผู้ใช้ที่สร้าง",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.UserProfile"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "ชื่อผู้ใช้ซ้ำ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/member/change-password": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "เปลี่ยนรหัสผ่านของตัวเอง",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "เปลี่ยนรหัสผ่าน",
+                "parameters": [
+                    {
+                        "description": "รหัสผ่านเก่าและใหม่",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ChangePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "เปลี่ยนรหัสผ่านสำเร็จ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาตหรือรหัสผ่านเก่าไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/member/get_member_profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ดูข้อมูลผู้ใช้ของตัวเอง",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "ดูข้อมูลผู้ใช้",
+                "responses": {
+                    "200": {
+                        "description": "ข้อมูลผู้ใช้",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.UserProfile"
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/member/{id}/delete-member": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ลบผู้ใช้ (เฉพาะ manager เท่านั้น)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "ลบผู้ใช้",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของผู้ใช้",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ลบผู้ใช้สำเร็จ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบผู้ใช้",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/member/{id}/reset-password": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "รีเซ็ตรหัสผ่านของผู้ใช้ (เฉพาะ manager เท่านั้น)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "รีเซ็ตรหัสผ่านผู้ใช้",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของผู้ใช้",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "รหัสผ่านใหม่",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ResetPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รีเซ็ตรหัสผ่านสำเร็จ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบผู้ใช้",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/menu": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลเมนู โดยสามารถระบุ action ได้ 3 แบบ",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "เลือกการดำเนินการกับข้อมูลเมนู",
+                "parameters": [
+                    {
+                        "enum": [
+                            "getByID",
+                            "getByCategory",
+                            "getAll"
+                        ],
+                        "type": "string",
+                        "description": "รูปแบบการค้นหาเมนู: getByID, getByCategory หรือ getAll",
+                        "name": "action",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ของเมนู (ใช้กับ action=getByID)",
+                        "name": "id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ของหมวดหมู่ (ใช้กับ action=getByCategory)",
+                        "name": "category_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายการเมนูที่ค้นพบ",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.MenuItem"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "เกิดข้อผิดพลาดจากการระบุพารามิเตอร์",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "สร้างเมนูอาหารใหม่พร้อมกับตัวเลือกเพิ่มเติม (options) ของเมนูนั้นๆ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "สร้างเมนูใหม่พร้อม options",
+                "parameters": [
+                    {
+                        "description": "ข้อมูลเมนูและ options",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateMenuRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของเมนูและ options ที่สร้างเสร็จแล้ว",
+                        "schema": {
+                            "$ref": "#/definitions/models.MenuItem"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "ชื่อเมนูซ้ำกับที่มีอยู่แล้ว",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "500": {
-                        "description": "เกิดข้อผิดพลาดในการดึงข้อมูลหมวดหมู่",
+                        "description": "เกิดข้อผิดพลาดในการสร้างเมนูหรือ options",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -347,45 +870,24 @@
                 }
             }
         },
-        "/getmenu": {
+        "/api/menu/deleted": {
             "get": {
-                "description": "ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลเมนู โดยสามารถระบุ action ได้ 3 แบบ",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ดูรายการเมนูทั้งหมดที่ถูก soft delete",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "menu"
+                    "menu-restore"
                 ],
-                "summary": "เลือกการดำเนินการกับข้อมูลเมนู",
-                "parameters": [
-                    {
-                        "enum": [
-                            "getByID",
-                            "getByCategory",
-                            "getAll"
-                        ],
-                        "type": "string",
-                        "description": "รูปแบบการค้นหาเมนู: getByID, getByCategory หรือ getAll",
-                        "name": "action",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID ของเมนู (ใช้กับ action=getByID)",
-                        "name": "id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID ของหมวดหมู่ (ใช้กับ action=getByCategory)",
-                        "name": "category_id",
-                        "in": "query"
-                    }
-                ],
+                "summary": "ดูรายการเมนูที่ถูกลบ",
                 "responses": {
                     "200": {
-                        "description": "รายการเมนูที่ค้นพบ",
+                        "description": "รายการเมนูที่ถูกลบ",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -393,8 +895,22 @@
                             }
                         }
                     },
-                    "400": {
-                        "description": "เกิดข้อผิดพลาดจากการระบุพารามิเตอร์",
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการดึงข้อมูล",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -403,54 +919,70 @@
                 }
             }
         },
-        "/menu": {
-            "get": {
-                "description": "ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลเมนู โดยสามารถระบุ action ได้ 3 แบบ",
+        "/api/menu/image/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "อัพเดทรูปภาพของเมนู",
+                "consumes": [
+                    "multipart/form-data"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "menu"
                 ],
-                "summary": "เลือกการดำเนินการกับข้อมูลเมนู",
+                "summary": "อัพเดทรูปภาพเมนู",
                 "parameters": [
                     {
-                        "enum": [
-                            "getByID",
-                            "getByCategory",
-                            "getAll"
-                        ],
-                        "type": "string",
-                        "description": "รูปแบบการค้นหาเมนู: getByID, getByCategory หรือ getAll",
-                        "name": "action",
-                        "in": "query",
+                        "type": "integer",
+                        "description": "ID ของเมนู",
+                        "name": "id",
+                        "in": "path",
                         "required": true
                     },
                     {
-                        "type": "integer",
-                        "description": "ID ของเมนู (ใช้กับ action=getByID)",
-                        "name": "id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID ของหมวดหมู่ (ใช้กับ action=getByCategory)",
-                        "name": "category_id",
-                        "in": "query"
+                        "type": "file",
+                        "description": "รูปภาพเมนู",
+                        "name": "image",
+                        "in": "formData",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "รายการเมนูที่ค้นพบ",
+                        "description": "รายละเอียดของเมนูที่อัพเดทรูปภาพแล้ว",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.MenuItem"
-                            }
+                            "$ref": "#/definitions/models.MenuItem"
                         }
                     },
                     "400": {
-                        "description": "เกิดข้อผิดพลาดจากการระบุพารามิเตอร์",
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบเมนูที่ต้องการอัพเดท",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -459,14 +991,783 @@
                 }
             }
         },
-        "/migrate": {
+        "/api/menu/option-groups": {
             "post": {
-                "description": "api เส้นนี้ใช้เพื่อ migrate ฐานข้อมูลของ orm",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "สร้าง (group options) ของเมนูนั้นๆ",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "อัปเดต orm",
-                "responses": {}
+                "tags": [
+                    "menu"
+                ],
+                "summary": "เพิ่ม group options แยกถ้าสร้างเมนูไปแล้ว",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของเมนูที่ต้องการเพิ่ม group option",
+                        "name": "menu_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "ข้อมูลเมนูและ group options",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.OptionGroupRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของเมนูและ group options ที่สร้างเสร็จแล้ว",
+                        "schema": {
+                            "$ref": "#/definitions/models.MenuItem"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "ชื่อเมนูซ้ำกับที่มีอยู่แล้ว",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการสร้างเมนูหรือ options",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/menu/option-groups/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "อัพเดทข้อมูลของ Option Group เช่น ชื่อ, จำนวนที่เลือกได้, การบังคับเลือก",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "อัพเดทข้อมูล Option Group",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของ Option Group",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "ข้อมูล Option Group ที่ต้องการอัพเดท",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.OptionGroupRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของ Option Group ที่อัพเดทแล้ว",
+                        "schema": {
+                            "$ref": "#/definitions/models.OptionGroup"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบ Option Group ที่ต้องการอัพเดท",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/menu/options": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "สร้าง (options) ของเมนูนั้นๆ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "เพิ่ม options แยกจากกลุ่มที่มีอยู่",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของกลุ่มตัวเลือกที่ต้องการเพิ่ม option",
+                        "name": "OptionGroupID",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "ข้อมูลเมนูและ options",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.OptionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของเมนูและ options ที่สร้างเสร็จแล้ว",
+                        "schema": {
+                            "$ref": "#/definitions/models.MenuItem"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "ชื่อเมนูซ้ำกับที่มีอยู่แล้ว",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการสร้างเมนูหรือ options",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/menu/options/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "อัพเดทข้อมูลของ Option เช่น ชื่อ, ราคา",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "อัพเดทข้อมูล Option",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของ Option",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "ข้อมูล Option ที่ต้องการอัพเดท",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.OptionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของ Option ที่อัพเดทแล้ว",
+                        "schema": {
+                            "$ref": "#/definitions/models.MenuOption"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบ Option ที่ต้องการอัพเดท",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ฟังก์ชันนี้ใช้สำหรับลบตัวเลือกโดยจะเป็นการ soft delete",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "ลบตัวเลือกอาหาร",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของตัวเลือกนั้นๆ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ลบตัตัวเลือกสำเร็จ"
+                    },
+                    "400": {
+                        "description": "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/menu/restore-group/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "กู้คืน Option Group ที่ถูก soft delete พร้อมกับ options ที่เกี่ยวข้อง",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu-restore"
+                ],
+                "summary": "กู้คืน Option Group",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของ Option Group ที่ต้องการกู้คืน",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของ Option Group ที่กู้คืนแล้ว",
+                        "schema": {
+                            "$ref": "#/definitions/models.OptionGroup"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบ Option Group ที่ต้องการกู้คืน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "มี Option Group ที่ใช้ชื่อนี้อยู่แล้วในเมนูเดียวกัน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/menu/restore-option/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "กู้คืน Option เดี่ยวที่ถูก soft delete",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu-restore"
+                ],
+                "summary": "กู้คืน Option",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของ Option ที่ต้องการกู้คืน",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของ Option ที่กู้คืนแล้ว",
+                        "schema": {
+                            "$ref": "#/definitions/models.MenuOption"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบ Option ที่ต้องการกู้คืน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "มี Option ที่ใช้ชื่อนี้อยู่แล้วใน Option Group เดียวกัน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/menu/restore/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "กู้คืนเมนูที่ถูก soft delete พร้อมกับ option groups และ options ที่เกี่ยวข้อง",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu-restore"
+                ],
+                "summary": "กู้คืนเมนู",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของเมนูที่ต้องการกู้คืน",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของเมนูที่กู้คืนแล้ว",
+                        "schema": {
+                            "$ref": "#/definitions/models.MenuItem"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบเมนูที่ต้องการกู้คืน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "มีเมนูที่ใช้ชื่อนี้อยู่แล้ว",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/menu/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลเมนู โดยสามารถระบุ action ได้ 3 แบบ",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "เลือกการดำเนินการกับข้อมูลเมนู",
+                "parameters": [
+                    {
+                        "enum": [
+                            "getByID",
+                            "getByCategory",
+                            "getAll"
+                        ],
+                        "type": "string",
+                        "description": "รูปแบบการค้นหาเมนู: getByID, getByCategory หรือ getAll",
+                        "name": "action",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ของเมนู (ใช้กับ action=getByID)",
+                        "name": "id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ของหมวดหมู่ (ใช้กับ action=getByCategory)",
+                        "name": "category_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายการเมนูที่ค้นพบ",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.MenuItem"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "เกิดข้อผิดพลาดจากการระบุพารามิเตอร์",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "อัพเดทข้อมูลพื้นฐานของเมนู เช่น ชื่อ, ราคา, คำอธิบาย",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "อัพเดทข้อมูลเมนูพื้นฐาน",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของเมนู",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "ข้อมูลเมนูที่ต้องการอัพเดท",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.MenuItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของเมนูที่อัพเดทแล้ว",
+                        "schema": {
+                            "$ref": "#/definitions/models.MenuItem"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบเมนูที่ต้องการอัพเดท",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ฟังก์ชันนี้ใช้สำหรับลบเมนูโดยจะเป็นการ soft delete งิงิ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "ลบเมนู/รายการอาหาร",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของอาหารนั้นๆ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ลบเมนูสำเร็จ"
+                    },
+                    "400": {
+                        "description": "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
             }
         },
         "/order": {
@@ -586,156 +1887,60 @@
                     }
                 }
             }
-        },
-        "/softDelete_Menu/{id}": {
-            "delete": {
-                "description": "ฟังก์ชันนี้ใช้สำหรับลบเมนูโดยจะเป็นการ soft delete งิงิ",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "menu"
-                ],
-                "summary": "ลบเมนู/รายการอาหาร",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID ของอาหารนั้นๆ",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "ลบเมนูสำเร็จ"
-                    },
-                    "400": {
-                        "description": "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/softDelete_Option/{id}": {
-            "delete": {
-                "description": "ฟังก์ชันนี้ใช้สำหรับลบตัวเลือกโดยจะเป็นการ soft delete",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "menu"
-                ],
-                "summary": "ลบตัวเลือกอาหาร",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID ของตัวเลือกนั้นๆ",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "ลบตัตัวเลือกสำเร็จ"
-                    },
-                    "400": {
-                        "description": "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/update_categories/{id}": {
-            "put": {
-                "description": "ฟังก์ชันนี้ใช้สำหรับแก้ไขชื่อของหมวดหมู่ที่มีอยู่แล้ว โดยระบุ ID และชื่อใหม่",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "categories"
-                ],
-                "summary": "อัพเดตชื่อหมวดหมู่",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID ของหมวดหมู่",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "ข้อมูลหมวดหมู่ที่ต้องการอัพเดต",
-                        "name": "category",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Category"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "รายละเอียดของหมวดหมู่ที่อัพเดตแล้ว",
-                        "schema": {
-                            "$ref": "#/definitions/models.Category"
-                        }
-                    },
-                    "400": {
-                        "description": "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "404": {
-                        "description": "ไม่พบหมวดหมู่ที่ต้องการแก้ไข",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "409": {
-                        "description": "ชื่อหมวดหมู่ซ้ำกับที่มีอยู่แล้ว",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "เกิดข้อผิดพลาดในการอัพเดตหมวดหมู่",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
         }
     },
     "definitions": {
+        "api_handlers.ChangePasswordRequest": {
+            "type": "object",
+            "required": [
+                "current_password",
+                "new_password"
+            ],
+            "properties": {
+                "current_password": {
+                    "type": "string"
+                },
+                "new_password": {
+                    "type": "string",
+                    "minLength": 6
+                }
+            }
+        },
         "api_handlers.DeleteCategoryOption": {
             "type": "object",
             "properties": {
                 "force_delete": {
                     "description": "true = ถ้าลบหมวดหมู่จะลบเมนูต่างๆ ที่เชื่อมอยู่ด้วย",
                     "type": "boolean"
+                }
+            }
+        },
+        "api_handlers.LoginRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "api_handlers.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "expires_at": {
+                    "type": "integer"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/api_handlers.UserProfile"
                 }
             }
         },
@@ -766,6 +1971,35 @@
                     "type": "integer"
                 },
                 "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "api_handlers.ResetPasswordRequest": {
+            "type": "object",
+            "required": [
+                "new_password"
+            ],
+            "properties": {
+                "new_password": {
+                    "type": "string",
+                    "minLength": 6
+                }
+            }
+        },
+        "api_handlers.UserProfile": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "role": {
+                    "$ref": "#/definitions/models.UserRole"
+                },
+                "username": {
                     "type": "string"
                 }
             }
@@ -809,6 +2043,31 @@
                     "items": {
                         "$ref": "#/definitions/models.OptionGroupRequest"
                     }
+                }
+            }
+        },
+        "models.CreateUserRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "password",
+                "role",
+                "username"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 6
+                },
+                "role": {
+                    "$ref": "#/definitions/models.UserRole"
+                },
+                "username": {
+                    "type": "string",
+                    "minLength": 3
                 }
             }
         },
@@ -1176,6 +2435,26 @@
                     "type": "string"
                 }
             }
+        },
+        "models.UserRole": {
+            "type": "string",
+            "enum": [
+                "staff",
+                "manager",
+                "chef"
+            ],
+            "x-enum-varnames": [
+                "RoleStaff",
+                "RoleManager",
+                "RoleChef"
+            ]
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }

@@ -27,6 +27,10 @@ import (
 // @BasePath /
 // @schemes http
 
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+
 // @tags categories - การจัดการหมวดหมู่อาหาร
 // @tags menu - การจัดการเมนูอาหาร
 // @tags orders - การจัดการคำสั่งซื้อ
@@ -44,7 +48,6 @@ func main() {
 		},
 	})
 
-	// ตั้งค่า CORS ให้ครอบคลุมมากขึ้น
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     "*",
 		AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
