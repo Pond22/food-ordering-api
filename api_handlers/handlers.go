@@ -4,59 +4,12 @@ import (
 	"fmt"
 	"food-ordering-api/db"
 	"food-ordering-api/models"
+
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
-
-// @Summary สร้างเมนูใหม่
-// @Description ฟังก์ชันนี้ใช้สำหรับสร้างเมนูใหม่ โดยต้องระบุข้อมูลที่จำเป็นในการสร้าง เช่น ชื่อเมนูและ ID ของหมวดหมู่ที่เกี่ยวข้อง
-// @Accept json
-// @Produce json
-// @Param request body models.CreateMenuRequest true "ข้อมูลเมนูใหม่"
-// @Success 200 {object} models.MenuItem "รายละเอียดของเมนูที่สร้างเสร็จแล้ว"
-// @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง"
-// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการสร้างเมนูใหม่"
-// @Router /add_menu [post]
-func CreateMenuItemHandler(c *fiber.Ctx) error {
-	var menuItem models.MenuItem
-
-	if err := c.BodyParser(&menuItem); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{
-			"error": "Invalid input",
-		})
-	}
-
-	if menuItem.Name == "" { //if menuItem.Name == "" || menuItem.CategoryID == 0 {
-		return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{
-			"error": "Name and CategoryID are required",
-		})
-	}
-
-	var category models.Category
-	if err := db.DB.First(&category, "ID = ?", menuItem.CategoryID).Error; err != nil {
-		// ถ้าไม่พบ CategoryID ในตาราง categories
-		return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{
-			"error": "Invalid CategoryID, category not found",
-		})
-	}
-
-	if err := db.DB.First(&menuItem, "Name = ?", menuItem.Name).Error; err == nil {
-		return c.Status(http.StatusConflict).JSON(fiber.Map{
-			"error": "Name name already exists",
-		})
-	}
-
-	if err := db.DB.Create(&menuItem).Error; err != nil {
-		return c.Status(500).JSON(map[string]interface{}{
-			"error": fmt.Sprintf("Error creating menu item: %v", err),
-		})
-	}
-
-	return c.Status(http.StatusOK).JSON(menuItem)
-}
 
 // @Summary สร้างหมวดหมู่ใหม่
 // @Description ฟังก์ชันนี้ใช้สำหรับสร้างหมวดหมู่ใหม่ โดยต้องระบุข้อมูลชื่อหมวดหมู่
@@ -67,6 +20,7 @@ func CreateMenuItemHandler(c *fiber.Ctx) error {
 // @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง"
 // @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการสร้างหมวดหมู่ใหม่"
 // @Router /add_category [post]
+// @Tags categories
 func CreateCategoryHandler(c *fiber.Ctx) error {
 	var category models.Category
 
@@ -97,12 +51,135 @@ func CreateCategoryHandler(c *fiber.Ctx) error {
 	return c.Status(http.StatusOK).JSON(category)
 }
 
+type DeleteCategoryOption struct {
+	ForceDelete bool `json:"force_delete"` // true = ถ้าลบหมวดหมู่จะลบเมนูต่างๆ ที่เชื่อมอยู่ด้วย
+}
+
+// @Summary ลบหมวดหมู่
+// @Description ฟังก์ชันนี้ใช้สำหรับลบหมวดหมู่ถ้าต้องการลบทั้งหมดรวมถึงอาหารในหมวดหมู่ให้ใช้ true ลบแค่หมวดหมู่ false แต่ต้องระวังถ้าระบุ false แล้วมีเมนูในหมวดหมู่จะ error
+// @Accept json
+// @Produce json
+// @Param id path integer true "ID ของหมวดหมู่"
+// @Param order body DeleteCategoryOption true "ture ถ้ามีเมนูอยู่ในหมวดหมู่จะลบเมนูไปด้วย"
+// @Success 200 {object} models.Category "ลบหมวดหมู่สำเร็จ"
+// @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง"
+// @Failure 404 {object} map[string]interface{} "ไม่พบหมวดหมู่ที่ต้องการแก้ไข"
+// @Failure 409 {object} map[string]interface{} "ชื่อหมวดหมู่ซ้ำกับที่มีอยู่แล้ว"
+// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการอัพเดตหมวดหมู่"
+// @Router /delete_categories/{id} [delete]
+// @Tags categories
+func Delete_categoryHandler(c *fiber.Ctx) error { //เหลือทำให้ลบเมนูไม่กระทบออเดอร์
+	id := c.Params("id")
+	fmt.Print(id)
+	var option DeleteCategoryOption
+	if err := c.BodyParser(&option); err != nil {
+		option.ForceDelete = false
+	}
+
+	if id == "" {
+		return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{
+			"error": "Category ID is required",
+		})
+	}
+
+	var existingCategory models.Category
+	if err := db.DB.First(&existingCategory, id).Error; err != nil {
+		return c.Status(http.StatusNotFound).JSON(map[string]interface{}{
+			"error": "Category not found",
+		})
+	}
+	if option.ForceDelete {
+		if err := db.DB.Where("category_id = ?", id).Delete(&models.MenuItem{}).Error; err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(map[string]interface{}{
+				"error": "Failed to delete menu items",
+			})
+		}
+	}
+	if err := db.DB.Delete(&existingCategory).Error; err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(map[string]interface{}{
+			"error": "Failed to delete category",
+		})
+	}
+
+	return c.Status(http.StatusOK).JSON(map[string]interface{}{
+		"Massage": "ลบสำเร็จ",
+	})
+
+}
+
+// @Summary อัพเดตชื่อหมวดหมู่
+// @Description ฟังก์ชันนี้ใช้สำหรับแก้ไขชื่อของหมวดหมู่ที่มีอยู่แล้ว โดยระบุ ID และชื่อใหม่
+// @Accept json
+// @Produce json
+// @Param id path integer true "ID ของหมวดหมู่"
+// @Param category body models.Category true "ข้อมูลหมวดหมู่ที่ต้องการอัพเดต"
+// @Success 200 {object} models.Category "รายละเอียดของหมวดหมู่ที่อัพเดตแล้ว"
+// @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง"
+// @Failure 404 {object} map[string]interface{} "ไม่พบหมวดหมู่ที่ต้องการแก้ไข"
+// @Failure 409 {object} map[string]interface{} "ชื่อหมวดหมู่ซ้ำกับที่มีอยู่แล้ว"
+// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการอัพเดตหมวดหมู่"
+// @Router /update_categories/{id} [put]
+// @Tags categories
+func UpdateCategoryHandler(c *fiber.Ctx) error {
+	// รับ ID จาก parameter
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{
+			"error": "Category ID is required",
+		})
+	}
+
+	// รับข้อมูลใหม่จาก request body
+	var updatedCategory models.Category
+	if err := c.BodyParser(&updatedCategory); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{
+			"error": "Invalid input",
+		})
+	}
+
+	fmt.Print(id, updatedCategory.Name)
+
+	// ตรวจสอบว่ามีชื่อที่จะอัพเดตหรือไม่
+	if updatedCategory.Name == "" {
+		return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{
+			"error": "Category name is required",
+		})
+	}
+
+	// ค้นหาหมวดหมู่เดิม
+	var existingCategory models.Category
+	if err := db.DB.First(&existingCategory, id).Error; err != nil {
+		return c.Status(http.StatusNotFound).JSON(map[string]interface{}{
+			"error": "Category not found",
+		})
+	}
+
+	// ตรวจสอบว่าชื่อใหม่ซ้ำกับที่มีอยู่หรือไม่ (ยกเว้นตัวมันเอง)
+	var duplicateCheck models.Category
+	if err := db.DB.Where("name = ? AND id != ?", updatedCategory.Name, id).First(&duplicateCheck).Error; err == nil {
+		return c.Status(http.StatusConflict).JSON(map[string]interface{}{
+			"error": "Category name already exists",
+		})
+	}
+
+	// อัพเดตชื่อหมวดหมู่
+	existingCategory.Name = updatedCategory.Name
+	if err := db.DB.Save(&existingCategory).Error; err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(map[string]interface{}{
+			"error": fmt.Sprintf("Error updating category: %v", err),
+		})
+	}
+
+	return c.JSON(existingCategory)
+}
+
 // @Summary เรียกรายการหมวดหมู่ทั้งหมด
 // @Description ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลหมวดหมู่ทั้งหมดที่มีอยู่ในระบบ
 // @Produce json
 // @Success 200 {array} models.Category "รายการหมวดหมู่ทั้งหมด"
 // @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการดึงข้อมูลหมวดหมู่"
 // @Router /getCategory [get]
+// @Tags categories
 func GetCategoriesHandler(c *fiber.Ctx) error {
 	var categories []models.Category
 	// ค้นหาทุก Category
@@ -113,115 +190,6 @@ func GetCategoriesHandler(c *fiber.Ctx) error {
 	}
 	// ส่งรายการ categories กลับในรูปแบบ JSON
 	return c.JSON(categories)
-}
-
-// @Summary เรียกรายการเมนูทั้งหมด
-// @Description ฟังก์ชันนี้ใช้สำหรับเรียกรายการเมนูทั้งหมดที่มีอยู่ในระบบ
-// @Produce json
-// @Success 200 {array} models.MenuItem "รายการเมนูทั้งหมด"
-// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการดึงข้อมูลเมนู"
-// @Router /menu [get]
-func GetMenuAll(c *fiber.Ctx) error {
-	var menuItem []models.MenuItem
-	// ค้นหาทุก Category
-	if err := db.DB.Find(&menuItem).Error; err != nil {
-		return c.Status(500).JSON(map[string]interface{}{
-			"error": fmt.Sprintf("Error fetching menuItem: %v", err),
-		})
-	}
-	// ส่งรายการ categories กลับในรูปแบบ JSON
-	return c.JSON(menuItem)
-}
-
-// @Summary ดึงข้อมูลเมนูตาม ID
-// @Description ฟังก์ชันนี้ใช้สำหรับดึงข้อมูลของเมนูโดยการระบุ ID ของเมนูนั้น
-// @Produce json
-// @Param ID query string true "ID ของเมนู"
-// @Success 200 {object} models.MenuItem "รายละเอียดของเมนูที่ค้นพบตาม ID"
-// @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจาก ID ที่ไม่ถูกต้อง"
-// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการดึงข้อมูลเมนู"
-// @Router /menu [get]
-func GetMenuByID(c *fiber.Ctx) error {
-	var menuItem models.MenuItem
-
-	// รับพารามิเตอร์ ID จาก URL
-	idParam := c.Query("ID")
-	num, err := strconv.Atoi(idParam)
-	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{
-			"error": fmt.Sprintf("Invalid ID: %s. ID must be a number.", idParam),
-		})
-	}
-
-	if err := db.DB.First(&menuItem, "id = ?", num).Error; err != nil {
-		return c.Status(500).JSON(map[string]interface{}{
-			"error": fmt.Sprintf("Error fetching menuItem: %v", err),
-		})
-	}
-	// ส่งรายการ categories กลับในรูปแบบ JSON
-	return c.JSON(menuItem)
-}
-
-// @Summary เลือกการดำเนินการกับข้อมูลเมนู
-// @Description ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลเมนู โดยสามารถระบุ action ได้ 3 แบบ
-// @Produce json
-// @Param action query string true "รูปแบบการค้นหาเมนู: getByID, getByCategory หรือ getAll" Enums(getByID, getByCategory, getAll)
-// @Param id query integer false "ID ของเมนู (ใช้กับ action=getByID)"
-// @Param category_id query integer false "ID ของหมวดหมู่ (ใช้กับ action=getByCategory)"
-// @Success 200 {array} models.MenuItem "รายการเมนูที่ค้นพบ"
-// @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจากการระบุพารามิเตอร์"
-// @Router /menu [get]
-func GetMenuByCategory(c *fiber.Ctx) error {
-	var menuItems []models.MenuItem
-
-	// รับ CategoryID จาก query parameter
-	categoryID := c.Query("category_id")
-
-	// ตรวจสอบว่า CategoryID มีค่าอยู่หรือไม่
-	if categoryID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(map[string]interface{}{
-			"error": "CategoryID is required",
-		})
-	}
-
-	if err := db.DB.Preload("Category").Where("category_id = ?", categoryID).Find(&menuItems).Error; err != nil {
-		return c.Status(500).JSON(map[string]interface{}{
-			"error": fmt.Sprintf("Error fetching menu items: %v", err),
-		})
-	}
-
-	// ส่งรายการ MenuItems ที่ค้นพบกลับในรูปแบบ JSON
-	return c.JSON(menuItems)
-}
-
-// @Summary เลือกการดำเนินการกับข้อมูลเมนู
-// @Description ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลเมนู โดยสามารถระบุ action ได้ 3 แบบ
-// @Produce json
-// @Param action query string true "รูปแบบการค้นหาเมนู: getByID, getByCategory หรือ getAll" Enums(getByID, getByCategory, getAll)
-// @Param id query integer false "ID ของเมนู (ใช้กับ action=getByID)"
-// @Param category_id query integer false "ID ของหมวดหมู่ (ใช้กับ action=getByCategory)"
-// @Success 200 {array} models.MenuItem "รายการเมนูที่ค้นพบ"
-// @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจากการระบุพารามิเตอร์"
-// @Router /getmenu [get]
-func GetMenu(c *fiber.Ctx) error {
-	action := c.Query("action") // รับ action จาก query parameter
-
-	switch action {
-	case "getByID":
-		// เรียกฟังก์ชันสำหรับสร้างข้อมูล
-		return GetMenuByID(c)
-	case "getByCategory":
-		// เรียกฟังก์ชันสำหรับอัปเดตข้อมูล
-		return GetMenuByCategory(c)
-	case "getAll":
-		// เรียกฟังก์ชันสำหรับลบข้อมูล
-		return GetMenuAll(c)
-	default:
-		// กรณีไม่มี action ที่ตรงกัน
-		return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{
-			"error": "Invalid action",
-		})
-	}
 }
 
 // ---------------------------------------------------------------------
@@ -246,6 +214,7 @@ type OrderItemRequest struct {
 // @Failure 400 {object} map[string]interface{} "ข้อมูลไม่ถูกต้อง"
 // @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการประมวลผล"
 // @Router /order [post]
+// @Tags orders
 func Order_test(c *fiber.Ctx) error {
 
 	var orderReq OrderRequest
@@ -299,10 +268,10 @@ func Order_test(c *fiber.Ctx) error {
 
 	// Create new order
 	order := models.Order{
-		TableID: orderReq.TableID,
-		Status:  "pending",
-		Total:   0, // Will calculate later
-		Items:   []models.OrderItem{},
+		UUID:   orderReq.UUID,
+		Status: "pending",
+		Total:  0, // Will calculate later
+		Items:  []models.OrderItem{},
 	}
 
 	if err := tx.Create(&order).Error; err != nil {

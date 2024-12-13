@@ -33,6 +33,9 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "categories"
+                ],
                 "summary": "สร้างหมวดหมู่ใหม่",
                 "parameters": [
                     {
@@ -69,19 +72,84 @@ const docTemplate = `{
                 }
             }
         },
-        "/add_menu": {
+        "/add_group_option": {
             "post": {
-                "description": "ฟังก์ชันนี้ใช้สำหรับสร้างเมนูใหม่ โดยต้องระบุข้อมูลที่จำเป็นในการสร้าง เช่น ชื่อเมนูและ ID ของหมวดหมู่ที่เกี่ยวข้อง",
+                "description": "สร้าง (group options) ของเมนูนั้นๆ",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "สร้างเมนูใหม่",
+                "tags": [
+                    "menu"
+                ],
+                "summary": "เพิ่ม group options แยกถ้าสร้างเมนูไปแล้ว",
                 "parameters": [
                     {
-                        "description": "ข้อมูลเมนูใหม่",
+                        "type": "integer",
+                        "description": "ID ของเมนูที่ต้องการเพิ่ม group option",
+                        "name": "menu_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "ข้อมูลเมนูและ group options",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.OptionGroupRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของเมนูและ group options ที่สร้างเสร็จแล้ว",
+                        "schema": {
+                            "$ref": "#/definitions/models.MenuItem"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "ชื่อเมนูซ้ำกับที่มีอยู่แล้ว",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการสร้างเมนูหรือ options",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/add_menu": {
+            "post": {
+                "description": "สร้างเมนูอาหารใหม่พร้อมกับตัวเลือกเพิ่มเติม (options) ของเมนูนั้นๆ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "สร้างเมนูใหม่พร้อม options",
+                "parameters": [
+                    {
+                        "description": "ข้อมูลเมนูและ options",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -92,9 +160,133 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "รายละเอียดของเมนูที่สร้างเสร็จแล้ว",
+                        "description": "รายละเอียดของเมนูและ options ที่สร้างเสร็จแล้ว",
                         "schema": {
                             "$ref": "#/definitions/models.MenuItem"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "ชื่อเมนูซ้ำกับที่มีอยู่แล้ว",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการสร้างเมนูหรือ options",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/add_more_option": {
+            "post": {
+                "description": "สร้าง (options) ของเมนูนั้นๆ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "เพิ่ม options แยกจากกลุ่มที่มีอยู่",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของกลุ่มตัวเลือกที่ต้องการเพิ่ม option",
+                        "name": "OptionGroupID",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "ข้อมูลเมนูและ options",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.OptionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของเมนูและ options ที่สร้างเสร็จแล้ว",
+                        "schema": {
+                            "$ref": "#/definitions/models.MenuItem"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "ชื่อเมนูซ้ำกับที่มีอยู่แล้ว",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการสร้างเมนูหรือ options",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/delete_categories/{id}": {
+            "delete": {
+                "description": "ฟังก์ชันนี้ใช้สำหรับลบหมวดหมู่ถ้าต้องการลบทั้งหมดรวมถึงอาหารในหมวดหมู่ให้ใช้ true ลบแค่หมวดหมู่ false แต่ต้องระวังถ้าระบุ false แล้วมีเมนูในหมวดหมู่จะ error",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "categories"
+                ],
+                "summary": "ลบหมวดหมู่",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของหมวดหมู่",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "ture ถ้ามีเมนูอยู่ในหมวดหมู่จะลบเมนูไปด้วย",
+                        "name": "order",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.DeleteCategoryOption"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ลบหมวดหมู่สำเร็จ",
+                        "schema": {
+                            "$ref": "#/definitions/models.Category"
                         }
                     },
                     "400": {
@@ -104,8 +296,22 @@ const docTemplate = `{
                             "additionalProperties": true
                         }
                     },
+                    "404": {
+                        "description": "ไม่พบหมวดหมู่ที่ต้องการแก้ไข",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "ชื่อหมวดหมู่ซ้ำกับที่มีอยู่แล้ว",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
                     "500": {
-                        "description": "เกิดข้อผิดพลาดในการสร้างเมนูใหม่",
+                        "description": "เกิดข้อผิดพลาดในการอัพเดตหมวดหมู่",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -119,6 +325,9 @@ const docTemplate = `{
                 "description": "ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลหมวดหมู่ทั้งหมดที่มีอยู่ในระบบ",
                 "produces": [
                     "application/json"
+                ],
+                "tags": [
+                    "categories"
                 ],
                 "summary": "เรียกรายการหมวดหมู่ทั้งหมด",
                 "responses": {
@@ -141,11 +350,70 @@ const docTemplate = `{
                 }
             }
         },
+        "/getmenu": {
+            "get": {
+                "description": "ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลเมนู โดยสามารถระบุ action ได้ 3 แบบ",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "เลือกการดำเนินการกับข้อมูลเมนู",
+                "parameters": [
+                    {
+                        "enum": [
+                            "getByID",
+                            "getByCategory",
+                            "getAll"
+                        ],
+                        "type": "string",
+                        "description": "รูปแบบการค้นหาเมนู: getByID, getByCategory หรือ getAll",
+                        "name": "action",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ของเมนู (ใช้กับ action=getByID)",
+                        "name": "id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID ของหมวดหมู่ (ใช้กับ action=getByCategory)",
+                        "name": "category_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายการเมนูที่ค้นพบ",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.MenuItem"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "เกิดข้อผิดพลาดจากการระบุพารามิเตอร์",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/menu": {
             "get": {
                 "description": "ฟังก์ชันนี้ใช้สำหรับเรียกข้อมูลเมนู โดยสามารถระบุ action ได้ 3 แบบ",
                 "produces": [
                     "application/json"
+                ],
+                "tags": [
+                    "menu"
                 ],
                 "summary": "เลือกการดำเนินการกับข้อมูลเมนู",
                 "parameters": [
@@ -244,6 +512,9 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "orders"
+                ],
                 "summary": "สั่งอาหาร......",
                 "parameters": [
                     {
@@ -312,9 +583,159 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/softDelete_Menu/{id}": {
+            "delete": {
+                "description": "ฟังก์ชันนี้ใช้สำหรับลบเมนูโดยจะเป็นการ soft delete งิงิ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "ลบเมนู/รายการอาหาร",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของอาหารนั้นๆ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ลบเมนูสำเร็จ"
+                    },
+                    "400": {
+                        "description": "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/softDelete_Option/{id}": {
+            "delete": {
+                "description": "ฟังก์ชันนี้ใช้สำหรับลบตัวเลือกโดยจะเป็นการ soft delete",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "ลบตัวเลือกอาหาร",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของตัวเลือกนั้นๆ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ลบตัตัวเลือกสำเร็จ"
+                    },
+                    "400": {
+                        "description": "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/update_categories/{id}": {
+            "put": {
+                "description": "ฟังก์ชันนี้ใช้สำหรับแก้ไขชื่อของหมวดหมู่ที่มีอยู่แล้ว โดยระบุ ID และชื่อใหม่",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "categories"
+                ],
+                "summary": "อัพเดตชื่อหมวดหมู่",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของหมวดหมู่",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "ข้อมูลหมวดหมู่ที่ต้องการอัพเดต",
+                        "name": "category",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Category"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของหมวดหมู่ที่อัพเดตแล้ว",
+                        "schema": {
+                            "$ref": "#/definitions/models.Category"
+                        }
+                    },
+                    "400": {
+                        "description": "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบหมวดหมู่ที่ต้องการแก้ไข",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "ชื่อหมวดหมู่ซ้ำกับที่มีอยู่แล้ว",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการอัพเดตหมวดหมู่",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "api_handlers.DeleteCategoryOption": {
+            "type": "object",
+            "properties": {
+                "force_delete": {
+                    "description": "true = ถ้าลบหมวดหมู่จะลบเมนูต่างๆ ที่เชื่อมอยู่ด้วย",
+                    "type": "boolean"
+                }
+            }
+        },
         "api_handlers.OrderItemRequest": {
             "type": "object",
             "properties": {
@@ -354,6 +775,12 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "nameCh": {
+                    "type": "string"
+                },
+                "nameEn": {
+                    "type": "string"
                 }
             }
         },
@@ -370,35 +797,14 @@ const docTemplate = `{
         },
         "models.CreateMenuRequest": {
             "type": "object",
-            "required": [
-                "CategoryID",
-                "Name",
-                "Price"
-            ],
             "properties": {
-                "CategoryID": {
-                    "type": "integer",
-                    "minimum": 1
+                "menu_item": {
+                    "$ref": "#/definitions/models.MenuItemRequest"
                 },
-                "Name": {
-                    "type": "string",
-                    "maxLength": 100,
-                    "minLength": 2
-                },
-                "Price": {
-                    "type": "integer",
-                    "minimum": 1
-                },
-                "description": {
-                    "type": "string",
-                    "maxLength": 255
-                },
-                "image": {
-                    "description": "max 5MB",
+                "option_groups": {
                     "type": "array",
-                    "maxItems": 5242880,
                     "items": {
-                        "type": "integer"
+                        "$ref": "#/definitions/models.OptionGroupRequest"
                     }
                 }
             }
@@ -424,6 +830,12 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "descriptionCh": {
+                    "type": "string"
+                },
+                "descriptionEn": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -437,11 +849,187 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "nameCh": {
+                    "type": "string"
+                },
+                "nameEn": {
+                    "type": "string"
+                },
+                "optionGroups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.OptionGroup"
+                    }
+                },
                 "price": {
                     "type": "integer"
                 },
                 "updatedAt": {
                     "type": "string"
+                }
+            }
+        },
+        "models.MenuItemRequest": {
+            "type": "object",
+            "required": [
+                "category_id",
+                "name",
+                "name_ch",
+                "name_en",
+                "price"
+            ],
+            "properties": {
+                "category_id": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "description_ch": {
+                    "type": "string"
+                },
+                "description_en": {
+                    "type": "string"
+                },
+                "image": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "name_ch": {
+                    "type": "string"
+                },
+                "name_en": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.MenuOption": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "groupID": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "nameCh": {
+                    "type": "string"
+                },
+                "nameEn": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.OptionGroup": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "isRequired": {
+                    "type": "boolean"
+                },
+                "maxSelections": {
+                    "description": "จำนวนที่เลือกได้",
+                    "type": "integer"
+                },
+                "menuItemID": {
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "เช่น \"น้ำซุป\", \"ความเผ็ด\"",
+                    "type": "string"
+                },
+                "nameCh": {
+                    "type": "string"
+                },
+                "nameEn": {
+                    "type": "string"
+                },
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.MenuOption"
+                    }
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.OptionGroupRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "name_ch",
+                "name_en"
+            ],
+            "properties": {
+                "MaxSelections": {
+                    "type": "integer"
+                },
+                "is_required": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "name_ch": {
+                    "type": "string"
+                },
+                "name_en": {
+                    "type": "string"
+                },
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.OptionRequest"
+                    }
+                }
+            }
+        },
+        "models.OptionRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "name_ch",
+                "name_en"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "name_ch": {
+                    "type": "string"
+                },
+                "name_en": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
                 }
             }
         },
@@ -464,14 +1052,13 @@ const docTemplate = `{
                     "description": "e.g., \"pending\", \"cooking\", \"served\", \"completed\"",
                     "type": "string"
                 },
-                "tableID": {
-                    "description": "Foreign key to Table",
-                    "type": "integer"
-                },
                 "total": {
                     "type": "number"
                 },
                 "updatedAt": {
+                    "type": "string"
+                },
+                "uuid": {
                     "type": "string"
                 }
             }
@@ -489,32 +1076,70 @@ const docTemplate = `{
                     "$ref": "#/definitions/models.MenuItem"
                 },
                 "menuItemID": {
-                    "description": "Foreign key to MenuItem",
                     "type": "integer"
                 },
                 "notes": {
-                    "description": "Special instructions",
                     "type": "string"
+                },
+                "options": {
+                    "description": "เพิ่ม relation กับ options",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.OrderItemOption"
+                    }
                 },
                 "order": {
                     "$ref": "#/definitions/models.Order"
                 },
                 "orderID": {
-                    "description": "Foreign key to Order",
                     "type": "integer"
                 },
                 "price": {
-                    "description": "Price at time of order",
                     "type": "number"
                 },
                 "quantity": {
                     "type": "integer"
                 },
                 "status": {
-                    "description": "e.g., \"pending\", \"cooking\", \"served\"",
                     "type": "string"
                 },
                 "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.OrderItemOption": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "menuOption": {
+                    "$ref": "#/definitions/models.MenuOption"
+                },
+                "menuOptionID": {
+                    "description": "Foreign key to MenuOption",
+                    "type": "integer"
+                },
+                "orderItem": {
+                    "$ref": "#/definitions/models.OrderItem"
+                },
+                "orderItemID": {
+                    "description": "Foreign key to OrderItem",
+                    "type": "integer"
+                },
+                "price": {
+                    "description": "ราคา ณ เวลาที่สั่ง",
+                    "type": "number"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "value": {
+                    "description": "ค่าที่เลือก เช่น \"เผ็ดมาก\", \"เพิ่มไข่ดาว\"",
                     "type": "string"
                 }
             }
@@ -531,7 +1156,7 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
-                "is_active": {
+                "isActive": {
                     "type": "boolean"
                 },
                 "qr_Image": {
@@ -555,7 +1180,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "127.0.0.1:8080",
+	Host:             "http://localhost/8080",
 	BasePath:         "/",
 	Schemes:          []string{"http"},
 	Title:            "Food Ordering API",

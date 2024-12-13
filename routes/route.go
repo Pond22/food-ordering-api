@@ -20,13 +20,25 @@ func SetupRoutes(app *fiber.App) {
 
 	app.Get("/getCategory", api_handlers.GetCategoriesHandler)
 
+	app.Put("/update_categories/:id", api_handlers.UpdateCategoryHandler)
+
 	app.Get("/getmenu", api_handlers.GetMenu)
+
+	app.Delete("/delete_categories/:id", api_handlers.Delete_categoryHandler)
 
 	app.Get("/qr_code/:table", qr_service.HandleQRCodeRequest)
 
 	app.Get("/order", qr_service.Table)
 
 	app.Post("/order", api_handlers.Order_test)
+
+	app.Post("/add_group_option", api_handlers.AddMoreGroup)
+
+	app.Post("/add_more_option", api_handlers.AddMoreMenuOption)
+
+	app.Delete("/softDelete_Menu/:id", api_handlers.SoftDelete_Menu)
+
+	app.Delete("/softDelete_Option/:id", api_handlers.SoftDelete_Option)
 
 	//-----
 
