@@ -11,12 +11,6 @@ definitions:
     - current_password
     - new_password
     type: object
-  api_handlers.DeleteCategoryOption:
-    properties:
-      force_delete:
-        description: true = ถ้าลบหมวดหมู่จะลบเมนูต่างๆ ที่เชื่อมอยู่ด้วย
-        type: boolean
-    type: object
   api_handlers.LoginRequest:
     properties:
       password:
@@ -64,6 +58,15 @@ definitions:
     required:
     - new_password
     type: object
+  api_handlers.Table:
+    properties:
+      capacity:
+        type: integer
+      name:
+        type: string
+      status:
+        type: string
+    type: object
   api_handlers.UserProfile:
     properties:
       id:
@@ -85,13 +88,6 @@ definitions:
         type: string
       nameEn:
         type: string
-    type: object
-  models.CreateCategoryRequest:
-    properties:
-      name:
-        type: string
-    required:
-    - name
     type: object
   models.CreateMenuRequest:
     properties:
@@ -474,49 +470,6 @@ paths:
       summary: เรียกรายการหมวดหมู่ทั้งหมด
       tags:
       - categories
-    post:
-      consumes:
-      - application/json
-      description: ฟังก์ชันนี้ใช้สำหรับสร้างหมวดหมู่ใหม่ โดยต้องระบุข้อมูลชื่อหมวดหมู่
-      parameters:
-      - description: ข้อมูลหมวดหมู่ใหม่
-        in: body
-        name: category
-        required: true
-        schema:
-          $ref: '#/definitions/models.CreateCategoryRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: รายละเอียดของหมวดหมู่ที่สร้างเสร็จแล้ว
-          schema:
-            $ref: '#/definitions/models.Category'
-        "400":
-          description: เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: ไม่ได้รับอนุญาต (Unauthorized)
-          schema:
-            additionalProperties: true
-            type: object
-        "403":
-          description: ไม่มีสิทธิ์เข้าถึง (Forbidden)
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: เกิดข้อผิดพลาดในการสร้างหมวดหมู่ใหม่
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - BearerAuth: []
-      summary: สร้างหมวดหมู่ใหม่
-      tags:
-      - categories
   /api/categories/{id}:
     delete:
       consumes:
@@ -530,12 +483,6 @@ paths:
         name: id
         required: true
         type: integer
-      - description: ture ถ้ามีเมนูอยู่ในหมวดหมู่จะลบเมนูไปด้วย
-        in: body
-        name: order
-        required: true
-        schema:
-          $ref: '#/definitions/api_handlers.DeleteCategoryOption'
       produces:
       - application/json
       responses:
@@ -635,6 +582,76 @@ paths:
       security:
       - BearerAuth: []
       summary: อัพเดตชื่อหมวดหมู่
+      tags:
+      - categories
+  /api/categories/get_delete_categories:
+    get:
+      description: ฟังก์ชันนี้ใช้สำหรับเรียกดูหมวดหมู่ที่ถูกลบรวมถึงอาหารในนั้นถ้าถูกลบพร้อมหมวดหมู่
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: สำเร็จ
+          schema:
+            items:
+              $ref: '#/definitions/models.Category'
+            type: array
+        "401":
+          description: ไม่ได้รับอนุญาต (Unauthorized)
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง (Forbidden)
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการเรียกดูข้อมูลหมวดหมู่ที่ถูกลบ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: เรียกดูหมวดหมู่ที่ถูกลบพร้อมแสดงรายการอาหารในนั้นถ้ามี
+      tags:
+      - categories
+  /api/categories/restore_categories/{id}:
+    post:
+      description: ฟังก์ชันนี้ใช้สำหรับลบหมวดหมู่และถ้ามีรายการอาหารจะถูกลบด้วย
+      parameters:
+      - description: ID ของหมวดหมู่
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ลบสำเร็จ
+          schema:
+            items:
+              $ref: '#/definitions/models.Category'
+            type: array
+        "401":
+          description: ไม่ได้รับอนุญาต (Unauthorized)
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง (Forbidden)
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการลบข้อมูลหมวดหมู่
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: กู้คืนมวดหมู่และรายการอาหารทั้งหมดในนั้น
       tags:
       - categories
   /api/member:
@@ -1555,6 +1572,55 @@ paths:
       summary: กู้คืนเมนู
       tags:
       - menu-restore
+  /api/table:
+    post:
+      consumes:
+      - application/json
+      description: สร้างโต๊ะใหม่
+      parameters:
+      - description: ข้อมูลโต๊ะ
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.Table'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของโต๊ะ
+          schema:
+            $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: ชื่อโต๊ะซ้ำกับที่มีอยู่แล้ว
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการสร้างโต๊ะ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: สร้างโต๊ะใหม่
+      tags:
+      - Table
   /order:
     get:
       description: เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ

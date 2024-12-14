@@ -151,47 +151,31 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
-            "post": {
+            }
+        },
+        "/api/categories/get_delete_categories": {
+            "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "ฟังก์ชันนี้ใช้สำหรับสร้างหมวดหมู่ใหม่ โดยต้องระบุข้อมูลชื่อหมวดหมู่",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "ฟังก์ชันนี้ใช้สำหรับเรียกดูหมวดหมู่ที่ถูกลบรวมถึงอาหารในนั้นถ้าถูกลบพร้อมหมวดหมู่",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "categories"
                 ],
-                "summary": "สร้างหมวดหมู่ใหม่",
-                "parameters": [
-                    {
-                        "description": "ข้อมูลหมวดหมู่ใหม่",
-                        "name": "category",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.CreateCategoryRequest"
-                        }
-                    }
-                ],
+                "summary": "เรียกดูหมวดหมู่ที่ถูกลบพร้อมแสดงรายการอาหารในนั้นถ้ามี",
                 "responses": {
                     "200": {
-                        "description": "รายละเอียดของหมวดหมู่ที่สร้างเสร็จแล้ว",
+                        "description": "สำเร็จ",
                         "schema": {
-                            "$ref": "#/definitions/models.Category"
-                        }
-                    },
-                    "400": {
-                        "description": "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Category"
+                            }
                         }
                     },
                     "401": {
@@ -209,7 +193,65 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "เกิดข้อผิดพลาดในการสร้างหมวดหมู่ใหม่",
+                        "description": "เกิดข้อผิดพลาดในการเรียกดูข้อมูลหมวดหมู่ที่ถูกลบ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/categories/restore_categories/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ฟังก์ชันนี้ใช้สำหรับลบหมวดหมู่และถ้ามีรายการอาหารจะถูกลบด้วย",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "categories"
+                ],
+                "summary": "กู้คืนมวดหมู่และรายการอาหารทั้งหมดในนั้น",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของหมวดหมู่",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ลบสำเร็จ",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Category"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต (Unauthorized)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง (Forbidden)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการลบข้อมูลหมวดหมู่",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -329,15 +371,6 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "description": "ture ถ้ามีเมนูอยู่ในหมวดหมู่จะลบเมนูไปด้วย",
-                        "name": "order",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api_handlers.DeleteCategoryOption"
-                        }
                     }
                 ],
                 "responses": {
@@ -1773,6 +1806,80 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/table": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "สร้างโต๊ะใหม่",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Table"
+                ],
+                "summary": "สร้างโต๊ะใหม่",
+                "parameters": [
+                    {
+                        "description": "ข้อมูลโต๊ะ",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.Table"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของโต๊ะ",
+                        "schema": {
+                            "$ref": "#/definitions/models.MenuItem"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "ชื่อโต๊ะซ้ำกับที่มีอยู่แล้ว",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการสร้างโต๊ะ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/order": {
             "get": {
                 "description": "เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ url ของแต่ละโต๊ะจะสามารถเข้าได้ผ่าน qr_code เท่านั้นจากฟังก์ชัน",
@@ -1909,15 +2016,6 @@ const docTemplate = `{
                 }
             }
         },
-        "api_handlers.DeleteCategoryOption": {
-            "type": "object",
-            "properties": {
-                "force_delete": {
-                    "description": "true = ถ้าลบหมวดหมู่จะลบเมนูต่างๆ ที่เชื่อมอยู่ด้วย",
-                    "type": "boolean"
-                }
-            }
-        },
         "api_handlers.LoginRequest": {
             "type": "object",
             "required": [
@@ -1990,6 +2088,20 @@ const docTemplate = `{
                 }
             }
         },
+        "api_handlers.Table": {
+            "type": "object",
+            "properties": {
+                "capacity": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "api_handlers.UserProfile": {
             "type": "object",
             "properties": {
@@ -2020,17 +2132,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "nameEn": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.CreateCategoryRequest": {
-            "type": "object",
-            "required": [
-                "name"
-            ],
-            "properties": {
-                "name": {
                     "type": "string"
                 }
             }

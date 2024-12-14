@@ -63,7 +63,6 @@ type DeleteCategoryOption struct {
 // @Produce json
 // @Security BearerAuth
 // @Param id path integer true "ID ของหมวดหมู่"
-// @Param order body DeleteCategoryOption true "ture ถ้ามีเมนูอยู่ในหมวดหมู่จะลบเมนูไปด้วย"
 // @Success 200 {object} models.Category "ลบหมวดหมู่สำเร็จ"
 // @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง"
 // @Failure 401 {object} map[string]interface{} "ไม่ได้รับอนุญาต (Unauthorized)"
@@ -73,13 +72,8 @@ type DeleteCategoryOption struct {
 // @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการอัพเดตหมวดหมู่"
 // @Router /api/categories/{id} [delete]
 // @Tags categories
-func Delete_categoryHandler(c *fiber.Ctx) error { //เหลือทำให้ลบเมนูไม่กระทบออเดอร์
+func Delete_categoryHandler(c *fiber.Ctx) error {
 	id := c.Params("id")
-	fmt.Print(id)
-	var option DeleteCategoryOption
-	if err := c.BodyParser(&option); err != nil {
-		option.ForceDelete = false
-	}
 
 	if id == "" {
 		return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{
@@ -87,29 +81,43 @@ func Delete_categoryHandler(c *fiber.Ctx) error { //เหลือทำให�
 		})
 	}
 
+	tx := db.DB.Begin()
+
+	// ตรวจสอบว่ามีหมวดหมู่อยู่จริง
 	var existingCategory models.Category
-	if err := db.DB.First(&existingCategory, id).Error; err != nil {
+	if err := tx.First(&existingCategory, id).Error; err != nil {
+		tx.Rollback()
 		return c.Status(http.StatusNotFound).JSON(map[string]interface{}{
 			"error": "Category not found",
 		})
 	}
-	if option.ForceDelete {
-		if err := db.DB.Where("category_id = ?", id).Delete(&models.MenuItem{}).Error; err != nil {
-			return c.Status(http.StatusInternalServerError).JSON(map[string]interface{}{
-				"error": "Failed to delete menu items",
-			})
-		}
+
+	// ลบเมนูในหมวดหมู่ (soft delete)
+	// สังเกตว่าไม่ต้องไปยุ่งกับ options เพราะถูก cascade จาก menu item อยู่แล้ว
+	if err := tx.Where("category_id = ?", id).Delete(&models.MenuItem{}).Error; err != nil {
+		tx.Rollback()
+		return c.Status(http.StatusInternalServerError).JSON(map[string]interface{}{
+			"error": "Failed to delete menu items",
+		})
 	}
-	if err := db.DB.Delete(&existingCategory).Error; err != nil {
+
+	// ลบหมวดหมู่ (soft delete)
+	if err := tx.Delete(&existingCategory).Error; err != nil {
+		tx.Rollback()
 		return c.Status(http.StatusInternalServerError).JSON(map[string]interface{}{
 			"error": "Failed to delete category",
 		})
 	}
 
-	return c.Status(http.StatusOK).JSON(map[string]interface{}{
-		"Massage": "ลบสำเร็จ",
-	})
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(map[string]interface{}{
+			"error": "Failed to commit transaction",
+		})
+	}
 
+	return c.Status(http.StatusOK).JSON(map[string]interface{}{
+		"message": "ลบหมวดหมู่และเมนูที่เกี่ยวข้องสำเร็จ",
+	})
 }
 
 // @Summary อัพเดตชื่อหมวดหมู่
@@ -201,4 +209,124 @@ func GetCategoriesHandler(c *fiber.Ctx) error {
 	}
 	// ส่งรายการ categories กลับในรูปแบบ JSON
 	return c.JSON(categories)
+}
+
+type respon_cat struct {
+	ID     uint              `json:"id"`
+	Name   string            `json:"Name"`
+	NameEn string            `json:"NameEn"`
+	NameCh string            `json:"NameCh"`
+	Menus  []models.MenuItem `json:"menus"`
+}
+
+// @Summary กู้คืนมวดหมู่และรายการอาหารทั้งหมดในนั้น
+// @Description ฟังก์ชันนี้ใช้สำหรับลบหมวดหมู่และถ้ามีรายการอาหารจะถูกลบด้วย
+// @Produce json
+// @Security BearerAuth
+// @Param id path integer true "ID ของหมวดหมู่"
+// @Success 200 {array}  models.Category "ลบสำเร็จ"
+// @Failure 401 {object} map[string]interface{} "ไม่ได้รับอนุญาต (Unauthorized)"
+// @Failure 403 {object} map[string]interface{} "ไม่มีสิทธิ์เข้าถึง (Forbidden)"
+// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการลบข้อมูลหมวดหมู่"
+// @Router /api/categories/restore_categories/{id} [post]
+// @Tags categories
+func Restore_categoryHandler(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	if id == "" {
+		return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{
+			"error": "Category ID is required",
+		})
+	}
+
+	tx := db.DB.Begin()
+
+	// ตรวจสอบว่ามีหมวดหมู่อยู่จริง
+	var existingCategory models.Category
+	if err := tx.Unscoped().Where("id = ? AND deleted_at IS NOT NULL", id).First(&existingCategory, id).Error; err != nil {
+		tx.Rollback()
+		return c.Status(http.StatusNotFound).JSON(map[string]interface{}{
+			"error": "Category not found",
+		})
+	}
+
+	var duplicateCategory models.Category
+	if err := tx.Where("name = ? AND deleted_at IS NULL", existingCategory.Name).First(&duplicateCategory).Error; err == nil {
+		tx.Rollback()
+		return c.Status(http.StatusConflict).JSON(map[string]interface{}{
+			"error": "Category name already exists",
+		})
+	}
+
+	// Restore เมนูที่ถูก soft delete ในหมวดหมู่นั้น
+	if err := tx.Unscoped().Model(&models.MenuItem{}).Where("category_id = ? AND deleted_at IS NOT NULL", id).Update("deleted_at", nil).Error; err != nil {
+		tx.Rollback()
+		return c.Status(http.StatusInternalServerError).JSON(map[string]interface{}{
+			"error": "Failed to restore menu items",
+		})
+	}
+	// กู้หมวดหมู่
+	if err := tx.Unscoped().Model(&existingCategory).Update("deleted_at", nil).Error; err != nil {
+		tx.Rollback()
+		return c.Status(http.StatusInternalServerError).JSON(map[string]interface{}{
+			"error": "Failed to restore category",
+		})
+	}
+
+	var restoredCategory models.Category
+	if err := tx.First(&restoredCategory, id).Error; err != nil {
+		tx.Rollback()
+		return c.Status(http.StatusInternalServerError).JSON(map[string]interface{}{
+			"error": "Failed to load restored data",
+		})
+	}
+
+	var menu []models.MenuItem
+	if err := tx.Preload("OptionGroups.Options").Where("category_id = ?", id).Find(&menu).Error; err != nil {
+		tx.Rollback()
+		return c.Status(http.StatusInternalServerError).JSON(map[string]interface{}{
+			"error": "Failed to load restored data",
+		})
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(map[string]interface{}{
+			"error": "Failed to commit transaction",
+		})
+	}
+
+	response := respon_cat{
+		ID:     restoredCategory.ID,
+		Name:   restoredCategory.Name,
+		NameEn: restoredCategory.NameEn,
+		NameCh: restoredCategory.NameCh,
+		Menus:  menu,
+	}
+
+	return c.Status(http.StatusOK).JSON(map[string]interface{}{
+		"message":  "กู้คืนหมวดหมู่และเมนูที่เกี่ยวข้องสำเร็จ",
+		"category": response,
+	})
+}
+
+// @Summary เรียกดูหมวดหมู่ที่ถูกลบพร้อมแสดงรายการอาหารในนั้นถ้ามี
+// @Description ฟังก์ชันนี้ใช้สำหรับเรียกดูหมวดหมู่ที่ถูกลบรวมถึงอาหารในนั้นถ้าถูกลบพร้อมหมวดหมู่
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array}  models.Category "สำเร็จ"
+// @Failure 401 {object} map[string]interface{} "ไม่ได้รับอนุญาต (Unauthorized)"
+// @Failure 403 {object} map[string]interface{} "ไม่มีสิทธิ์เข้าถึง (Forbidden)"
+// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการเรียกดูข้อมูลหมวดหมู่ที่ถูกลบ"
+// @Router /api/categories/get_delete_categories [get]
+// @Tags categories
+func Get_Delete_Cat(c *fiber.Ctx) error {
+	var deleteCat []models.Category
+
+	if err := db.DB.Unscoped().Where("deleted_at IS NOT NULL").Find(&deleteCat).Error; err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(map[string]interface{}{
+			"error": "Failed to load Delete data",
+		})
+	}
+
+	return c.JSON(deleteCat)
 }

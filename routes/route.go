@@ -66,6 +66,8 @@ func SetupRoutes(app *fiber.App) {
 		categories.Get("/", api_handlers.GetCategoriesHandler)
 		categories.Put("/:id", api_handlers.UpdateCategoryHandler)
 		categories.Delete("/:id", api_handlers.Delete_categoryHandler)
+		categories.Post("/restore_categories/:id", api_handlers.Restore_categoryHandler)
+		categories.Get("/get_delete_categories", api_handlers.Get_Delete_Cat)
 	}
 
 	// Order Management Routes
@@ -80,6 +82,11 @@ func SetupRoutes(app *fiber.App) {
 		// 	orderStaff.Get("/", api_handlers.GetOrders) // ต้องสร้างฟังก์ชันนี้เพิ่ม
 		// 	orderStaff.Put("/:id/status", api_handlers.UpdateOrderStatus)// ต้องสร้างฟังก์ชันนี้เพิ่ม
 		// }
+	}
+
+	table := api.Group("/table")
+	{
+		table.Post("/", api_handlers.Addtable)
 	}
 
 	// QR Code Management Routes
