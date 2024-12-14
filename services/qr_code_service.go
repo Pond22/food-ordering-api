@@ -27,7 +27,7 @@ import (
 // 	return nil
 // }
 
-func generateQRCodeAsBytes(url string) ([]byte, error) {
+func GenerateQRCodeAsBytes(url string) ([]byte, error) {
 	qrCode, err := qrcode.Encode(url, qrcode.Medium, 256) // ขนาด 256x256
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 	// }
 
 	// ใช้ฟังก์ชันที่ส่งคืนข้อมูล []byte ของภาพ
-	imageData, err := generateQRCodeAsBytes(url)
+	imageData, err := GenerateQRCodeAsBytes(url)
 	if err != nil {
 		return c.Status(500).SendString("Failed to generate QR Code")
 	}
@@ -157,4 +157,3 @@ func Table(c *fiber.Ctx) error {
 		"uuid":    uuid,
 	})
 }
-	

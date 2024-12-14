@@ -87,6 +87,11 @@ func SetupRoutes(app *fiber.App) {
 	table := api.Group("/table")
 	{
 		table.Post("/", api_handlers.Addtable)
+		table.Delete("/:id", api_handlers.DeleteTable)
+		table.Put("/:id", api_handlers.UpdateTable)
+		table.Post("/mergeTable", api_handlers.MergeTables)
+		table.Post("/moveTable", api_handlers.MoveTable)
+		table.Post("/splitTable/:id", api_handlers.SplitTables)
 	}
 
 	// QR Code Management Routes

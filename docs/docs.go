@@ -1880,6 +1880,350 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/table/mergeTable": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "รวมโต๊ะ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Table"
+                ],
+                "summary": "รวมโต๊ะ",
+                "parameters": [
+                    {
+                        "description": "ข้อมูลโต๊ะ",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.req_merge"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของโต๊ะ",
+                        "schema": {
+                            "$ref": "#/definitions/models.MenuItem"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการรวมโต๊ะ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/table/moveTable": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ย้ายโต๊ะโดยจะย้ายได้ต่อเมื่อโต๊ะอยู่ในสถานะ occupied หรือกำลังใช้งานอยู่เท่านั้นเป็นการย้ายโต๊ะที่ลูกค้่่ากำลังใช้งานไปอีกโต๊ะนึง",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Table"
+                ],
+                "summary": "ย้ายโต๊ะ",
+                "parameters": [
+                    {
+                        "description": "ID ของโต๊ะที่จะย้าย ID ของโต๊ะเป้าหมายที่จะย้ายไป",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.move_req"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของโต๊ะ",
+                        "schema": {
+                            "$ref": "#/definitions/models.MenuItem"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการย้ายโต๊ะ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/table/splitTable/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "แยกโต๊ะหลังจากที่รวมแล้ว",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Table"
+                ],
+                "summary": "แยกโต๊ะ",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID ของกลุ่มโต๊ะนั้นๆ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของโต๊ะ",
+                        "schema": {
+                            "$ref": "#/definitions/models.MenuItem"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการแยกโต๊ะ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/table/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "แก้ไขข้อมูลโต๊ะ โดยโต๊ะต้องไม่อยู่ในระหว่างการให้บริการ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Table"
+                ],
+                "summary": "แก้ไขข้อมูลโต๊ะ",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID โต๊ะ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "ข้อมูลโต๊ะที่ต้องการแก้ไข",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.Table"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของโต๊ะที่แก้ไขแล้ว",
+                        "schema": {
+                            "$ref": "#/definitions/models.Table"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบโต๊ะที่ต้องการแก้ไข",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "ชื่อโต๊ะซ้ำกับที่มีอยู่แล้ว",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "422": {
+                        "description": "ไม่สามารถแก้ไขโต๊ะที่กำลังใช้งานอยู่",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "เป็นการ softdelete โต๊ะโดยโต๊ะต้องอยุ่ในสถานะพร้อมให้บริการ หรือ ไม่พร้อมให้บริการ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Table"
+                ],
+                "summary": "ลบโต๊ะ",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID โต๊ะ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ลบโต๊ะสำเร็จ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "ชื่อโต๊ะซ้ำกับที่มีอยู่แล้ว",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการสร้างโต๊ะ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/order": {
             "get": {
                 "description": "เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ url ของแต่ละโต๊ะจะสามารถเข้าได้ผ่าน qr_code เท่านั้นจากฟังก์ชัน",
@@ -2116,6 +2460,28 @@ const docTemplate = `{
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "api_handlers.move_req": {
+            "type": "object",
+            "properties": {
+                "from_table_id": {
+                    "type": "integer"
+                },
+                "to_table_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api_handlers.req_merge": {
+            "type": "object",
+            "properties": {
+                "table_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 }
             }
         },
@@ -2415,8 +2781,11 @@ const docTemplate = `{
                     }
                 },
                 "status": {
-                    "description": "e.g., \"pending\", \"cooking\", \"served\", \"completed\"",
+                    "description": "\"completed\", \"uncompleted\"",
                     "type": "string"
+                },
+                "tableID": {
+                    "type": "integer"
                 },
                 "total": {
                     "type": "number"
@@ -2466,7 +2835,12 @@ const docTemplate = `{
                 "quantity": {
                     "type": "integer"
                 },
+                "servedAt": {
+                    "description": "เวลาที่เสิร์ฟอาหาร",
+                    "type": "string"
+                },
                 "status": {
+                    "description": "pending, served, cancelled",
                     "type": "string"
                 },
                 "updatedAt": {
@@ -2536,6 +2910,38 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Table": {
+            "type": "object",
+            "properties": {
+                "capacity": {
+                    "description": "default 2 ที่นั่ง",
+                    "type": "integer"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "groupID": {
+                    "description": "ID กลุ่มสำหรับโต๊ะที่รวมกัน",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parentID": {
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "available, reserved, occupied, unavailable",
+                    "type": "string"
+                },
+                "updatedAt": {
                     "type": "string"
                 }
             }
