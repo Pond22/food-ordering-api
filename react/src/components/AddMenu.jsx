@@ -189,7 +189,7 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
     if (image) formData.append("image", image);
 
     try {
-      const response = await axios.post("http://127.0.0.1:8080/add_menu", formData, {
+      const response = await axios.post("http://127.0.0.1:8080/api/menu", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       if (response.status === 200) {
@@ -372,7 +372,6 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
 };
 
 
-// Modal สำหรับเพิ่มหมวดหมู่
 const AddCategoryModal = ({ onClose }) => {
   const [name, setName] = useState("");
   const [nameEn, setNameEn] = useState("");
@@ -384,7 +383,7 @@ const AddCategoryModal = ({ onClose }) => {
     setLoading(true);
 
     try {
-      const response = await axios.post("http://127.0.0.1:8080/add_category", {
+      const response = await axios.post("http://127.0.0.1:8080/api/categories", {
         name: name.trim(),
         nameEn: nameEn.trim(),
         nameCh: nameCh.trim(),
@@ -400,9 +399,13 @@ const AddCategoryModal = ({ onClose }) => {
         alert(`เกิดข้อผิดพลาด: ${response.statusText}`);
       }
     } catch (error) {
-      alert(
-        error.response?.data?.error || "ไม่สามารถเพิ่มหมวดหมู่ได้"
-      );
+      if (error.response) {
+        // เมื่อเกิดข้อผิดพลาดจาก API
+        alert(error.response?.data?.error || "ไม่สามารถเพิ่มหมวดหมู่ได้");
+      } else {
+        // เมื่อไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้
+        alert("เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์");
+      }
       console.error("Error:", error);
     } finally {
       setLoading(false);
