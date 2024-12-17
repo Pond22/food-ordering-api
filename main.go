@@ -48,7 +48,6 @@ func main() {
 		},
 	})
 
-	// ตั้งค่า CORS ให้ครอบคลุมมากขึ้น
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     "*",
 		AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",

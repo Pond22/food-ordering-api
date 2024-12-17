@@ -79,7 +79,7 @@ body{
 
 .mainContent {
   flex-grow: 1;
-  padding-top: 10px;
+  /* padding-top: 10px; */
   max-height: 100vh; 
   overflow-y: auto;
   box-sizing: border-box; 

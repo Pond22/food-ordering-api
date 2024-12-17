@@ -104,17 +104,36 @@ type OptionGroup struct {
 }
 
 type Category struct {
-	ID     uint   `gorm:"primaryKey"`
-	Name   string `gorm:"not null"`
-	NameEn string `gorm:"not null"`
-	NameCh string `gorm:"not null"`
+	ID        uint           `gorm:"primaryKey"`
+	Name      string         `gorm:"not null"`
+	NameEn    string         `gorm:"not null"`
+	NameCh    string         `gorm:"not null"`
+	DeletedAt gorm.DeletedAt `json:"-" swaggerignore:"true"`
 }
 
 type Table struct {
 	ID        uint   `gorm:"primaryKey"`
 	Name      string `gorm:"not null"`
+	Capacity  int    `gorm:"not null;default:2"`           //default 2 ที่นั่ง
+	Status    string `gorm:"not null;default:'available'"` // available, reserved, occupied, unavailable
+	ParentID  *uint
+	GroupID   *string // ID กลุ่มสำหรับโต๊ะที่รวมกัน
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `json:"-" swaggerignore:"true"`
+}
+
+// TableHistory - เก็บประวัติการย้าย/รวมโต๊ะ
+type TableHistory struct {
+	ID          uint   `gorm:"primaryKey"`
+	TableID     uint   `gorm:"not null"`
+	Action      string `gorm:"not null"` // move, merge, split
+	FromStatus  string `gorm:"not null"`
+	ToStatus    string `gorm:"not null"`
+	FromGroupID *string
+	ToGroupID   *string
+	StaffID     uint `gorm:"not null"`
+	CreatedAt   time.Time
 }
 
 type QRCode struct {

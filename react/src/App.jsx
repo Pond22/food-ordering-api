@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import Header from "./components/Header";
+import Login from "./components/Login";
 import AddCategory from "./components/AddCategory";
 import MenuList from "./components/MenuList";
 import TableManager from "./components/TableManager";
 import UserManagement from "./components/UserManagement";
 import DashBoard from "./components/DashBoard";
 import AddMenu from "./components/AddMenu";
+
 import styles from "./styles/App.module.css";
 
 const App = () => {
@@ -79,6 +81,7 @@ const App = () => {
         >
           <div className={styles.logo}>LOGO</div>
           <nav className={styles.navMenu}>
+            <Link to="/login" className={styles.navLink}>Login</Link>
             <Link to="/menu" className={styles.navLink}>เมนูอาหาร</Link>
             <Link to="/dashboard" className={styles.navLink}>เดชบอร์ด</Link>
             <Link to="/tables" className={styles.navLink}>จัดการโต๊ะ</Link>
@@ -102,6 +105,7 @@ const App = () => {
         {/* Main Content */}
         <main className={styles.mainContent}>
           <Routes>
+            <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<DashBoard />} />
             <Route path="/menu" element={<MenuList />} />
             <Route path="/tables" element={<TableManager />} />
