@@ -1902,7 +1902,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api_handlers.req_merge"
+                            "$ref": "#/definitions/api_handlers.Req_merge"
                         }
                     }
                 ],
@@ -2011,6 +2011,124 @@
                 }
             }
         },
+        "/api/table/reservedTable/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "จองโต๊ะโดยโต๊ะต้องอยู่ในถานะพร้อมให้บริการถึงจองได้",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Table"
+                ],
+                "summary": "จองโต๊ะ",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID ของกลุ่มโต๊ะนั้นๆ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "เค",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการจองโต๊ะ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/table/setstatus/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "สลับสถานะระหว่างพร้อมใช้งาน (available) และไม่พร้อมใช้งาน (unavailable) โดยโต๊ะต้องไม่อยู่ในระหว่างการให้บริการ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Table"
+                ],
+                "summary": "สลับสถานะพร้อมใช้งาน/ไม่พร้อมใช้งานของโต๊ะ",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID โต๊ะ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "สลับสถานะสำเร็จ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบโต๊ะ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "422": {
+                        "description": "ไม่สามารถสลับสถานะได้",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/table/splitTable/{id}": {
             "post": {
                 "security": [
@@ -2068,6 +2186,72 @@
                     },
                     "500": {
                         "description": "เกิดข้อผิดพลาดในการแยกโต๊ะ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/table/unreservedTable/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ยกเลืกจองโต๊ะโดยโต๊ะต้องอยู่ในถานะพร้อมให้บริการถึงยกเลิกจองได้",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Table"
+                ],
+                "summary": "ยกเลืกจองโต๊ะ",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID ของกลุ่มโต๊ะนั้นๆ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "เค",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการยกเลืกจองโต๊ะ",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -2417,6 +2601,17 @@
                 }
             }
         },
+        "api_handlers.Req_merge": {
+            "type": "object",
+            "properties": {
+                "table_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
         "api_handlers.ResetPasswordRequest": {
             "type": "object",
             "required": [
@@ -2468,17 +2663,6 @@
                 },
                 "to_table_id": {
                     "type": "integer"
-                }
-            }
-        },
-        "api_handlers.req_merge": {
-            "type": "object",
-            "properties": {
-                "table_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
                 }
             }
         },

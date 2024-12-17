@@ -36,8 +36,7 @@ func GenerateQRCodeAsBytes(url string) ([]byte, error) {
 }
 
 func SaveQRCode(qrCode models.QRCode) error {
-	// ใช้ GORM บันทึกข้อมูล QRCode
-	result := db.DB.Create(&qrCode) // `db` คือตัวแปรที่เชื่อมต่อ GORM
+	result := db.DB.Create(&qrCode)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -70,20 +69,13 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 
 	fmt.Println("tableID:", tableID)
 	fmt.Println("Generated UUID:", UUID)
-	// สร้าง QR Code สำหรับ tableID ใหม่
-	// err := generateQRCode(tableID, url)
-	// if err != nil {
-	// 	return c.Status(500).SendString(err.Error())
-	// }
 
-	// ใช้ฟังก์ชันที่ส่งคืนข้อมูล []byte ของภาพ
 	imageData, err := GenerateQRCodeAsBytes(url)
 	if err != nil {
 		return c.Status(500).SendString("Failed to generate QR Code")
 	}
 
 	qrCode := models.QRCode{
-		// ID:        tableID,
 		TableID:   num,
 		UUID:      UUID,
 		CreatedAt: time.Now(),
@@ -97,16 +89,10 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 		return c.Status(500).SendString("qr_code โต๊ะนี้มีอยู่ในระบบแล้ว")
 	}
 
-	// ส่งข้อมูลกลับไปยังผู้ใช้
 	// return c.SendFile(fmt.Sprintf("qr_code_%s.png", tableID))
 	c.Set("Content-Type", "image/png")
 	c.Set("Content-Disposition", "inline")
 	return c.Send(imageData)
-	// return c.JSON(fiber.Map{
-	// 	"message": "QR Code generated successfully",
-	// 	"qr_url":  url,
-	// 	"table":   tableID,
-	// })
 }
 
 // func HandleQRCodeRequest(c *fiber.Ctx) error {

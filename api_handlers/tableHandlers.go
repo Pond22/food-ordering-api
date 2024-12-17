@@ -20,6 +20,10 @@ type Table struct {
 	Status   string `json:"status"`
 }
 
+func hasGroupID(groupID *string) bool {
+	return groupID != nil && *groupID != ""
+}
+
 // @Summary แก้ไขข้อมูลโต๊ะ
 // @Description แก้ไขข้อมูลโต๊ะ โดยโต๊ะต้องไม่อยู่ในระหว่างการให้บริการ
 // @Accept json
@@ -71,6 +75,12 @@ func UpdateTable(c *fiber.Ctx) error {
 		}
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": "เกิดข้อผิดพลาดในการค้นหาโต๊ะ",
+		})
+	}
+
+	if hasGroupID(table.GroupID) {
+		return c.Status(http.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error": "ไม่สามารถแก้ไขโต๊ะที่กำลังรวมอยู่",
 		})
 	}
 
@@ -214,7 +224,7 @@ func Addtable(c *fiber.Ctx) error {
 	return c.JSON(table)
 }
 
-type req_merge struct {
+type Req_merge struct {
 	TableIDs []uint `json:"table_ids"`
 	// StaffID  uint   `json:"staff_id"`
 }
@@ -224,7 +234,7 @@ type req_merge struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param request body req_merge true "ข้อมูลโต๊ะ"
+// @Param request body Req_merge true "ข้อมูลโต๊ะ"
 // @Success 200 {object} models.MenuItem "รายละเอียดของโต๊ะ"
 // @Failure 400 {object} map[string]interface{} "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน"
 // @Failure 401 {object} map[string]interface{} "ไม่ได้รับอนุญาต"
@@ -233,7 +243,7 @@ type req_merge struct {
 // @Router /api/table/mergeTable [post]
 // @Tags Table
 func MergeTables(c *fiber.Ctx) error {
-	var req req_merge
+	var req Req_merge
 
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request format"})
@@ -471,5 +481,185 @@ func SplitTables(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"message": "Tables split successfully",
+	})
+}
+
+// @Summary จองโต๊ะ
+// @Description จองโต๊ะโดยโต๊ะต้องอยู่ในถานะพร้อมให้บริการถึงจองได้
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "ID ของกลุ่มโต๊ะนั้นๆ"
+// @Success 200 {object} map[string]interface{} "เค"
+// @Failure 400 {object} map[string]interface{} "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน"
+// @Failure 401 {object} map[string]interface{} "ไม่ได้รับอนุญาต"
+// @Failure 403 {object} map[string]interface{} "ไม่มีสิทธิ์เข้าถึง"
+// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการจองโต๊ะ"
+// @Router /api/table/reservedTable/{id} [post]
+// @Tags Table
+func ReservedTable(c *fiber.Ctx) error {
+	req := c.Params("id")
+	if req == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "Table ID Require"})
+	}
+
+	tx := db.DB.Begin()
+
+	var table models.Table
+	if err := tx.Where("id = ?", req).First(&table).Error; err != nil {
+		tx.Rollback()
+		return c.Status(404).JSON(fiber.Map{"error": "Table not found"})
+	}
+
+	if table.Status != "available" {
+		tx.Rollback()
+		return c.Status(401).JSON(fiber.Map{"error": "Table not available"})
+	}
+
+	if hasGroupID(table.GroupID) {
+		if err := tx.Model(&models.Table{}).
+			Where("group_id = ?", table.GroupID).
+			Update("status", "reserved").Error; err != nil {
+			tx.Rollback()
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to update merged tables status"})
+		}
+	} else {
+		if err := tx.Model(&table).Update("status", "reserved").Error; err != nil {
+			tx.Rollback()
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to update table status"})
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to commit changes"})
+	}
+
+	return c.Status(200).JSON(fiber.Map{
+		"message": "Table(s) reserved successfully",
+	})
+}
+
+// @Summary ยกเลืกจองโต๊ะ
+// @Description ยกเลืกจองโต๊ะโดยโต๊ะต้องอยู่ในถานะพร้อมให้บริการถึงยกเลิกจองได้
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "ID ของกลุ่มโต๊ะนั้นๆ"
+// @Success 200 {object} map[string]interface{} "เค"
+// @Failure 400 {object} map[string]interface{} "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน"
+// @Failure 401 {object} map[string]interface{} "ไม่ได้รับอนุญาต"
+// @Failure 403 {object} map[string]interface{} "ไม่มีสิทธิ์เข้าถึง"
+// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการยกเลืกจองโต๊ะ"
+// @Router /api/table/unreservedTable/{id} [post]
+// @Tags Table
+func UnreservedTable(c *fiber.Ctx) error {
+	req := c.Params("id")
+	if req == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "Table ID Require"})
+	}
+
+	tx := db.DB.Begin()
+
+	var table models.Table
+	if err := tx.Where("id = ?", req).First(&table).Error; err != nil {
+		tx.Rollback()
+		return c.Status(404).JSON(fiber.Map{"error": "Table not found"})
+	}
+
+	if table.Status != "reserved" {
+		tx.Rollback()
+		return c.Status(401).JSON(fiber.Map{"error": "Table not reserved"})
+	}
+
+	if hasGroupID(table.GroupID) {
+		if err := tx.Model(&models.Table{}).
+			Where("group_id = ?", table.GroupID).
+			Update("status", "available").Error; err != nil {
+			tx.Rollback()
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to update merged tables status"})
+		}
+	} else {
+		if err := tx.Model(&table).Update("status", "available").Error; err != nil {
+			tx.Rollback()
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to update table status"})
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to commit changes"})
+	}
+
+	return c.Status(200).JSON(fiber.Map{
+		"message": "Table(s) reserved successfully",
+	})
+}
+
+// @Summary สลับสถานะพร้อมใช้งาน/ไม่พร้อมใช้งานของโต๊ะ
+// @Description สลับสถานะระหว่างพร้อมใช้งาน (available) และไม่พร้อมใช้งาน (unavailable) โดยโต๊ะต้องไม่อยู่ในระหว่างการให้บริการ
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path integer true "ID โต๊ะ"
+// @Success 200 {object} map[string]interface{} "สลับสถานะสำเร็จ"
+// @Failure 404 {object} map[string]interface{} "ไม่พบโต๊ะ"
+// @Failure 422 {object} map[string]interface{} "ไม่สามารถสลับสถานะได้"
+// @Router /api/table/setstatus/{id} [put]
+// @Tags Table
+func ToggleTableStatus(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "ต้องระบุ ID โต๊ะ",
+		})
+	}
+
+	tx := db.DB.Begin()
+
+	var table models.Table
+	if err := tx.First(&table, id).Error; err != nil {
+		tx.Rollback()
+		return c.Status(404).JSON(fiber.Map{
+			"error": "ไม่พบโต๊ะ",
+		})
+	}
+
+	// ตรวจสอบว่าโต๊ะไม่ได้อยู่ในระหว่างใช้งาน
+	if table.Status == "occupied" || table.Status == "reserved" {
+		tx.Rollback()
+		return c.Status(422).JSON(fiber.Map{
+			"error": "ไม่สามารถเปลี่ยนสถานะโต๊ะที่กำลังใช้งานหรือจองอยู่",
+		})
+	}
+
+	if hasGroupID(table.GroupID) {
+		tx.Rollback()
+		return c.Status(422).JSON(fiber.Map{
+			"error": "ไม่สามารถเปลี่ยนสถานะโต๊ะที่อยู่ในกลุ่ม",
+		})
+	}
+
+	// สลับสถานะ
+	newStatus := "unavailable"
+	if table.Status == "unavailable" {
+		newStatus = "available"
+	}
+
+	if err := tx.Model(&table).Update("status", newStatus).Error; err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"error": "เกิดข้อผิดพลาดในการอัพเดตสถานะ",
+		})
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "เกิดข้อผิดพลาดในการบันทึกข้อมูล",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message":    "สลับสถานะสำเร็จ",
+		"table":      table,
+		"new_status": newStatus,
 	})
 }

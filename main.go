@@ -1,6 +1,7 @@
 package main
 
 import (
+	"food-ordering-api/api_handlers"
 	"food-ordering-api/db"
 	_ "food-ordering-api/docs"
 	"food-ordering-api/routes"
@@ -58,6 +59,8 @@ func main() {
 	}))
 
 	app.Get("/swagger/*", swagger.HandlerDefault)
+
+	app.Get("/ws/tables", api_handlers.TableWebSocketHandler(db.DB))
 
 	routes.SetupRoutes(app)
 
