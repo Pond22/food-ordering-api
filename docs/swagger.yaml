@@ -50,6 +50,13 @@ definitions:
       uuid:
         type: string
     type: object
+  api_handlers.Req_merge:
+    properties:
+      table_ids:
+        items:
+          type: integer
+        type: array
+    type: object
   api_handlers.ResetPasswordRequest:
     properties:
       new_password:
@@ -77,6 +84,13 @@ definitions:
         $ref: '#/definitions/models.UserRole'
       username:
         type: string
+    type: object
+  api_handlers.move_req:
+    properties:
+      from_table_id:
+        type: integer
+      to_table_id:
+        type: integer
     type: object
   models.Category:
     properties:
@@ -277,8 +291,10 @@ definitions:
           $ref: '#/definitions/models.OrderItem'
         type: array
       status:
-        description: e.g., "pending", "cooking", "served", "completed"
+        description: '"completed", "uncompleted"'
         type: string
+      tableID:
+        type: integer
       total:
         type: number
       updatedAt:
@@ -311,7 +327,11 @@ definitions:
         type: number
       quantity:
         type: integer
+      servedAt:
+        description: เวลาที่เสิร์ฟอาหาร
+        type: string
       status:
+        description: pending, served, cancelled
         type: string
       updatedAt:
         type: string
@@ -359,6 +379,28 @@ definitions:
         description: One-to-One กับ Table
         type: integer
       uuid:
+        type: string
+    type: object
+  models.Table:
+    properties:
+      capacity:
+        description: default 2 ที่นั่ง
+        type: integer
+      createdAt:
+        type: string
+      groupID:
+        description: ID กลุ่มสำหรับโต๊ะที่รวมกัน
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      parentID:
+        type: integer
+      status:
+        description: available, reserved, occupied, unavailable
+        type: string
+      updatedAt:
         type: string
     type: object
   models.UserRole:
@@ -1621,6 +1663,358 @@ paths:
       summary: สร้างโต๊ะใหม่
       tags:
       - Table
+  /api/table/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: เป็นการ softdelete โต๊ะโดยโต๊ะต้องอยุ่ในสถานะพร้อมให้บริการ หรือ
+        ไม่พร้อมให้บริการ
+      parameters:
+      - description: ID โต๊ะ
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ลบโต๊ะสำเร็จ
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: ชื่อโต๊ะซ้ำกับที่มีอยู่แล้ว
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการสร้างโต๊ะ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ลบโต๊ะ
+      tags:
+      - Table
+    put:
+      consumes:
+      - application/json
+      description: แก้ไขข้อมูลโต๊ะ โดยโต๊ะต้องไม่อยู่ในระหว่างการให้บริการ
+      parameters:
+      - description: ID โต๊ะ
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ข้อมูลโต๊ะที่ต้องการแก้ไข
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.Table'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของโต๊ะที่แก้ไขแล้ว
+          schema:
+            $ref: '#/definitions/models.Table'
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: ไม่พบโต๊ะที่ต้องการแก้ไข
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: ชื่อโต๊ะซ้ำกับที่มีอยู่แล้ว
+          schema:
+            additionalProperties: true
+            type: object
+        "422":
+          description: ไม่สามารถแก้ไขโต๊ะที่กำลังใช้งานอยู่
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: แก้ไขข้อมูลโต๊ะ
+      tags:
+      - Table
+  /api/table/mergeTable:
+    post:
+      consumes:
+      - application/json
+      description: รวมโต๊ะ
+      parameters:
+      - description: ข้อมูลโต๊ะ
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.Req_merge'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของโต๊ะ
+          schema:
+            $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการรวมโต๊ะ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: รวมโต๊ะ
+      tags:
+      - Table
+  /api/table/moveTable:
+    post:
+      consumes:
+      - application/json
+      description: ย้ายโต๊ะโดยจะย้ายได้ต่อเมื่อโต๊ะอยู่ในสถานะ occupied หรือกำลังใช้งานอยู่เท่านั้นเป็นการย้ายโต๊ะที่ลูกค้่่ากำลังใช้งานไปอีกโต๊ะนึง
+      parameters:
+      - description: ID ของโต๊ะที่จะย้าย ID ของโต๊ะเป้าหมายที่จะย้ายไป
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.move_req'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของโต๊ะ
+          schema:
+            $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการย้ายโต๊ะ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ย้ายโต๊ะ
+      tags:
+      - Table
+  /api/table/reservedTable/{id}:
+    post:
+      consumes:
+      - application/json
+      description: จองโต๊ะโดยโต๊ะต้องอยู่ในถานะพร้อมให้บริการถึงจองได้
+      parameters:
+      - description: ID ของกลุ่มโต๊ะนั้นๆ
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: เค
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการจองโต๊ะ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: จองโต๊ะ
+      tags:
+      - Table
+  /api/table/setstatus/{id}:
+    put:
+      consumes:
+      - application/json
+      description: สลับสถานะระหว่างพร้อมใช้งาน (available) และไม่พร้อมใช้งาน (unavailable)
+        โดยโต๊ะต้องไม่อยู่ในระหว่างการให้บริการ
+      parameters:
+      - description: ID โต๊ะ
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: สลับสถานะสำเร็จ
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: ไม่พบโต๊ะ
+          schema:
+            additionalProperties: true
+            type: object
+        "422":
+          description: ไม่สามารถสลับสถานะได้
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: สลับสถานะพร้อมใช้งาน/ไม่พร้อมใช้งานของโต๊ะ
+      tags:
+      - Table
+  /api/table/splitTable/{id}:
+    post:
+      consumes:
+      - application/json
+      description: แยกโต๊ะหลังจากที่รวมแล้ว
+      parameters:
+      - description: ID ของกลุ่มโต๊ะนั้นๆ
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของโต๊ะ
+          schema:
+            $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการแยกโต๊ะ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: แยกโต๊ะ
+      tags:
+      - Table
+  /api/table/unreservedTable/{id}:
+    post:
+      consumes:
+      - application/json
+      description: ยกเลืกจองโต๊ะโดยโต๊ะต้องอยู่ในถานะพร้อมให้บริการถึงยกเลิกจองได้
+      parameters:
+      - description: ID ของกลุ่มโต๊ะนั้นๆ
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: เค
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการยกเลืกจองโต๊ะ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ยกเลืกจองโต๊ะ
+      tags:
+      - Table
   /order:
     get:
       description: เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ
@@ -1644,6 +2038,8 @@ paths:
             additionalProperties: true
             type: object
       summary: เข้าถึง dynamic link โต๊ะนั้นๆ
+      tags:
+      - tables
     post:
       consumes:
       - application/json
@@ -1698,6 +2094,8 @@ paths:
             additionalProperties: true
             type: object
       summary: เข้าถึง dynamic link โต๊ะนั้นๆ
+      tags:
+      - tables
 schemes:
 - http
 securityDefinitions:

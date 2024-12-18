@@ -45,4 +45,5 @@ func migrate() {
 	DB.AutoMigrate(&models.OrderBundle{})
 	DB.AutoMigrate(&models.OrderBundleItem{})
 	DB.AutoMigrate(&models.PromoSalesReport{})
+	// DB.AutoMigrate(&models.TableHistory{})
 }

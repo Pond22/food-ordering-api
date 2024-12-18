@@ -19,6 +19,7 @@ func SetupRoutes(app *fiber.App) {
 		auth.Post("/login", api_handlers.Login)
 		auth.Get("/verify-token", api_handlers.VerifyToken)
 	}
+
 	// User Routes
 	// user := api.Group("/member", utils.AuthRequired())
 	user := api.Group("/member") //เอา middleware ออก deploy อย่าลืมเอาใส่
@@ -87,6 +88,14 @@ func SetupRoutes(app *fiber.App) {
 	table := api.Group("/table")
 	{
 		table.Post("/", api_handlers.Addtable)
+		table.Delete("/:id", api_handlers.DeleteTable)
+		table.Put("/:id", api_handlers.UpdateTable)
+		table.Post("/mergeTable", api_handlers.MergeTables)
+		table.Post("/moveTable", api_handlers.MoveTable)
+		table.Post("/splitTable/:id", api_handlers.SplitTables)
+		table.Post("/reservedTable/:id", api_handlers.ReservedTable)
+		table.Post("/unreservedTable/:id", api_handlers.UnreservedTable)
+		table.Put("/setstatus/:id", api_handlers.ToggleTableStatus)
 	}
 
 	// QR Code Management Routes

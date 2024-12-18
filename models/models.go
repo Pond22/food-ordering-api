@@ -124,17 +124,17 @@ type Table struct {
 }
 
 // TableHistory - เก็บประวัติการย้าย/รวมโต๊ะ
-type TableHistory struct {
-	ID          uint   `gorm:"primaryKey"`
-	TableID     uint   `gorm:"not null"`
-	Action      string `gorm:"not null"` // move, merge, split
-	FromStatus  string `gorm:"not null"`
-	ToStatus    string `gorm:"not null"`
-	FromGroupID *string
-	ToGroupID   *string
-	StaffID     uint `gorm:"not null"`
-	CreatedAt   time.Time
-}
+// type TableHistory struct {
+// 	ID          uint   `gorm:"primaryKey"`
+// 	TableID     uint   `gorm:"not null"`
+// 	Action      string `gorm:"not null"` // move, merge, split
+// 	FromStatus  string `gorm:"not null"`
+// 	ToStatus    string `gorm:"not null"`
+// 	FromGroupID *string
+// 	ToGroupID   *string
+// 	StaffID     uint `gorm:"not null"`
+// 	CreatedAt   time.Time
+// }
 
 type QRCode struct {
 	ID        uint      `gorm:"primaryKey"`
@@ -150,7 +150,8 @@ type QRCode struct {
 type Order struct {
 	ID        uint    `gorm:"primaryKey"`
 	UUID      string  `gorm:"not null;index"`
-	Status    string  `gorm:"not null"` // e.g., "pending", "cooking", "served", "completed"
+	TableID   int     `gorm:"not null"`
+	Status    string  `gorm:"not null"` //  "completed", "uncompleted"
 	Total     float64 `gorm:"not null"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -167,7 +168,8 @@ type OrderItem struct {
 	Quantity   int      `gorm:"not null"`
 	Price      float64  `gorm:"not null"`
 	Notes      string
-	Status     string            `gorm:"not null"`
+	Status     string            `gorm:"not null;default:'pending'"` // pending, served, cancelled
+	ServedAt   *time.Time        // เวลาที่เสิร์ฟอาหาร
 	Options    []OrderItemOption `gorm:"foreignKey:OrderItemID"` // เพิ่ม relation กับ options
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
@@ -275,6 +277,8 @@ type Receipt struct {
 	ID            uint                    `gorm:"primaryKey"`
 	OrderID       uint                    `gorm:"not null"`
 	Order         Order                   `gorm:"foreignKey:OrderID"`
+	UUID          string                  `gorm:"not null;index"`
+	TableID       int                     `gorm:"not null"`
 	SubTotal      float64                 `gorm:"not null"` // ยอดรวมก่อนส่วนลด/ค่าใช้จ่ายเพิ่ม
 	DiscountTotal float64                 `gorm:"not null"` // ยอดรวมส่วนลด
 	ChargeTotal   float64                 `gorm:"not null"` // ยอดรวมค่าใช้จ่ายเพิ่ม

@@ -2,10 +2,14 @@ package utils
 
 import (
 	"food-ordering-api/models"
+	"strconv"
 	"strings"
+	"testing"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 // GetUserFromToken ดึงข้อมูลผู้ใช้จาก JWT token
@@ -119,4 +123,22 @@ func RoleRequired(roles ...models.UserRole) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		return CheckPermission(c, roles...)
 	}
+}
+
+func SetupTestDB(t *testing.T) *gorm.DB {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("Failed to connect to test database: %v", err)
+	}
+
+	err = db.AutoMigrate(&models.Table{}, &models.QRCode{})
+	if err != nil {
+		t.Fatalf("Failed to migrate test database: %v", err)
+	}
+
+	return db
+}
+
+func ConvertUintToString(id uint) string {
+	return strconv.FormatUint(uint64(id), 10)
 }
