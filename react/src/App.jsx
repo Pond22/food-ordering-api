@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { BrowserRouter as Router, Routes, Route, Link, Navigate } from "react-router-dom";
 import Header from "./components/Header";
 import Login from "./components/Login";
 import AddCategory from "./components/AddCategory";
@@ -8,118 +8,161 @@ import TableManager from "./components/TableManager";
 import UserManagement from "./components/UserManagement";
 import DashBoard from "./components/DashBoard";
 import AddMenu from "./components/AddMenu";
-
+import ErrorBoundary from "./ErrorBoundary";  // import Error Boundary
 import styles from "./styles/App.module.css";
 
 const App = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const sidebarRef = useRef(); // ใช้ useRef เพื่อตรวจจับ sidebar
+  // ตรวจสอบว่า token มีอยู่ใน localStorage หรือไม่
+  const isLoggedIn = !!localStorage.getItem("token");
 
-  // ฟังก์ชันสำหรับสลับการเปิด/ปิด sidebar
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const sidebarRef = useRef();
+
+  // ดึงข้อมูล user จาก localStorage
+  let user = null;
+  try {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      user = JSON.parse(storedUser);
+    }
+  } catch (error) {
+    console.error("Error parsing user data:", error);
+  }
+
   const toggleSidebar = () => {
-    setIsSidebarOpen((prevState) => !prevState); // ใช้ prevState เพื่อให้แน่ใจว่าเป็นการสลับสถานะอย่างถูกต้อง
+    setIsSidebarOpen((prevState) => !prevState);
   };
 
-  // ฟังก์ชันเพื่อเช็คขนาดหน้าจอและจัดการการปิด sidebar
   const handleResize = () => {
     if (window.innerWidth > 900) {
-      setIsSidebarOpen(true); // ถ้าขนาดหน้าจอเกิน 900px, เปิด sidebar
+      setIsSidebarOpen(true);
     } else {
-      setIsSidebarOpen(false); // ถ้าขนาดหน้าจอไม่เกิน 900px, ปิด sidebar
+      setIsSidebarOpen(false);
     }
   };
 
-  // ใช้ useEffect เพื่อตรวจจับการเปลี่ยนแปลงขนาดหน้าจอ
   useEffect(() => {
-    // เรียก handleResize ทุกครั้งที่ขนาดหน้าจอเปลี่ยน
     window.addEventListener("resize", handleResize);
-    
-    // เรียก handleResize ครั้งแรกเมื่อ component ถูก mount
     handleResize();
 
-    // ทำความสะอาด (clean-up) โดยการลบ event listener เมื่อ component ถูก unmount
     return () => {
       window.removeEventListener("resize", handleResize);
     };
   }, []);
 
-  // ปิด sidebar เมื่อคลิกที่นอก sidebar
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // ตรวจสอบว่าคลิกที่ข้างนอก sidebar หรือไม่
-      // เงื่อนไขนี้จะทำงานเฉพาะเมื่อหน้าจอเล็กกว่า 900px
       if (window.innerWidth < 903 && sidebarRef.current && !sidebarRef.current.contains(event.target)) {
-        setIsSidebarOpen(false); // ปิด sidebar
+        setIsSidebarOpen(false);
       }
     };
 
-    // เฉพาะเมื่อหน้าจอเล็กกว่า 900px จะเพิ่ม event listener สำหรับคลิกข้างนอก
     if (window.innerWidth < 903) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside); // ลบ event listener เมื่อ component ถูกทำลาย
+      document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isSidebarOpen]); // เพิ่ม isSidebarOpen เป็น dependency เพื่อให้ตรวจจับการเปลี่ยนแปลง
+  }, [isSidebarOpen]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.location.reload();
+  };
 
   return (
-    <Router>
-      <div className={styles.appLayout}>
-        {/* <header className={styles.header}>
+    <ErrorBoundary>
+      <Router>
+        <div className={styles.appLayout}>
+          {isLoggedIn && (
+            <aside
+              ref={sidebarRef}
+              className={`${styles.sidebar} ${isSidebarOpen ? styles.open : ""}`}
+              style={{
+                transition: "transform 0.3s ease, opacity 0.3s ease",
+                transform: isSidebarOpen ? "translateX(0)" : "translateX(-100%)",
+                opacity: isSidebarOpen ? 1 : 0,
+              }}
+            >
+              <div className={styles.logo}>LOGO</div>
+              <nav className={styles.navMenu}>
+                <Link to="/menu" className={styles.navLink}>เมนูอาหาร</Link>
+                <Link to="/dashboard" className={styles.navLink}>เดชบอร์ด</Link>
+                <Link to="/tables" className={styles.navLink}>จัดการโต๊ะ</Link>
+                <Link to="/user" className={styles.navLink}>จัดการผู้ใช้</Link>
+                <Link to="/addMenu" className={styles.navLink}>จัดการเมนูอาหาร</Link>
+                <Link to="/addCategory" className={styles.navLink}>เพิ่มหมวดหมู่</Link>
+              </nav>
 
-        </header> */}
-        {/* Sidebar */}
-        <aside
-          ref={sidebarRef}
-          className={`${styles.sidebar} ${isSidebarOpen ? styles.open : ""}`}
-          style={{
-            transition: "transform 0.3s ease, opacity 0.3s ease",
-            transform: isSidebarOpen ? "translateX(0)" : "translateX(-100%)", // เปิด/ปิด sidebar
-            opacity: isSidebarOpen ? 1 : 0,
-          }}
-        >
-          <div className={styles.logo}>LOGO</div>
-          <nav className={styles.navMenu}>
-            <Link to="/login" className={styles.navLink}>Login</Link>
-            <Link to="/menu" className={styles.navLink}>เมนูอาหาร</Link>
-            <Link to="/dashboard" className={styles.navLink}>เดชบอร์ด</Link>
-            <Link to="/tables" className={styles.navLink}>จัดการโต๊ะ</Link>
-            <Link to="/user" className={styles.navLink}>จัดการผู้ใช้</Link>
-            <Link to="/addMenu" className={styles.navLink}>จัดการเมนูอาหาร</Link>
-            <Link to="/addCategory" className={styles.navLink}>เพิ่มหมวดหมู่</Link>
-          </nav>
-          <button className={styles.logoutButton}>LOGOUT</button>
-        </aside>
+              {user && (
+                <div className={styles.userInfo}>
+                  <p>{user.name}</p>
+                  <p>{user.role}</p>
+                </div>
+              )}
 
-        {/* Hamburger Menu */}
-        <button
-          className={styles.menuIcon}
-          onClick={toggleSidebar} // เมื่อคลิก hamburger จะเรียก toggleSidebar
-        >
-          <span className={styles.bar}></span>
-          <span className={styles.bar}></span>
-          <span className={styles.bar}></span>
-        </button>
-        <body>
-        {/* Main Content */}
-        <main className={styles.mainContent}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/dashboard" element={<DashBoard />} />
-            <Route path="/menu" element={<MenuList />} />
-            <Route path="/tables" element={<TableManager />} />
-            <Route path="/user" element={<UserManagement />} />
-            <Route path="/addMenu" element={<AddMenu />} />
-            <Route path="/addCategory" element={<AddCategory />} />
-          </Routes>
-        </main>
-        
-          
-        </body>
-      </div>
-    </Router>
+              <button className={styles.logoutButton} onClick={handleLogout}>LOGOUT</button>
+            </aside>
+          )}
+
+          <button className={styles.menuIcon} onClick={toggleSidebar}>
+            <span className={styles.bar}></span>
+            <span className={styles.bar}></span>
+            <span className={styles.bar}></span>
+          </button>
+
+          <main className={styles.mainContent}>
+            <Routes>
+              {/* เส้นทางเข้าสู่ระบบ */}
+              <Route
+                path="/login"
+                element={!isLoggedIn ? <Login /> : <Navigate to={user?.role === 'manager' ? '/dashboard' : '/tables'} />}
+              />
+
+              {/* Dashboard - อนุญาตเฉพาะ Manager */}
+              <Route
+                path="/dashboard"
+                element={isLoggedIn && user?.role === 'manager' ? <DashBoard /> : <Navigate to="/login" />}
+              />
+
+              {/* Menu - อนุญาตทุกคนที่ล็อกอิน */}
+              <Route
+                path="/menu"
+                element={isLoggedIn ? <MenuList /> : <Navigate to="/login" />}
+              />
+
+              {/* Tables - อนุญาต */}
+              <Route
+                path="/tables"
+                element={isLoggedIn ? <TableManager /> : <Navigate to="/login" />}
+              />
+
+              {/* User Management - อนุญาตเฉพาะ Manager */}
+              <Route
+                path="/user"
+                element={isLoggedIn && user?.role === 'manager' ? <UserManagement /> : <Navigate to="/login" />}
+              />
+
+              {/* Add Menu - อนุญาตเฉพาะ Manager */}
+              <Route
+                path="/addMenu"
+                element={isLoggedIn && user?.role === 'manager' ? <AddMenu /> : <Navigate to="/login" />}
+              />
+
+              {/* Add Category - อนุญาตเฉพาะ Manager */}
+              <Route
+                path="/addCategory"
+                element={isLoggedIn && user?.role === 'manager' ? <AddCategory /> : <Navigate to="/login" />}
+              />
+            </Routes>
+          </main>
+        </div>
+      </Router>
+    </ErrorBoundary>
   );
 };
 
 export default App;
+
