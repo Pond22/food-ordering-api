@@ -59,6 +59,13 @@ func SetupRoutes(app *fiber.App) {
 		menu.Post("/restore-option/:id", api_handlers.RestoreOption)
 	}
 
+	promotion := api.Group("/promotions")
+	{
+		promotion.Post("/", api_handlers.CreatePromotion)
+		promotion.Get("/", api_handlers.GetActivePromotions)
+		promotion.Patch("/status/:id ", api_handlers.UpdatePromotionStatus)
+	}
+
 	// Category Management Routes - ต้องการการยืนยันตัวตน และต้องเป็น manager
 	// categories := api.Group("/categories", utils.AuthRequired(), utils.RoleRequired(models.RoleManager))
 	categories := api.Group("/categories")
@@ -74,9 +81,10 @@ func SetupRoutes(app *fiber.App) {
 	// Order Management Routes
 	orders := api.Group("/orders")
 	{
-		// สำหรับลูกค้า (ไม่ต้องการการยืนยันตัวตน)
-		orders.Post("/", api_handlers.Order_test) //สั่งอาหาร
-
+		orders.Post("/", api_handlers.CreateOrder)                //สั่งอาหารa
+		orders.Put("/status/:id", api_handlers.UpdateOrderStatus) //สั่งอาหารa
+		orders.Post("/items/serve/:id", api_handlers.ServeOrderItem)
+		orders.Get("/active", api_handlers.GetActiveOrders)
 		// สำหรับพนักงาน (ต้องการการยืนยันตัวตน)
 		// orderStaff := orders.Group("/", utils.AuthRequired())
 		// {
@@ -100,9 +108,9 @@ func SetupRoutes(app *fiber.App) {
 
 	// QR Code Management Routes
 	// qr := api.Group("/qr", utils.AuthRequired(), utils.RoleRequired(models.RoleStaff, models.RoleManager))
-	qr := api.Group("/qr", utils.AuthRequired())
+	qr := api.Group("/qr")
 	{
-		qr.Get("/:table", qr_service.HandleQRCodeRequest)
+		qr.Get("/:id", qr_service.HandleQRCodeRequest)
 		qr.Get("/tables", qr_service.Table)
 	}
 	SetupUserRoutes(app)
