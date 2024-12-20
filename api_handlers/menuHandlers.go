@@ -25,7 +25,7 @@ import (
 func GetMenuAll(c *fiber.Ctx) error {
 	var menuItem []models.MenuItem
 	// ค้นหาทุก Category
-	if err := db.DB.Find(&menuItem).Error; err != nil {
+	if err := db.DB.Preload("Category").Preload("OptionGroups").Preload("OptionGroups.Options").Find(&menuItem).Error; err != nil {
 		return c.Status(500).JSON(map[string]interface{}{
 			"error": fmt.Sprintf("Error fetching menuItem: %v", err),
 		})

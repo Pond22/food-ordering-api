@@ -69,7 +69,8 @@ const App = () => {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    window.location.reload();
+     // ใช้ Navigate เพื่อเปลี่ยนเส้นทางไปยังหน้าล็อกอิน
+  window.location.href = '/login';
   };
 
   return (
