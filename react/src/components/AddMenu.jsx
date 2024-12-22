@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Image, Plus, Search, Filter, X, User, Edit, Trash2 } from 'lucide-react';
 import axios from "axios";
+import MenuTable from "./MenuTable"; // นำเข้า MenuTable มาใช้
 
 const API_BASE_URL = "http://127.0.0.1:8080/api/menu"; // กำหนด URL ของ API
 
@@ -15,6 +16,8 @@ const MenuManagement = () => {
   const [loading, setLoading] = useState(false); // state สำหรับโหลด
   const [errorMessage, setErrorMessage] = useState(""); // state สำหรับข้อผิดพลาด
   const [groupOptions, setGroupOptions] = useState([]);
+  const [activeTab, setActiveTab] = useState('menu');// state สลับการแสดงตาราง
+  const [menuOptions, setMenuOptions] = useState([]);
 
   // เมื่อ showUploadModal เปลี่ยนสถานะ จะรีเซ็ตค่า selectedImage และ currentMenuId
   useEffect(() => {
@@ -54,9 +57,9 @@ const MenuManagement = () => {
   // ฟังก์ชันดึงข้อมูล options
   const fetchGroupOptions = async (menuId) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/group-options/${menuId}`);
+      const response = await axios.get(`${API_BASE_URL}/option-groups/${menuId}`);
       if (response.status === 200) {
-        setGroupOptions(response.data); // ตั้งค่า Group Options จาก API
+        setMenuOptions(response.data); // ตั้งค่าเมนู options จาก API
       }
     } catch (error) {
       console.error("Error fetching group options:", error);
@@ -182,6 +185,68 @@ const MenuManagement = () => {
       alert("ไม่สามารถอัปเดตข้อมูลเมนูได้: " + (error.response?.data?.error || error.message));
     }
   };
+  
+  const [isModalOpen, setIsModalOpen] = useState(false); // สถานะการเปิด/ปิด Modal
+  const [updatedData, setUpdatedData] = useState({
+    name: "",
+    name_ch: "",
+    name_en: "",
+    price: 0,
+  }); // ข้อมูลที่ผู้ใช้กรอกเพื่ออัพเดท
+
+  // ฟังก์ชันเปิด Modal และตั้งค่า Option ที่จะถูกแก้ไข
+  const handleEditClick = (option) => {
+    setSelectedOption(option);
+    setUpdatedData({
+      name: option.Name,
+      name_ch: option.NameCh,
+      name_en: option.NameEn,
+      price: option.Price,
+    });
+    setIsModalOpen(true);
+  };
+
+  // ฟังก์ชันปิด Modal
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedOption(null);
+  };
+
+  // ฟังก์ชันสำหรับการอัพเดท Option ผ่าน API
+  const updateOption = async () => {
+    try {
+      const response = await axios.put(
+        `http://localhost:8080/api/menu/${selectedOption.GroupID}/options/${selectedOption.ID}`,
+        updatedData,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      if (response.status === 200) {
+        alert("Option updated successfully!");
+        // รีเฟรชข้อมูลในตาราง
+        handleCloseModal();
+      } else {
+        alert("Failed to update Option");
+      }
+    } catch (error) {
+      console.error("Error updating option:", error);
+      alert("Error updating Option: " + (error.response?.data?.error || error.message));
+    }
+  };
+
+  // ฟังก์ชันสำหรับการจัดการการเปลี่ยนแปลงในฟอร์ม
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setUpdatedData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
+  
 
   return (
     <div className="bg-white max-h-full h-full">
@@ -197,14 +262,30 @@ const MenuManagement = () => {
         </div>
       </div>
 
+      <div className="flex mb-4">
+        
+      </div>
       <div className="p-4">
-        <table className="w-full bg-white rounded-lg shadow-lg">
+      <button 
+          className={`px-4 py-2 rounded-t-lg ${activeTab === 'menu' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+          onClick={() => setActiveTab('menu')}
+        >
+          ข้อมูลสินค้า
+        </button>
+        <button 
+          className={`px-4 py-2 rounded-t-lg ${activeTab === 'options' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+          onClick={() => setActiveTab('options')}
+        >
+          ข้อมูลตัวเลือกของสินค้า
+        </button>
+      {activeTab === 'menu' && (
+        <table className="w-full bg-white rounded-3xl shadow-lg border border-gray-300 ">
           <thead>
-            <tr className="bg-gray-200 text-left">
+            <tr className="bg-blue-500 text-left text-white">
               <th className="p-4">รหัสสินค้า</th>
               <th className="p-4">รูปสินค้า</th>
               <th className="p-4">ชื่อเมนู</th>
-              <th className="p-4 w-4/12">คำอธิบาย</th>
+              <th className="p-4 w-3/12">คำอธิบาย</th>
               <th className="p-4">หมวดหมู่</th>
               <th className="p-4">ราคา</th>
               <th className="p-4">ตัวเลือก</th>
@@ -216,12 +297,12 @@ const MenuManagement = () => {
               menus.map((menu) => (
                 <tr key={menu.ID} className="border-t">
                   <td className="p-4">{menu.ID}</td>
-                  <td className="p-4">
+                  <td className="">
                     {menu.Image && menu.Image.length > 0 ? (
                       <img
                         src={`data:image/png;base64,${menu.Image}`}
                         alt={menu.Name}
-                        className="w-20 h-20 object-cover"
+                        className="w-30 h-30 object-cover"
                       />
                     ) : (
                       "ไม่มีรูป"
@@ -317,9 +398,131 @@ const MenuManagement = () => {
               </tr>
             )}
           </tbody>
-        </table>
-      </div>
+        </table>  
+)}
+{/* สิ้นสุดตารางแสดงข้อมูลสินค้า */}
 
+{activeTab === 'options' && (
+
+      <table className="w-full bg-white  rounded-lg border border-gray-300 shadow-lg">
+    <thead>
+      <tr className="bg-blue-500 text-left  text-white">
+        <th className="border-b px-4 py-2">Group ID</th>
+        <th className="border-b px-4 py-2">Group Name</th>
+        <th className="border-b px-4 py-2">Max Selections</th>
+        <th className="border-b px-4 py-2">Required</th>
+        <th className="border-b px-4 py-2">Option ID</th>
+        <th className="border-b px-4 py-2">Option Name</th>
+        <th className="border-b px-4 py-2">Price (THB)</th>
+        <th className="border-b px-4 py-2">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {menuOptions.length > 0 ? (
+        menuOptions.map((group) => (
+          group.Options.map((option) => (
+            <tr key={option.ID}>
+              <td className="border-b px-4 py-2">{group.ID}</td>
+              <td className="border-b px-4 py-2">ไทย: {group.Name}<br />อังกฤษ: {group.NameEn}<br />จีน: {group.NameCh}</td>
+              <td className="border-b px-4 py-2">{group.MaxSelections}</td>
+              <td className="border-b px-4 py-2">{group.IsRequired ? 'Yes' : 'No'}</td>
+              <td className="border-b px-4 py-2">{option.ID}</td>
+              <td className="border-b px-4 py-2">ไทย: {option.Name}<br />อังกฤษ: {option.NameEn}<br />จีน: {option.NameCh}</td>
+              <td className="border-b px-4 py-2">{option.Price}</td>
+              <td className="border-b px-4 py-2">
+                <button onClick={() => handleEditClick(option)}>
+                  <Edit/>
+                </button>
+
+              </td>
+            </tr>
+          ))
+        ))
+      ) : (
+        <tr>
+          <td colSpan="7" className="text-center p-4">ไม่พบตัวเลือก</td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+    
+        )}
+{/* สิ้นสุดตารางแสดง options */}
+
+
+
+      </div>
+      
+        {/* Popup สำหรับการแก้ไขข้อมูล Option */}
+{isModalOpen && (
+        <div className="fixed inset-0 flex justify-center items-center bg-gray-800 bg-opacity-50">
+          <div className="bg-white p-4 rounded-lg shadow-lg w-96">
+            <h2 className="text-xl mb-4">Edit Option</h2>
+            <form>
+              <div className="mb-2">
+                <label htmlFor="name" className="block">Option Name (TH)</label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={updatedData.name}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded"
+                />
+              </div>
+              <div className="mb-2">
+                <label htmlFor="name_ch" className="block">Option Name (CH)</label>
+                <input
+                  type="text"
+                  id="name_ch"
+                  name="name_ch"
+                  value={updatedData.name_ch}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded"
+                />
+              </div>
+              <div className="mb-2">
+                <label htmlFor="name_en" className="block">Option Name (EN)</label>
+                <input
+                  type="text"
+                  id="name_en"
+                  name="name_en"
+                  value={updatedData.name_en}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded"
+                />
+              </div>
+              <div className="mb-2">
+                <label htmlFor="price" className="block">Price (THB)</label>
+                <input
+                  type="number"
+                  id="price"
+                  name="price"
+                  value={updatedData.price}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded"
+                />
+              </div>
+              <div className="flex justify-between mt-4">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="bg-gray-500 text-white px-4 py-2 rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={updateOption}
+                  className="bg-blue-500 text-white px-4 py-2 rounded"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal สำหรับอัพโหลดรูปภาพ */}
       {showUploadModal && (

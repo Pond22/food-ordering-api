@@ -1112,3 +1112,122 @@ func RestoreOption(c *fiber.Ctx) error {
 
 	return c.JSON(restoredOption)
 }
+
+// @Summary เรียกดู Option ตามไอดีอาหาร
+// @Description ฟังก์ชันนี้ใช้สำหรับเรียกดู Option ตามไอดีอาหาร
+// @Produce json
+// @Security BearerAuth
+// @Param id path integer true "ID ของอาหาร"
+// @Success 200 {array} models.OptionGroup "รายการ option ทั้งหมด"
+// @Failure 401 {object} map[string]interface{} "ไม่ได้รับอนุญาต"
+// @Failure 403 {object} map[string]interface{} "ไม่มีสิทธิ์เข้าถึง"
+// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการดึงข้อมูลเมนู"
+// @Router /api/menu/option-groups/{id} [get]
+// @Tags menu
+func GetOptionByid(c *fiber.Ctx) error {
+	id := c.Params("id")
+	foodid, err := strconv.Atoi(id)
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid option ID format",
+		})
+	}
+
+	var optiongroup []models.OptionGroup
+	if err := db.DB.Preload("Options").Where("menu_item_id = ?", foodid).Find(&optiongroup).Error; err != nil {
+		return c.Status(http.StatusNotFound).JSON(fiber.Map{
+			"error": "Group option not found",
+		})
+	}
+
+	return c.JSON(optiongroup)
+}
+
+// @Summary อัพเดทข้อมูล Option โดยใช้ Menu ID
+// @Description อัพเดทข้อมูลของ Option ผ่าน Menu ID และ Option ID
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param menu_id path integer true "ID ของเมนู"
+// @Param option_id path integer true "ID ของ Option ที่ต้องการอัพเดท"
+// @Param request body models.OptionRequest true "ข้อมูล Option ที่ต้องการอัพเดท"
+// @Success 200 {object} models.MenuOption "รายละเอียดของ Option ที่อัพเดทแล้ว"
+// @Failure 400 {object} map[string]interface{} "ข้อมูลไม่ถูกต้อง"
+// @Failure 404 {object} map[string]interface{} "ไม่พบเมนูหรือ option ที่ต้องการ"
+// @Router /api/menu/{menu_id}/options/{option_id} [put]
+// @Tags menu
+func UpdateOptionByMenuID(c *fiber.Ctx) error {
+	// รับ menu_id และ option_id จาก URL
+	menuID, err := strconv.Atoi(c.Params("menu_id"))
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid menu ID format",
+		})
+	}
+
+	optionID, err := strconv.Atoi(c.Params("option_id"))
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid option ID format",
+		})
+	}
+
+	// รับข้อมูลที่จะอัพเดท
+	var req models.OptionRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid input format",
+		})
+	}
+
+	// เช็คว่าเมนูมีอยู่จริง
+	var menu models.MenuItem
+	if err := db.DB.First(&menu, menuID).Error; err != nil {
+		return c.Status(http.StatusNotFound).JSON(fiber.Map{
+			"error": "Menu not found",
+		})
+	}
+
+	// หา option ที่ต้องการอัพเดท และตรวจสอบว่าเป็นของเมนูนี้จริงๆ
+	var option models.MenuOption
+	if err := db.DB.Joins("JOIN option_groups ON menu_options.group_id = option_groups.id").
+		Where("option_groups.menu_item_id = ? AND menu_options.id = ?", menuID, optionID).
+		First(&option).Error; err != nil {
+		return c.Status(http.StatusNotFound).JSON(fiber.Map{
+			"error": "Option not found for this menu",
+		})
+	}
+
+	// เช็คชื่อซ้ำในกลุ่มเดียวกัน
+	var duplicateOption models.MenuOption
+	if err := db.DB.Where("name = ? AND group_id = ? AND id != ?",
+		req.Name, option.GroupID, optionID).First(&duplicateOption).Error; err == nil {
+		return c.Status(http.StatusConflict).JSON(fiber.Map{
+			"error": "Option name already exists in this group",
+		})
+	}
+
+	// อัพเดทข้อมูล
+	updates := models.MenuOption{
+		Name:   req.Name,
+		NameEn: req.NameEn,
+		NameCh: req.NameCh,
+		Price:  req.Price,
+	}
+
+	if err := db.DB.Model(&option).Updates(updates).Error; err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update option",
+		})
+	}
+
+	// ดึงข้อมูลที่อัพเดทแล้ว
+	var updatedOption models.MenuOption
+	if err := db.DB.First(&updatedOption, optionID).Error; err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Error loading updated option",
+		})
+	}
+
+	return c.JSON(updatedOption)
+}
