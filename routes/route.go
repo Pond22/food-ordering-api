@@ -44,11 +44,13 @@ func SetupRoutes(app *fiber.App) {
 		menu.Delete("/:id", api_handlers.SoftDelete_Menu)
 
 		// Option Groups
+		menu.Get("/option-groups/:id", api_handlers.GetOptionByid)
 		menu.Post("/option-groups", api_handlers.AddMoreGroup)
 		menu.Put("/option-groups/:id", api_handlers.UpdateOptionGroup)
 
 		// Options
 		menu.Post("/options", api_handlers.AddMoreMenuOption)
+		app.Put("/api/menu/:menu_id/options/:option_id", api_handlers.UpdateOptionByMenuID) //อัปเดตผ่านไอดีัอาหาร
 		menu.Put("/options/:id", api_handlers.UpdateOption)
 		menu.Delete("/options/:id", api_handlers.SoftDelete_Option)
 

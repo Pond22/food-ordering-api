@@ -1375,6 +1375,50 @@ paths:
       summary: อัพเดทข้อมูลเมนูพื้นฐาน
       tags:
       - menu
+  /api/menu/{menu_id}/options/{option_id}:
+    put:
+      consumes:
+      - application/json
+      description: อัพเดทข้อมูลของ Option ผ่าน Menu ID และ Option ID
+      parameters:
+      - description: ID ของเมนู
+        in: path
+        name: menu_id
+        required: true
+        type: integer
+      - description: ID ของ Option ที่ต้องการอัพเดท
+        in: path
+        name: option_id
+        required: true
+        type: integer
+      - description: ข้อมูล Option ที่ต้องการอัพเดท
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.OptionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของ Option ที่อัพเดทแล้ว
+          schema:
+            $ref: '#/definitions/models.MenuOption'
+        "400":
+          description: ข้อมูลไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: ไม่พบเมนูหรือ option ที่ต้องการ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: อัพเดทข้อมูล Option โดยใช้ Menu ID
+      tags:
+      - menu
   /api/menu/deleted:
     get:
       description: ดูรายการเมนูทั้งหมดที่ถูก soft delete
@@ -1510,6 +1554,43 @@ paths:
       tags:
       - menu
   /api/menu/option-groups/{id}:
+    get:
+      description: ฟังก์ชันนี้ใช้สำหรับเรียกดู Option ตามไอดีอาหาร
+      parameters:
+      - description: ID ของอาหาร
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายการ option ทั้งหมด
+          schema:
+            items:
+              $ref: '#/definitions/models.OptionGroup'
+            type: array
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการดึงข้อมูลเมนู
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: เรียกดู Option ตามไอดีอาหาร
+      tags:
+      - menu
     put:
       consumes:
       - application/json
