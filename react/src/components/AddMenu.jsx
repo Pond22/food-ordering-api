@@ -137,6 +137,7 @@ const MenuManagement = () => {
 
   // ฟังก์ชันแก้ไขข้อมูลเมนู
   const [menuDetails, setMenuDetails] = useState({
+    ID:'',
     name: '',
     nameEn: '',
     nameCh: '',
@@ -145,46 +146,146 @@ const MenuManagement = () => {
     descriptionEn: '',
     descriptionCh: '',
     categoryId: 0,
-  });
+    optionGroups: [ {
+      name: "",
+      nameEn: "",
+      nameCh: "",
+      MaxSelections: 1,
+      isRequired: false,
+      options: [
+        {
+          name: "",
+          nameEn: "",
+          nameCh: "",
+          price: 0,
+        },
+      ],
+    },
 
+    ], // ใช้ array ว่างเป็นค่าเริ่มต้น
+  });
+  
   const [showEditMenuModal, setShowEditMenuModal] = useState(false);
 
   const handleEditMenu = async () => {
-    // ตรวจสอบและแปลงค่า category_id ให้เป็นชนิดข้อมูลที่ API ต้องการ
-    const updatedMenu = {
-      name: menuDetails.name.trim(),
-      name_en: menuDetails.nameEn.trim(),
-      name_ch: menuDetails.nameCh.trim(),
-      price: Number(menuDetails.price), // แปลงราคาเป็นตัวเลข
-      description: menuDetails.description.trim(),
-      description_en: menuDetails.descriptionEn.trim(),
-      description_ch: menuDetails.descriptionCh.trim(),
-      category_id: Number(menuDetails.categoryId), // ตรวจสอบว่าหมวดหมู่เป็นตัวเลข
-    };
-
     try {
-      const response = await axios.put(
-        `http://localhost:8080/api/menu/${currentMenuId}`,
-        updatedMenu,
+      // ตรวจสอบว่า menuDetails.ID มีค่าอยู่หรือไม่
+      if (!menuDetails.ID) {
+        throw new Error("ไม่พบ ID ของเมนูในการอัปเดต");
+      }
+  
+      // 1. อัปเดตข้อมูลเมนูหลัก
+      const menuPayload = {
+        category_id: menuDetails.categoryId, // หมวดหมู่เป็นตัวเลข
+        description: menuDetails.description.trim(),
+        description_ch: menuDetails.descriptionCh.trim(),
+        description_en: menuDetails.descriptionEn.trim(),
+        name: menuDetails.name.trim(),
+        name_ch: menuDetails.nameCh.trim(),
+        name_en: menuDetails.nameEn.trim(),
+        price: Number(menuDetails.price), // แปลงราคาเป็นตัวเลข
+        image: "", // ถ้าไม่มีภาพให้ส่งเป็นค่าว่าง
+      };
+  
+      const menuResponse = await axios.put(
+        `http://localhost:8080/api/menu/${menuDetails.ID}`, // ใช้ menuDetails.ID
+        menuPayload, // ส่งข้อมูลที่เตรียมไว้
         {
           headers: {
             "Content-Type": "application/json",
           },
         }
       );
-
-      if (response.status === 200) {
-        alert("อัปเดตข้อมูลเมนูสำเร็จ");
-        setShowEditMenuModal(false); // ปิด Modal
-        fetchMenus("getAll"); // รีเฟรชเมนู
-      } else {
-        alert("เกิดข้อผิดพลาดในการอัปเดตข้อมูลเมนู");
+  
+      // ตรวจสอบผลลัพธ์ของการอัปเดตเมนู
+      if (menuResponse.status !== 200) {
+        throw new Error("ไม่สามารถอัปเดตข้อมูลเมนูได้");
       }
+  
+      // 2. อัปเดตข้อมูล Option Groups
+      for (const group of menuDetails.optionGroups) {
+        if (!group.ID) {
+          throw new Error(`ไม่พบ ID ของ Option Group ${group.name}`);
+        }
+  
+        const options = Array.isArray(group.options) ? group.options : [];
+  
+        const groupPayload = {
+          MaxSelections: group.MaxSelections || 1, // จำนวนที่เลือกได้สูงสุด
+          is_required: group.isRequired || false,  // การบังคับเลือก
+          name: group.name.trim(),
+          name_en: group.nameEn.trim(),
+          name_ch: group.nameCh.trim(),
+          options: options.map((option) => ({
+            name: option.name.trim(),
+            name_en: option.nameEn.trim(),
+            name_ch: option.nameCh.trim(),
+            price: Number(option.price),
+          })),
+        };
+  
+        const groupResponse = await axios.put(
+          `http://localhost:8080/api/menu/option-groups/${group.ID}`, // ใช้ group.ID
+          groupPayload, // ส่งข้อมูลที่เตรียมไว้
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+  
+        if (groupResponse.status !== 200) {
+          throw new Error(`ไม่สามารถอัปเดตข้อมูล Option Group ${group.ID} ได้`);
+        }
+      }
+  
+      // 3. อัปเดตข้อมูล Options ภายในเมนู (ถ้ามีการแก้ไข)
+      for (const group of menuDetails.optionGroups) {
+        const options = Array.isArray(group.options) ? group.options : [];
+  
+        for (const option of options) {
+          if (option.ID) {
+            try {
+              const optionPayload = {
+                name: option.name.trim(),
+                name_en: option.nameEn.trim(),
+                name_ch: option.nameCh.trim(),
+                price: Number(option.price), // ราคาแปลงเป็นตัวเลข
+              };
+  
+              // อัปเดตข้อมูล Option โดยใช้ option.ID
+              const optionResponse = await axios.put(
+                `http://localhost:8080/api/menu/options/${option.ID}`, // ใช้ option.ID
+                optionPayload,
+                {
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                }
+              );
+  
+              // ตรวจสอบผลลัพธ์
+              if (optionResponse.status !== 200) {
+                throw new Error(`ไม่สามารถอัปเดตข้อมูล Option ${option.ID} ได้`);
+              }
+            } catch (error) {
+              console.error(`Error updating option ID ${option.ID}:`, error);
+              throw new Error(`เกิดข้อผิดพลาดในการอัปเดต Option ID ${option.ID}`);
+            }
+          }
+        }
+      }
+  
+      // 4. แจ้งความสำเร็จ
+      alert("อัปเดตข้อมูลเมนูสำเร็จ");
+      fetchMenus("getAll"); // โหลดข้อมูลใหม่
+      setShowEditMenuModal(false); // ปิด Modal
     } catch (error) {
-      console.error("Error updating menu:", error.response?.data || error);
-      alert("ไม่สามารถอัปเดตข้อมูลเมนูได้: " + (error.response?.data?.error || error.message));
+      console.error("Error updating menu:", error);
+      alert("เกิดข้อผิดพลาดในการอัปเดตข้อมูลเมนู: " + error.message);
     }
   };
+  
   
   const [isModalOpen, setIsModalOpen] = useState(false); // สถานะการเปิด/ปิด Modal
   const [updatedData, setUpdatedData] = useState({
@@ -361,19 +462,35 @@ const MenuManagement = () => {
                         className="bg-yellow-500 text-white mx-2 px-4 py-2 rounded-lg hover:bg-yellow-600"
                         onClick={() => {
                           setCurrentMenuId(menu.ID); // ตั้งค่า ID ของเมนูที่ต้องการแก้ไข
-                          setMenuDetails({
-                            name: menu.Name || "",
-                            nameEn: menu.NameEn || "",
-                            nameCh: menu.NameCh || "",
-                            price: menu.Price || 0,
-                            description: menu.Description || "",
-                            descriptionEn: menu.DescriptionEn || "",
-                            descriptionCh: menu.DescriptionCh || "",
-                            categoryId: menu.CategoryID || "",
-
-                          }); // ตั้งค่าข้อมูลเริ่มต้นสำหรับการแก้ไข
-                          setShowEditMenuModal(true); // แสดง modal สำหรับการแก้ไข
-                        }}
+                          setCurrentMenuId(menu.ID);
+                  setMenuDetails({
+                    ID: menu.ID || "",
+                    name: menu.Name || "",
+                    nameEn: menu.NameEn || "",
+                    nameCh: menu.NameCh || "",
+                    price: menu.Price || 0,
+                    description: menu.Description || "",
+                    descriptionEn: menu.DescriptionEn || "",
+                    descriptionCh: menu.DescriptionCh || "",
+                    categoryId: menu.CategoryID || "",
+                    optionGroups: Array.isArray(menu.OptionGroups) ? menu.OptionGroups.map(group => ({
+                      ID: group.ID || "",
+                      name: group.Name || "",
+                      nameEn: group.NameEn || "",
+                      nameCh: group.NameCh || "",
+                      MaxSelections: group.MaxSelections || 1,
+                      isRequired: group.IsRequired || false,
+                      options: Array.isArray(group.Options) ? group.Options.map(option => ({
+                        ID: option.ID || "",
+                        name: option.Name || "",
+                        nameEn: option.NameEn || "",
+                        nameCh: option.NameCh || "",
+                        price: option.Price || 0,
+                      })) : [], 
+                    })) : [],
+                  });
+                  setShowEditMenuModal(true);
+                }}
                       >
                         <div className="flex"><Edit />edit</div>
                       </button>
@@ -582,119 +699,264 @@ const MenuManagement = () => {
 
       {/* Modal สำหรับแก้ไขเมนูอาหาร */}
       {showEditMenuModal && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-lg w-6/12 ml-12 h-5/6 overflow-y-auto">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-bold">แก้ไขข้อมูลเมนู</h2>
-              <button
-                className="text-red-500"
-                onClick={() => setShowEditMenuModal(false)} // ปิด Modal
-              >
-                <X />
-              </button>
-            </div>
+  <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
+    <div className="bg-white p-6 rounded-lg w-6/12 ml-12 h-5/6 overflow-y-auto">
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-bold">แก้ไขข้อมูลเมนู</h2>
+        <button
+          className="text-red-500"
+          onClick={() => setShowEditMenuModal(false)} // ปิด Modal
+        >
+          <X />
+        </button>
+      </div>
 
-            {/* ฟอร์มแก้ไขเมนู */}
-            <div className="mt-4">
-              <label>ชื่อเมนู</label>
+      {/* ฟอร์มแก้ไขเมนู */}
+<div className="mt-4">
+  <label>ID</label>
+  <input
+    type="text"
+    value={menuDetails.ID}
+    onChange={(e) => setMenuDetails({ ...menuDetails, ID: e.target.value })}
+    className="border p-2 w-full mt-2"
+  />
+  <label>ชื่อเมนู</label>
+  <input
+    type="text"
+    value={menuDetails.name}
+    onChange={(e) => setMenuDetails({ ...menuDetails, name: e.target.value })}
+    className="border p-2 w-full mt-2"
+  />
+</div>
+<div className="mt-4">
+  <label>ชื่อเมนู (อังกฤษ)</label>
+  <input
+    type="text"
+    value={menuDetails.nameEn}
+    onChange={(e) => setMenuDetails({ ...menuDetails, nameEn: e.target.value })}
+    className="border p-2 w-full mt-2"
+  />
+</div>
+<div className="mt-4">
+  <label>ชื่อเมนู (จีน)</label>
+  <input
+    type="text"
+    value={menuDetails.nameCh}
+    onChange={(e) => setMenuDetails({ ...menuDetails, nameCh: e.target.value })}
+    className="border p-2 w-full mt-2"
+  />
+</div>
+<div className="mt-4">
+  <label>ราคา</label>
+  <input
+    type="number"
+    value={menuDetails.price}
+    onChange={(e) => setMenuDetails({ ...menuDetails, price: e.target.value })}
+    className="border p-2 w-full mt-2"
+  />
+</div>
+<div className="mt-4">
+  <label>คำอธิบาย</label>
+  <textarea
+    value={menuDetails.description}
+    onChange={(e) => setMenuDetails({ ...menuDetails, description: e.target.value })}
+    className="border p-2 w-full mt-2"
+  />
+</div>
+<div className="mt-4">
+  <label>คำอธิบาย (อังกฤษ)</label>
+  <textarea
+    value={menuDetails.descriptionEn}
+    onChange={(e) => setMenuDetails({ ...menuDetails, descriptionEn: e.target.value })}
+    className="border p-2 w-full mt-2"
+  />
+</div>
+<div className="mt-4">
+  <label>คำอธิบาย (จีน)</label>
+  <textarea
+    value={menuDetails.descriptionCh}
+    onChange={(e) => setMenuDetails({ ...menuDetails, descriptionCh: e.target.value })}
+    className="border p-2 w-full mt-2"
+  />
+</div>
+
+{/* หมวดหมู่ */}
+<div className="mt-4">
+  <label>หมวดหมู่</label>
+  <select
+    value={menuDetails.categoryId || ""}
+    onChange={(e) =>
+      setMenuDetails({
+        ...menuDetails,
+        categoryId: e.target.value ? Number(e.target.value) : null,
+      })
+    }
+    className="border p-2 w-full mt-2"
+  >
+    <option value="">กรุณาเลือกหมวดหมู่</option>
+    {categories.map((category) => (
+      <option key={category.ID} value={category.ID}>
+        {category.Name}
+      </option>
+    ))}
+  </select>
+</div>
+
+{/* Option Groups */}
+{menuDetails.optionGroups.length > 0 ? (
+  menuDetails.optionGroups.map((group, groupIndex) => (
+    <div key={groupIndex}>
+      <div className="mt-4">
+        <label>ชื่อกลุ่มตัวเลือก (ไทย)</label>
+        <input
+          type="text"
+          value={group.name}
+          onChange={(e) => {
+            const updatedGroups = [...menuDetails.optionGroups];
+            updatedGroups[groupIndex].name = e.target.value;
+            setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+          }}
+          className="border p-2 w-full mt-2"
+        />
+      </div>
+      <div className="mt-4">
+        <label>ชื่อกลุ่มตัวเลือก (อังกฤษ)</label>
+        <input
+          type="text"
+          value={group.nameEn}
+          onChange={(e) => {
+            const updatedGroups = [...menuDetails.optionGroups];
+            updatedGroups[groupIndex].nameEn = e.target.value;
+            setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+          }}
+          className="border p-2 w-full mt-2"
+        />
+      </div>
+      <div className="mt-4">
+        <label>ชื่อกลุ่มตัวเลือก (จีน)</label>
+        <input
+          type="text"
+          value={group.nameCh}
+          onChange={(e) => {
+            const updatedGroups = [...menuDetails.optionGroups];
+            updatedGroups[groupIndex].nameCh = e.target.value;
+            setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+          }}
+          className="border p-2 w-full mt-2"
+        />
+      </div>
+      <div className="mt-4">
+        <label>จำนวนที่เลือกได้สูงสุด</label>
+        <input
+          type="number"
+          value={group.MaxSelections}
+          onChange={(e) => {
+            const updatedGroups = [...menuDetails.optionGroups];
+            updatedGroups[groupIndex].MaxSelections = e.target.value;
+            setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+          }}
+          className="border p-2 w-full mt-2"
+        />
+      </div>
+      <div className="mt-4">
+        <label>ต้องเลือกหรือไม่</label>
+        <input
+          type="checkbox"
+          checked={group.isRequired}
+          onChange={(e) => {
+            const updatedGroups = [...menuDetails.optionGroups];
+            updatedGroups[groupIndex].isRequired = e.target.checked;
+            setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+          }}
+          className="mt-2"
+        />
+      </div>
+
+      {/* ฟอร์มสำหรับแก้ไข Option ใน Option Group */}
+      {group.options.length > 0 ? (
+        group.options.map((option, optionIndex) => (
+          <div key={optionIndex} className="mt-4">
+            <h4>Option</h4>
+            <div className="mt-2">
+              <label>ชื่อ Option (ไทย)</label>
               <input
                 type="text"
-                value={menuDetails.name}
-                onChange={(e) => setMenuDetails({ ...menuDetails, name: e.target.value })}
+                value={option.name}
+                onChange={(e) => {
+                  const updatedGroups = [...menuDetails.optionGroups];
+                  updatedGroups[groupIndex].options[optionIndex].name = e.target.value;
+                  setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+                }}
                 className="border p-2 w-full mt-2"
               />
             </div>
-            <div className="mt-4">
-              <label>ชื่อเมนู (อังกฤษ)</label>
+            <div className="mt-2">
+              <label>ชื่อ Option (อังกฤษ)</label>
               <input
                 type="text"
-                value={menuDetails.nameEn}
-                onChange={(e) => setMenuDetails({ ...menuDetails, nameEn: e.target.value })}
+                value={option.nameEn}
+                onChange={(e) => {
+                  const updatedGroups = [...menuDetails.optionGroups];
+                  updatedGroups[groupIndex].options[optionIndex].nameEn = e.target.value;
+                  setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+                }}
                 className="border p-2 w-full mt-2"
               />
             </div>
-            <div className="mt-4">
-              <label>ชื่อเมนู (จีน)</label>
+            <div className="mt-2">
+              <label>ชื่อ Option (จีน)</label>
               <input
                 type="text"
-                value={menuDetails.nameCh}
-                onChange={(e) => setMenuDetails({ ...menuDetails, nameCh: e.target.value })}
+                value={option.nameCh}
+                onChange={(e) => {
+                  const updatedGroups = [...menuDetails.optionGroups];
+                  updatedGroups[groupIndex].options[optionIndex].nameCh = e.target.value;
+                  setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+                }}
                 className="border p-2 w-full mt-2"
               />
             </div>
-            <div className="mt-4">
-              <label>ราคา</label>
+            <div className="mt-2">
+              <label>ราคา Option</label>
               <input
                 type="number"
-                value={menuDetails.price}
-                onChange={(e) => setMenuDetails({ ...menuDetails, price: e.target.value })}
+                value={option.price}
+                onChange={(e) => {
+                  const updatedGroups = [...menuDetails.optionGroups];
+                  updatedGroups[groupIndex].options[optionIndex].price = e.target.value;
+                  setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+                }}
                 className="border p-2 w-full mt-2"
               />
-            </div>
-            <div className="mt-4">
-              <label>คำอธิบาย</label>
-              <textarea
-                value={menuDetails.description}
-                onChange={(e) => setMenuDetails({ ...menuDetails, description: e.target.value })}
-                className="border p-2 w-full mt-2"
-              />
-            </div>
-            <div className="mt-4">
-              <label>คำอธิบาย (อังกฤษ)</label>
-              <textarea
-                value={menuDetails.descriptionEn}
-                onChange={(e) => setMenuDetails({ ...menuDetails, descriptionEn: e.target.value })}
-                className="border p-2 w-full mt-2"
-              />
-            </div>
-            <div className="mt-4">
-              <label>คำอธิบาย (จีน)</label>
-              <textarea
-                value={menuDetails.descriptionCh}
-                onChange={(e) => setMenuDetails({ ...menuDetails, descriptionCh: e.target.value })}
-                className="border p-2 w-full mt-2"
-              />
-            </div>
-
-            {/* หมวดหมู่ */}
-            <div className="mt-4">
-              <label>หมวดหมู่</label>
-              <select
-                value={menuDetails.categoryId || ""}
-                onChange={(e) =>
-                  setMenuDetails({
-                    ...menuDetails,
-                    categoryId: e.target.value ? Number(e.target.value) : null,
-                  })
-                }
-                className="border p-2 w-full mt-2"
-              >
-                <option value="">กรุณาเลือกหมวดหมู่</option>
-                {categories.map((category) => (
-                  <option key={category.ID} value={category.ID}>
-                    {category.Name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="mt-4 flex justify-end">
-              <button
-                className="mx-2 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg"
-                onClick={() => setShowEditMenuModal(false)} // ปิด Modal
-              >
-                ยกเลิก
-              </button>
-              <button
-                className="bg-blue-500 text-white px-4 py-2 rounded-lg"
-                onClick={handleEditMenu} // เรียกฟังก์ชันแก้ไขเมนู
-              >
-                ยืนยัน
-              </button>
             </div>
           </div>
-        </div>
+        ))
+      ) : (
+        <p>ไม่มีตัวเลือกในกลุ่มนี้</p>
       )}
+    </div>
+  ))
+) : (
+  <p>ยังไม่มีกลุ่มตัวเลือก</p>
+)}
+
+      <div className="mt-4 flex justify-end">
+        <button
+          className="mx-2 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg"
+          onClick={() => setShowEditMenuModal(false)} // ปิด Modal
+        >
+          ยกเลิก
+        </button>
+        <button
+          className="bg-blue-500 text-white px-4 py-2 rounded-lg"
+          onClick={handleEditMenu} // เรียกฟังก์ชันแก้ไขเมนู
+        >
+          ยืนยัน
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
 
     </div>
