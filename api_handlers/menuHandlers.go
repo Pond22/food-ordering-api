@@ -94,7 +94,7 @@ func GetMenuByCategory(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := db.DB.Preload("Category").Where("category_id = ?", categoryID).Find(&menuItems).Error; err != nil {
+	if err := db.DB.Preload("Category").Where("category_id = ?", categoryID, true).Find(&menuItems).Error; err != nil {
 		return c.Status(500).JSON(map[string]interface{}{
 			"error": fmt.Sprintf("Error fetching menu items: %v", err),
 		})
@@ -136,6 +136,48 @@ func GetMenu(c *fiber.Ctx) error {
 			"error": "Invalid action",
 		})
 	}
+}
+
+// @Summary อัปเดตสถานะอาหาร หมด-ไม่หมด
+// @Description อัปเดตสถานะอาหาร หมด-ไม่หมด เป็น Toggle เวลาเรียกจะเปลีียนไปสถานะตรงข้าม
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path integer true "ID ของเมนู"
+// @Success 200 {object} models.MenuItem "เปลี่ยนสถานะสำเร็จ"
+// @Failure 400 {object} map[string]interface{} "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน"
+// @Failure 401 {object} map[string]interface{} "ไม่ได้รับอนุญาต"
+// @Failure 403 {object} map[string]interface{} "ไม่มีสิทธิ์เข้าถึง"
+// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการอัปเดต"
+// @Router /api/menu/status/{id} [put]
+// @Tags menu
+func UpdateMenuStatus(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	if id == "" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"error": "ไอดีเมนูจำเป็น",
+		})
+	}
+
+	var menu models.MenuItem
+	if err := db.DB.First(&menu, id).Error; err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"error": "หาไม่เจอ",
+		})
+	}
+
+	updates := map[string]interface{}{
+		"is_available": !menu.Is_available,
+	}
+
+	if err := db.DB.Model(&menu).Updates(updates).Error; err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"error": "อัพเดทสถานะไม่สำเร็จ",
+		})
+	}
+
+	return c.JSON(menu)
 }
 
 // @Summary สร้างเมนูใหม่พร้อม options
@@ -207,6 +249,7 @@ func CreateMenuItemHandler(c *fiber.Ctx) error {
 		DescriptionEn: req.MenuItem.DescriptionEn,
 		DescriptionCh: req.MenuItem.DescriptionCh,
 		CategoryID:    req.MenuItem.CategoryID,
+		Is_available:  true,
 		Price:         req.MenuItem.Price,
 	}
 
@@ -592,14 +635,22 @@ func UpdateMenuItem(c *fiber.Ctx) error {
 	return c.JSON(updatedMenu)
 }
 
+type opt_g struct {
+	Name          string `json:"name" binding:"required"`
+	NameEn        string `json:"name_en" binding:"required"`
+	NameCh        string `json:"name_ch" binding:"required"`
+	MaxSelections int    `json:"MaxSelections"`
+	IsRequired    bool   `json:"is_required"`
+}
+
 // @Summary อัพเดทข้อมูล Option Group
 // @Description อัพเดทข้อมูลของ Option Group เช่น ชื่อ, จำนวนที่เลือกได้, การบังคับเลือก
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param id path integer true "ID ของ Option Group"
-// @Param request body models.OptionGroupRequest true "ข้อมูล Option Group ที่ต้องการอัพเดท"
-// @Success 200 {object} models.OptionGroup "รายละเอียดของ Option Group ที่อัพเดทแล้ว"
+// @Param request body opt_g true "ข้อมูล Option Group ที่ต้องการอัพเดท"
+// @Success 200 {object} opt_g "รายละเอียดของ Option Group ที่อัพเดทแล้ว"
 // @Failure 400 {object} map[string]interface{} "ข้อมูลไม่ถูกต้อง"
 // @Failure 401 {object} map[string]interface{} "ไม่ได้รับอนุญาต"
 // @Failure 403 {object} map[string]interface{} "ไม่มีสิทธิ์เข้าถึง"
@@ -615,7 +666,7 @@ func UpdateOptionGroup(c *fiber.Ctx) error {
 		})
 	}
 
-	var req models.OptionGroupRequest
+	var req opt_g
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid input format",
@@ -645,7 +696,7 @@ func UpdateOptionGroup(c *fiber.Ctx) error {
 			"error": "Option group name already exists in this menu",
 		})
 	}
-
+	fmt.Printf("Request: %+v\n", req)
 	// อัพเดทข้อมูล
 	updates := models.OptionGroup{
 		Name:          req.Name,
@@ -655,9 +706,10 @@ func UpdateOptionGroup(c *fiber.Ctx) error {
 		IsRequired:    req.IsRequired,
 	}
 
-	if err := db.DB.Model(&existingGroup).Updates(updates).Error; err != nil {
+	if err := db.DB.Model(&existingGroup).Select("Name", "NameEn", "NameCh", "MaxSelections", "IsRequired").Updates(updates).Error; err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to update option group",
+			"error":   "Failed to update option group",
+			"details": err.Error(),
 		})
 	}
 

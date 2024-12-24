@@ -1,6 +1,8 @@
 package api_handlers
 
 import (
+	"bytes"
+	"fmt"
 	"food-ordering-api/db"
 	"food-ordering-api/models"
 	"net/http"
@@ -201,6 +203,76 @@ func CreateOrder(c *fiber.Ctx) error {
 		})
 	}
 
+	// 1. ดึงข้อมูล Order ที่สมบูรณ์
+	var completeOrder models.Order
+	if err := tx.Preload("Items.MenuItem.Category").
+		Preload("Items.Options.MenuOption").
+		First(&completeOrder, order.ID).Error; err != nil {
+		tx.Rollback()
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to load complete order",
+		})
+	}
+
+	// 2. จัดกลุ่มรายการอาหารตามหมวดหมู่
+	categoryItems := make(map[string][]models.OrderItem)
+	for _, item := range completeOrder.Items {
+		categoryName := item.MenuItem.Category.Name
+		categoryItems[categoryName] = append(categoryItems[categoryName], item)
+	}
+
+	// 3. ดึงข้อมูลเครื่องพิมพ์ทั้งหมด
+	var printers []models.Printer
+	if err := tx.Preload("Categories").Find(&printers).Error; err != nil {
+		tx.Rollback()
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch printers",
+		})
+	}
+
+	// 4. สร้าง map ของเครื่องพิมพ์ตามหมวดหมู่
+	printerByCategory := make(map[string]string) // map[categoryName]printerIP
+	var mainPrinterIP string
+
+	for _, printer := range printers {
+		if printer.Name == "main" {
+			mainPrinterIP = printer.IPAddress
+			continue
+		}
+		for _, category := range printer.Categories {
+			printerByCategory[category.Name] = printer.IPAddress
+		}
+	}
+
+	// 5. สร้าง print jobs
+	for categoryName, items := range categoryItems {
+		// หา printer ที่จะใช้
+		printerIP := printerByCategory[categoryName]
+		if printerIP == "" {
+			// ถ้าไม่มีเครื่องพิมพ์ที่กำหนด ใช้เครื่องพิมพ์หลัก
+			printerIP = mainPrinterIP
+		}
+
+		// สร้างเนื้อหาที่จะพิมพ์
+		content := createOrderPrintContent(completeOrder, categoryName, items)
+
+		// สร้าง print job
+		printJob := models.PrintJob{
+			PrinterIP: printerIP,
+			OrderID:   &completeOrder.ID,
+			Content:   content,
+			Status:    "pending",
+			CreatedAt: time.Now(),
+		}
+
+		if err := tx.Create(&printJob).Error; err != nil {
+			tx.Rollback()
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to create print job",
+			})
+		}
+	}
+
 	// Commit transaction
 	if err := tx.Commit().Error; err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -208,17 +280,37 @@ func CreateOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	// ดึงข้อมูล Order ที่สมบูรณ์
-	var completeOrder models.Order
-	if err := db.DB.Preload("Items.MenuItem").
-		Preload("Items.Options").
-		First(&completeOrder, order.ID).Error; err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to load complete order",
-		})
+	return c.JSON(completeOrder)
+}
+
+func createOrderPrintContent(order models.Order, categoryName string, items []models.OrderItem) []byte {
+	var buf bytes.Buffer
+
+	// Header
+	buf.WriteString(fmt.Sprintf("Order #%d\n", order.ID))
+	buf.WriteString(fmt.Sprintf("Table: %d\n", order.TableID))
+	buf.WriteString(fmt.Sprintf("Category: %s\n", categoryName))
+	buf.WriteString("-------------------------\n")
+
+	// รายการอาหาร
+	for _, item := range items {
+		buf.WriteString(fmt.Sprintf("%s x%d\n",
+			item.MenuItem.Name,
+			item.Quantity))
+
+		// ตัวเลือกเพิ่มเติม (ถ้ามี)
+		for _, opt := range item.Options {
+			buf.WriteString(fmt.Sprintf("  + %s\n", opt.MenuOption.Name))
+		}
+		if item.Notes != "" {
+			buf.WriteString(fmt.Sprintf("  Note: %s\n", item.Notes))
+		}
 	}
 
-	return c.JSON(completeOrder)
+	buf.WriteString("-------------------------\n")
+	buf.WriteString(fmt.Sprintf("Printed: %s\n", time.Now().Format("15:04:05")))
+
+	return buf.Bytes()
 }
 
 // @Summary อัพเดทสถานะออเดอร์

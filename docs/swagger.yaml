@@ -1,5 +1,14 @@
 basePath: /
 definitions:
+  api_handlers.AssignCategoryRequest:
+    properties:
+      category_ids:
+        items:
+          type: integer
+        type: array
+    required:
+    - category_ids
+    type: object
   api_handlers.ChangePasswordRequest:
     properties:
       current_password:
@@ -151,6 +160,25 @@ definitions:
       uuid:
         type: string
     type: object
+  api_handlers.PrinterResponse:
+    properties:
+      categories:
+        items:
+          $ref: '#/definitions/models.Category'
+        type: array
+      department:
+        type: string
+      id:
+        type: integer
+      ip_address:
+        type: string
+      name:
+        type: string
+      port:
+        type: integer
+      status:
+        type: string
+    type: object
   api_handlers.PromotionItemResponse:
     properties:
       bundle_price:
@@ -218,6 +246,13 @@ definitions:
       name:
         type: string
       status:
+        type: string
+    type: object
+  api_handlers.UpdateCategoryRequest:
+    properties:
+      description:
+        type: string
+      name:
         type: string
     type: object
   api_handlers.UpdateStatusRequest:
@@ -289,6 +324,23 @@ definitions:
       to_table_id:
         type: integer
     type: object
+  api_handlers.opt_g:
+    properties:
+      MaxSelections:
+        type: integer
+      is_required:
+        type: boolean
+      name:
+        type: string
+      name_ch:
+        type: string
+      name_en:
+        type: string
+    required:
+    - name
+    - name_ch
+    - name_en
+    type: object
   api_handlers.orderItemRequest:
     properties:
       menu_item_id:
@@ -329,6 +381,13 @@ definitions:
         type: string
       nameEn:
         type: string
+    type: object
+  models.CreateCategoryRequest:
+    properties:
+      name:
+        type: string
+    required:
+    - name
     type: object
   models.CreateMenuRequest:
     properties:
@@ -381,6 +440,9 @@ definitions:
         items:
           type: integer
         type: array
+      is_available:
+        description: พร้อมขายหรือไม่
+        type: boolean
       name:
         type: string
       nameCh:
@@ -588,6 +650,66 @@ definitions:
         description: ค่าที่เลือก เช่น "เผ็ดมาก", "เพิ่มไข่ดาว"
         type: string
     type: object
+  models.PrintJob:
+    properties:
+      content:
+        items:
+          type: integer
+        type: array
+      createdAt:
+        type: string
+      id:
+        type: integer
+      order:
+        allOf:
+        - $ref: '#/definitions/models.Order'
+        description: 'Optional: เพิ่ม relation กับ Order ถ้าต้องการ'
+      orderID:
+        description: nullable, เพราะอาจเป็นการพิมพ์ทดสอบ
+        type: integer
+      printerIP:
+        type: string
+      status:
+        description: pending, processing, completed, failed
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  models.Printer:
+    properties:
+      categories:
+        description: หมวดหมู่ที่พิมพ์ได้
+        items:
+          $ref: '#/definitions/models.Category'
+        type: array
+      createdAt:
+        type: string
+      department:
+        description: แผนก/ฝ่ายที่ใช้งาน
+        type: string
+      description:
+        description: รายละเอียดเพิ่มเติม
+        type: string
+      id:
+        type: integer
+      ipaddress:
+        description: IP Address
+        type: string
+      lastSeen:
+        description: เวลาที่เห็นเครื่องพิมพ์ล่าสุด
+        type: string
+      name:
+        description: ชื่อเครื่องพิมพ์
+        type: string
+      port:
+        description: Port number
+        type: integer
+      status:
+        description: 'สถานะ: active, inactive, maintenance'
+        type: string
+      updatedAt:
+        type: string
+    type: object
   models.QRCode:
     properties:
       created_at:
@@ -737,6 +859,49 @@ paths:
       security:
       - BearerAuth: []
       summary: เรียกรายการหมวดหมู่ทั้งหมด
+      tags:
+      - categories
+    post:
+      consumes:
+      - application/json
+      description: ฟังก์ชันนี้ใช้สำหรับสร้างหมวดหมู่ใหม่ โดยต้องระบุข้อมูลชื่อหมวดหมู่
+      parameters:
+      - description: ข้อมูลหมวดหมู่ใหม่
+        in: body
+        name: category
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของหมวดหมู่ที่สร้างเสร็จแล้ว
+          schema:
+            $ref: '#/definitions/models.Category'
+        "400":
+          description: เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: ไม่ได้รับอนุญาต (Unauthorized)
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง (Forbidden)
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการสร้างหมวดหมู่ใหม่
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: สร้างหมวดหมู่ใหม่
       tags:
       - categories
   /api/categories/{id}:
@@ -1613,7 +1778,7 @@ paths:
         "200":
           description: รายละเอียดของ Option Group ที่อัพเดทแล้ว
           schema:
-            $ref: '#/definitions/models.OptionGroup'
+            $ref: '#/definitions/api_handlers.opt_g'
         "400":
           description: ข้อมูลไม่ถูกต้อง
           schema:
@@ -1922,6 +2087,49 @@ paths:
       summary: กู้คืนเมนู
       tags:
       - menu-restore
+  /api/menu/status/{id}:
+    put:
+      consumes:
+      - application/json
+      description: อัปเดตสถานะอาหาร หมด-ไม่หมด เป็น Toggle เวลาเรียกจะเปลีียนไปสถานะตรงข้าม
+      parameters:
+      - description: ID ของเมนู
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: เปลี่ยนสถานะสำเร็จ
+          schema:
+            $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการอัปเดต
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: อัปเดตสถานะอาหาร หมด-ไม่หมด
+      tags:
+      - menu
   /api/orders:
     post:
       consumes:
@@ -2064,6 +2272,177 @@ paths:
               $ref: '#/definitions/models.Order'
             type: array
       summary: ดึงรายการออเดอร์ตามโต๊ะ
+  /api/printers:
+    get:
+      description: ดึงรายการเครื่องพิมพ์ทั้งหมดพร้อมหมวดหมู่
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api_handlers.PrinterResponse'
+            type: array
+      summary: ดึงข้อมูลเครื่องพิมพ์ทั้งหมด
+      tags:
+      - Printer
+  /api/printers/categories/{id}:
+    get:
+      description: ดึงรายการหมวดหมู่ที่เครื่องพิมพ์สามารถพิมพ์ได้
+      parameters:
+      - description: Printer ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Category'
+            type: array
+      summary: ดึงรายการหมวดหมู่ของเครื่องพิมพ์
+      tags:
+      - Printer
+    post:
+      consumes:
+      - application/json
+      description: กำหนดหมวดหมู่ที่เครื่องพิมพ์สามารถพิมพ์ได้
+      parameters:
+      - description: Printer ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: รายการ ID ของหมวดหมู่
+        in: body
+        name: categories
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.AssignCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Printer'
+      summary: กำหนดหมวดหมู่ให้เครื่องพิมพ์
+      tags:
+      - Printer
+  /api/printers/pending-jobs:
+    get:
+      description: ดึงรายการงานพิมพ์ที่ยังไม่ได้พิมพ์สำหรับ IP ที่ระบุ
+      parameters:
+      - description: Printer IP Address
+        in: query
+        name: printer_ip
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.PrintJob'
+            type: array
+      summary: รับงานพิมพ์ที่รอดำเนินการ
+      tags:
+      - Printer
+  /api/printers/printer-categories:
+    get:
+      description: ดึงรายการหมวดหมู่เครื่องพิมพ์ทั้งหมด
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Category'
+            type: array
+      summary: ดึงรายการหมวดหมู่ทั้งหมด
+      tags:
+      - Printer
+  /api/printers/printer-categories/{id}:
+    delete:
+      description: ลบหมวดหมู่เครื่องพิมพ์
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: ลบหมวดหมู่
+      tags:
+      - Printer
+    put:
+      consumes:
+      - application/json
+      description: อัพเดทข้อมูลของหมวดหมู่เครื่องพิมพ์
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ข้อมูลที่ต้องการอัพเดท
+        in: body
+        name: category
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.UpdateCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Category'
+      summary: อัพเดทข้อมูลหมวดหมู่
+      tags:
+      - Printer
+  /api/printers/status/{id}:
+    put:
+      consumes:
+      - application/json
+      description: อัพเดทสถานะของงานพิมพ์ (completed/failed)
+      parameters:
+      - description: Print Job ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New Status
+        in: body
+        name: status
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.PrintJob'
+      summary: อัพเดทสถานะงานพิมพ์
+      tags:
+      - Printer
   /api/promotions:
     get:
       consumes:

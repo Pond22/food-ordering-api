@@ -22,7 +22,6 @@ import (
 // @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการสร้างหมวดหมู่ใหม่"
 // @Router /api/categories [post]
 // @Tags categories
-
 func CreateCategoryHandler(c *fiber.Ctx) error {
 	var category models.Category
 

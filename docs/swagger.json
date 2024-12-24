@@ -148,6 +148,71 @@
                         }
                     }
                 }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ฟังก์ชันนี้ใช้สำหรับสร้างหมวดหมู่ใหม่ โดยต้องระบุข้อมูลชื่อหมวดหมู่",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "categories"
+                ],
+                "summary": "สร้างหมวดหมู่ใหม่",
+                "parameters": [
+                    {
+                        "description": "ข้อมูลหมวดหมู่ใหม่",
+                        "name": "category",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateCategoryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของหมวดหมู่ที่สร้างเสร็จแล้ว",
+                        "schema": {
+                            "$ref": "#/definitions/models.Category"
+                        }
+                    },
+                    "400": {
+                        "description": "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต (Unauthorized)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง (Forbidden)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการสร้างหมวดหมู่ใหม่",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
             }
         },
         "/api/categories/get_delete_categories": {
@@ -1201,7 +1266,7 @@
                     "200": {
                         "description": "รายละเอียดของ Option Group ที่อัพเดทแล้ว",
                         "schema": {
-                            "$ref": "#/definitions/models.OptionGroup"
+                            "$ref": "#/definitions/api_handlers.opt_g"
                         }
                     },
                     "400": {
@@ -1651,6 +1716,71 @@
                     },
                     "409": {
                         "description": "มีเมนูที่ใช้ชื่อนี้อยู่แล้ว",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/menu/status/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "อัปเดตสถานะอาหาร หมด-ไม่หมด เป็น Toggle เวลาเรียกจะเปลีียนไปสถานะตรงข้าม",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "อัปเดตสถานะอาหาร หมด-ไม่หมด",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของเมนู",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "เปลี่ยนสถานะสำเร็จ",
+                        "schema": {
+                            "$ref": "#/definitions/models.MenuItem"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการอัปเดต",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -2138,6 +2268,265 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/models.Order"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/printers": {
+            "get": {
+                "description": "ดึงรายการเครื่องพิมพ์ทั้งหมดพร้อมหมวดหมู่",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Printer"
+                ],
+                "summary": "ดึงข้อมูลเครื่องพิมพ์ทั้งหมด",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api_handlers.PrinterResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/printers/categories/{id}": {
+            "get": {
+                "description": "ดึงรายการหมวดหมู่ที่เครื่องพิมพ์สามารถพิมพ์ได้",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Printer"
+                ],
+                "summary": "ดึงรายการหมวดหมู่ของเครื่องพิมพ์",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Printer ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Category"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "กำหนดหมวดหมู่ที่เครื่องพิมพ์สามารถพิมพ์ได้",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Printer"
+                ],
+                "summary": "กำหนดหมวดหมู่ให้เครื่องพิมพ์",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Printer ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "รายการ ID ของหมวดหมู่",
+                        "name": "categories",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.AssignCategoryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Printer"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/printers/pending-jobs": {
+            "get": {
+                "description": "ดึงรายการงานพิมพ์ที่ยังไม่ได้พิมพ์สำหรับ IP ที่ระบุ",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Printer"
+                ],
+                "summary": "รับงานพิมพ์ที่รอดำเนินการ",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Printer IP Address",
+                        "name": "printer_ip",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.PrintJob"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/printers/printer-categories": {
+            "get": {
+                "description": "ดึงรายการหมวดหมู่เครื่องพิมพ์ทั้งหมด",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Printer"
+                ],
+                "summary": "ดึงรายการหมวดหมู่ทั้งหมด",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Category"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/printers/printer-categories/{id}": {
+            "put": {
+                "description": "อัพเดทข้อมูลของหมวดหมู่เครื่องพิมพ์",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Printer"
+                ],
+                "summary": "อัพเดทข้อมูลหมวดหมู่",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Category ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "ข้อมูลที่ต้องการอัพเดท",
+                        "name": "category",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.UpdateCategoryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Category"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "ลบหมวดหมู่เครื่องพิมพ์",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Printer"
+                ],
+                "summary": "ลบหมวดหมู่",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Category ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/printers/status/{id}": {
+            "put": {
+                "description": "อัพเดทสถานะของงานพิมพ์ (completed/failed)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Printer"
+                ],
+                "summary": "อัพเดทสถานะงานพิมพ์",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Print Job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New Status",
+                        "name": "status",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.PrintJob"
                         }
                     }
                 }
@@ -3051,6 +3440,20 @@
         }
     },
     "definitions": {
+        "api_handlers.AssignCategoryRequest": {
+            "type": "object",
+            "required": [
+                "category_ids"
+            ],
+            "properties": {
+                "category_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
         "api_handlers.ChangePasswordRequest": {
             "type": "object",
             "required": [
@@ -3279,6 +3682,35 @@
                 }
             }
         },
+        "api_handlers.PrinterResponse": {
+            "type": "object",
+            "properties": {
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Category"
+                    }
+                },
+                "department": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "ip_address": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "api_handlers.PromotionItemResponse": {
             "type": "object",
             "properties": {
@@ -3379,6 +3811,17 @@
                     "type": "string"
                 },
                 "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "api_handlers.UpdateCategoryRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 }
             }
@@ -3485,6 +3928,31 @@
                 }
             }
         },
+        "api_handlers.opt_g": {
+            "type": "object",
+            "required": [
+                "name",
+                "name_ch",
+                "name_en"
+            ],
+            "properties": {
+                "MaxSelections": {
+                    "type": "integer"
+                },
+                "is_required": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "name_ch": {
+                    "type": "string"
+                },
+                "name_en": {
+                    "type": "string"
+                }
+            }
+        },
         "api_handlers.orderItemRequest": {
             "type": "object",
             "required": [
@@ -3541,6 +4009,17 @@
                     "type": "string"
                 },
                 "nameEn": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.CreateCategoryRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
                     "type": "string"
                 }
             }
@@ -3620,6 +4099,10 @@
                     "items": {
                         "type": "integer"
                     }
+                },
+                "is_available": {
+                    "description": "พร้อมขายหรือไม่",
+                    "type": "boolean"
                 },
                 "name": {
                     "type": "string"
@@ -3923,6 +4406,94 @@
                 },
                 "value": {
                     "description": "ค่าที่เลือก เช่น \"เผ็ดมาก\", \"เพิ่มไข่ดาว\"",
+                    "type": "string"
+                }
+            }
+        },
+        "models.PrintJob": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "order": {
+                    "description": "Optional: เพิ่ม relation กับ Order ถ้าต้องการ",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Order"
+                        }
+                    ]
+                },
+                "orderID": {
+                    "description": "nullable, เพราะอาจเป็นการพิมพ์ทดสอบ",
+                    "type": "integer"
+                },
+                "printerIP": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "pending, processing, completed, failed",
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Printer": {
+            "type": "object",
+            "properties": {
+                "categories": {
+                    "description": "หมวดหมู่ที่พิมพ์ได้",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Category"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "department": {
+                    "description": "แผนก/ฝ่ายที่ใช้งาน",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "รายละเอียดเพิ่มเติม",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "ipaddress": {
+                    "description": "IP Address",
+                    "type": "string"
+                },
+                "lastSeen": {
+                    "description": "เวลาที่เห็นเครื่องพิมพ์ล่าสุด",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "ชื่อเครื่องพิมพ์",
+                    "type": "string"
+                },
+                "port": {
+                    "description": "Port number",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "สถานะ: active, inactive, maintenance",
+                    "type": "string"
+                },
+                "updatedAt": {
                     "type": "string"
                 }
             }
