@@ -22,6 +22,8 @@ const MenuManagement = () => {
   const [categoryFilter, setCategoryFilter] = useState(""); // สำหรับกรองหมวดหมู่
   const [optionGroupFilter, setOptionGroupFilter] = useState(""); // สำหรับกรองกลุ่มตัวเลือก
   const [filteredMenus, setFilteredMenus] = useState(menus); // รายการเมนูที่กรองแล้ว
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [menuToDelete, setMenuToDelete] = useState(null); // เก็บเมนูที่ต้องการลบ
 
   // ฟังก์ชันกรองข้อมูล
   useEffect(() => {
@@ -255,12 +257,10 @@ const MenuManagement = () => {
         throw new Error("ไม่สามารถอัปเดตข้อมูลเมนูได้");
       }
 
-      // 2. อัปเดตข้อมูล Option Groups
-      for (const group of menuDetails.optionGroups) {
-        if (!group.ID) {
-          throw new Error(`ไม่พบ ID ของ Option Group ${group.name}`);
-        }
-
+       // 2. จัดการข้อมูล Option Groups (แยก POST และ PUT)
+    for (const group of menuDetails.optionGroups) {
+      // ถ้าไม่มี ID ของกลุ่มตัวเลือก (หมายถึงเป็นกลุ่มใหม่), ใช้ POST เพื่อสร้างกลุ่มใหม่
+      if (!group.ID) {
         const options = Array.isArray(group.options) ? group.options : [];
 
         const groupPayload = {
@@ -277,9 +277,42 @@ const MenuManagement = () => {
           })),
         };
 
+        // ใช้ API POST ในการสร้าง Option Group ใหม่
+        const groupResponse = await axios.post(
+          `http://localhost:8080/api/menu/option-groups?menu_id=${menuDetails.ID}`,
+          groupPayload,
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (groupResponse.status !== 200) {
+          throw new Error(`ไม่สามารถเพิ่ม Option Group ${group.name} ได้`);
+        }
+      } else {
+        // ถ้ามี ID ของกลุ่มตัวเลือก (หมายถึงกลุ่มตัวเลือกที่มีอยู่แล้ว), ใช้ PUT ในการอัปเดต
+        const options = Array.isArray(group.options) ? group.options : [];
+
+        const groupPayload = {
+          MaxSelections: group.MaxSelections || 1, // จำนวนที่เลือกได้สูงสุด
+          is_required: group.isRequired || false,  // การบังคับเลือก
+          name: group.name.trim(),
+          name_en: group.nameEn.trim(),
+          name_ch: group.nameCh.trim(),
+          options: options.map((option) => ({
+            name: option.name.trim(),
+            name_en: option.nameEn.trim(),
+            name_ch: option.nameCh.trim(),
+            price: Number(option.price),
+          })),
+        };
+
+        // ใช้ API PUT ในการอัปเดต Option Group ที่มีอยู่แล้ว
         const groupResponse = await axios.put(
-          `http://localhost:8080/api/menu/option-groups/${group.ID}`, // ใช้ group.ID
-          groupPayload, // ส่งข้อมูลที่เตรียมไว้
+          `http://localhost:8080/api/menu/option-groups/${group.ID}`,
+          groupPayload,
           {
             headers: {
               "Content-Type": "application/json",
@@ -291,24 +324,26 @@ const MenuManagement = () => {
           throw new Error(`ไม่สามารถอัปเดตข้อมูล Option Group ${group.ID} ได้`);
         }
       }
-
-      // 3. อัปเดตข้อมูล Options ภายในเมนู (ถ้ามีการแก้ไข)
+    }
+    
+      // 3. อัปเดตข้อมูล Options และลบ Options ที่ถูกลบใน UI
       for (const group of menuDetails.optionGroups) {
         const options = Array.isArray(group.options) ? group.options : [];
-
+      
+        // สำหรับการเพิ่มหรืออัปเดต Option
         for (const option of options) {
           if (option.ID) {
+            // อัปเดต Option ที่มีอยู่แล้ว
             try {
               const optionPayload = {
                 name: option.name.trim(),
                 name_en: option.nameEn.trim(),
                 name_ch: option.nameCh.trim(),
-                price: Number(option.price), // ราคาแปลงเป็นตัวเลข
+                price: Number(option.price),
               };
-
-              // อัปเดตข้อมูล Option โดยใช้ option.ID
+      
               const optionResponse = await axios.put(
-                `http://localhost:8080/api/menu/options/${option.ID}`, // ใช้ option.ID
+                `http://localhost:8080/api/menu/options/${option.ID}`,
                 optionPayload,
                 {
                   headers: {
@@ -316,14 +351,40 @@ const MenuManagement = () => {
                   },
                 }
               );
-
-              // ตรวจสอบผลลัพธ์
+      
               if (optionResponse.status !== 200) {
                 throw new Error(`ไม่สามารถอัปเดตข้อมูล Option ${option.ID} ได้`);
               }
             } catch (error) {
               console.error(`Error updating option ID ${option.ID}:`, error);
               throw new Error(`เกิดข้อผิดพลาดในการอัปเดต Option ID ${option.ID}`);
+            }
+          } else {
+            // เพิ่ม Option ใหม่
+            try {
+              const optionPayload = {
+                name: option.name.trim(),
+                name_en: option.nameEn.trim(),
+                name_ch: option.nameCh.trim(),
+                price: Number(option.price),
+              };
+      
+              const optionResponse = await axios.post(
+                `http://localhost:8080/api/menu/options?OptionGroupID=${group.ID}`,
+                optionPayload,
+                {
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                }
+              );
+      
+              if (optionResponse.status !== 200) {
+                throw new Error(`ไม่สามารถเพิ่ม Option ใหม่`);
+              }
+            } catch (error) {
+              console.error(`Error adding option:`, error);
+              throw new Error(`เกิดข้อผิดพลาดในการเพิ่ม Option`);
             }
           }
         }
@@ -400,25 +461,125 @@ const MenuManagement = () => {
     }));
   };
   //ฟังก์ชันการลบเมนู
-  const deleteMenu = async (id) => {
-    const confirmDelete = window.confirm("คุณต้องการลบเมนูนี้หรือไม่?");
-    if (!confirmDelete) return;
+  const deleteMenu = async () => {
+    if (!menuToDelete) return;
   
     try {
-      const response = await axios.delete(`http://localhost:8080/api/menu/${id}`);
+      const response = await axios.delete(`http://localhost:8080/api/menu/${menuToDelete.ID}`);
       if (response.status === 200) {
         alert("ลบเมนูสำเร็จ");
-        // อัปเดตรายการเมนูหลังจากลบ
-        setMenus((prevMenus) => prevMenus.filter((menu) => menu.ID !== id));
+        setMenus((prevMenus) => prevMenus.filter((menu) => menu.ID !== menuToDelete.ID));
       } else {
         throw new Error("ลบเมนูไม่สำเร็จ");
       }
     } catch (error) {
       console.error("Error deleting menu:", error);
       alert("เกิดข้อผิดพลาดในการลบเมนู");
+    } finally {
+      setIsDeleteModalOpen(false); // ปิด modal หลังจากลบ
+      setMenuToDelete(null); // รีเซ็ตค่าเมนูที่ต้องการลบ
     }
   };
 
+  const ConfirmDeleteModal = ({ isOpen, onClose, onConfirm, menuName }) => {
+    if (!isOpen) return null; // ซ่อน Modal หาก isOpen เป็น false
+  
+    return (
+      <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center">
+        <div className="bg-white rounded-lg p-6 w-96 shadow-lg">
+          <h2 className="text-lg font-semibold mb-4">ยืนยันการลบ</h2>
+          <p className="text-black">คุณต้องการลบเมนู <strong className="text-red-500">{menuName}</strong> ใช่หรือไม่?</p>
+          <div className="mt-6 flex justify-end">
+            <button
+              className="px-4 py-2 bg-gray-300 rounded-lg mr-4"
+              onClick={onClose}
+            >
+              ยกเลิก
+            </button>
+            <button
+              className="px-4 py-2 bg-red-500 text-white rounded-lg"
+              onClick={onConfirm}
+            >
+              ลบ
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+  
+
+  // ลบ Option Group
+// const deleteOptionGroup = async (groupId) => {
+//   try {
+//     const response = await fetch(`/api/menu/optionGroups/${groupId}`, {
+//       method: "DELETE",
+//     });
+//     if (response.ok) {
+//       alert("ลบกลุ่มตัวเลือกสำเร็จ");
+//     } else {
+//       alert("เกิดข้อผิดพลาดในการลบกลุ่มตัวเลือก");
+//     }
+//   } catch (error) {
+//     console.error("Error deleting option group:", error);
+//     alert("ไม่สามารถลบกลุ่มตัวเลือกได้");
+//   }
+// };
+
+// ลบ Option
+const deleteOption = async (optionId) => {
+  try {
+    const response = await fetch(`http://localhost:8080/api/menu/options/${optionId}`, {
+      method: "DELETE",
+    });
+    if (response.ok) {
+      alert("ลบตัวเลือกสำเร็จ");
+    } else {
+      alert("เกิดข้อผิดพลาดในการลบตัวเลือก");
+    }
+  } catch (error) {
+    console.error("Error deleting option:", error);
+    alert("ไม่สามารถลบตัวเลือกได้");
+  }
+};
+
+
+const handleDeleteOptionGroup = (groupIndex) => {
+  const updatedGroups = menuDetails.optionGroups.filter((_, index) => index !== groupIndex);
+  setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+};
+
+const handleDeleteOption = (groupIndex, optionIndex) => {
+  const updatedGroups = [...menuDetails.optionGroups];
+  updatedGroups[groupIndex].options = updatedGroups[groupIndex].options.filter((_, index) => index !== optionIndex);
+  setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+};
+
+// เพิ่ม Group opptions ใหม่ใน modal แก้ไข menu
+const handleAddOptionGroup = () => {
+  const newGroup = {
+    ID: null, // สำหรับ Group ใหม่ยังไม่มี ID
+    name: "",
+    nameEn: "",
+    nameCh: "",
+    MaxSelections: 1, // ค่าเริ่มต้น
+    isRequired: false, // ค่าเริ่มต้น
+    options: [], // เริ่มต้นไม่มี Option
+    
+  };
+  setMenuDetails((prevDetails) => ({
+    ...prevDetails,
+    optionGroups: [...prevDetails.optionGroups, newGroup],
+  }));
+};
+
+// เพิ่ม opptions ใหม่ใน modal แก้ไข menu
+const handleAddOption = (groupIndex) => {
+  const updatedGroups = [...menuDetails.optionGroups];
+  updatedGroups[groupIndex].options.push({ name: '', nameEn: '', nameCh: '', price: '' });
+  console.log("Updated Option Groups:", updatedGroups); // ดูค่าที่อัปเดต
+  setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+};
 
   return (
     <div className="bg-white max-h-full h-full lg:ml-60">
@@ -586,10 +747,10 @@ const MenuManagement = () => {
   {menu.Is_available ? "พร้อม" : "หมด"}
 </button>
                     </td>
-                    <td className=" p-2 justify-center items-center">
+                    <td className="justify-center items-center">
                       <div className="flex">
                         <button
-                          className="bg-yellow-500 text-white mx-2 px-4 py-2 rounded-lg hover:bg-yellow-600"
+                          className=" text-blue-500 mx-2 px-2 rounded-lg hover:bg-blue-300"
                           onClick={() => {
                             setCurrentMenuId(menu.ID); // ตั้งค่า ID ของเมนูที่ต้องการแก้ไข
                             setCurrentMenuId(menu.ID);
@@ -622,25 +783,28 @@ const MenuManagement = () => {
                             setShowEditMenuModal(true);
                           }}
                         >
-                          <div className="flex"><Edit />edit</div>
+                          <div className="flex"><Edit className="w-8 h-8"/></div>
                         </button>
 
                         <button
-                          className="bg-green-500 text-white px-2 py-2 rounded-lg hover:bg-green-600 "
+                          className=" text-green-500 px-2 py-2 rounded-lg hover:bg-green-300 "
                           onClick={() => {
                             setCurrentMenuId(menu.ID);
                             setShowUploadModal(true);
                           }}
                         >
 
-                          <div className="flex"><Image /> image</div>
+                          <div className="flex"><Image className="w-8 h-8"/></div>
                         </button>
                         <button
-          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-          onClick={() => deleteMenu(menu.ID)}
-        >
-          ลบ
-        </button>
+  className="px-2 text-red-500 rounded-lg hover:bg-red-300"
+  onClick={() => {
+    setMenuToDelete(menu); // ตั้งค่าเมนูที่ต้องการลบ
+    setIsDeleteModalOpen(true); // เปิด modal
+  }}
+>
+  <Trash2 className="w-8 h-8" />
+</button>
                       </div>
                     </td>
                   </tr>
@@ -652,8 +816,15 @@ const MenuManagement = () => {
               )}
             </tbody>
           </table>
+
         )}
         {/* สิ้นสุดตารางแสดงข้อมูลสินค้า */}
+        <ConfirmDeleteModal
+  isOpen={isDeleteModalOpen}
+  onClose={() => setIsDeleteModalOpen(false)} // ปิด modal เมื่อกด 'ยกเลิก'
+  onConfirm={deleteMenu} // เรียกฟังก์ชัน deleteMenu เมื่อกด 'ลบ'
+  menuName={menuToDelete?.Name || "ไม่พบชื่อเมนู"} // ส่งชื่อเมนูที่ต้องการลบ
+/>
 
         {/* ตารางแสดง options */}
         {activeTab === 'options' && (
@@ -706,77 +877,7 @@ const MenuManagement = () => {
 
       </div>
 
-      {/* Popup สำหรับการแก้ไขข้อมูล Option */}
-      {isModalOpen && (
-        <div className="fixed inset-0 flex justify-center items-center bg-gray-800 bg-opacity-50">
-          <div className="bg-white p-4 rounded-lg shadow-lg w-96">
-            <h2 className="text-xl mb-4">Edit Option</h2>
-            <form>
-              <div className="mb-2">
-                <label htmlFor="name" className="block">Option Name (TH)</label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={updatedData.name}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              <div className="mb-2">
-                <label htmlFor="name_ch" className="block">Option Name (CH)</label>
-                <input
-                  type="text"
-                  id="name_ch"
-                  name="name_ch"
-                  value={updatedData.name_ch}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              <div className="mb-2">
-                <label htmlFor="name_en" className="block">Option Name (EN)</label>
-                <input
-                  type="text"
-                  id="name_en"
-                  name="name_en"
-                  value={updatedData.name_en}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              <div className="mb-2">
-                <label htmlFor="price" className="block">Price (THB)</label>
-                <input
-                  type="number"
-                  id="price"
-                  name="price"
-                  value={updatedData.price}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              <div className="flex justify-between mt-4">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="bg-gray-500 text-white px-4 py-2 rounded"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={updateOption}
-                  className="bg-blue-500 text-white px-4 py-2 rounded"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-      {/* สิ้นสุด Popup สำหรับการแก้ไขข้อมูล Option */}
+    
 
       {/* Modal สำหรับอัพโหลดรูปภาพ */}
       {showUploadModal && (
@@ -943,12 +1044,29 @@ const MenuManagement = () => {
 
             {/* Option Groups */}
             <div className="mt-6 mb-2 text-lg">ข้อมูลกลุ่มตัวเลือกและตัวเลือกของเมนูอาหาร</div>
+            <div className="mt-6">
+            <button
+       
+                  
+    className="bg-green-500 text-white px-4 py-2 rounded-lg mt-4"
+    onClick={handleAddOptionGroup}
+  >
+    เพิ่มกลุ่มตัวเลือก
+  </button>
+</div>
             {menuDetails.optionGroups.length > 0 ? (
               menuDetails.optionGroups.map((group, groupIndex) => (
                 <div key={groupIndex}>
                    
                   <div className="border p-2 pb-8 ">
                     <label>รหัสกลุ่มตัวเลือก : {group.ID}</label>
+                    <button
+            className="text-red-500"
+            onClick={() => handleDeleteOptionGroup(groupIndex)}
+          >
+            ลบกลุ่ม
+          </button>
+        
                   <div className="mt-4">ชื่อกลุ่มตัวเลือกภายในเมนู</div>
                   <div className="flex px-4 border">
                   <div className="mt-4 mb-4">
@@ -1020,8 +1138,20 @@ const MenuManagement = () => {
                       }}
                       className="mt-2 ml-1"
                     />
+                    
                   </div>
+                
                   </div>
+                  {/* ปุ่มเพิ่ม Option */}
+<div className="mt-4">
+  <button
+    className="bg-blue-500 text-white px-4 py-2 rounded-lg"
+    onClick={() => handleAddOption(groupIndex)} // เรียกใช้ฟังก์ชันในการเพิ่ม Option
+  >
+    เพิ่มตัวเลือก
+  </button>
+</div>
+                    
                  
                   
                   {/* ฟอร์มสำหรับแก้ไข Option ใน Option Group */}
@@ -1030,6 +1160,18 @@ const MenuManagement = () => {
                       <div key={optionIndex}>
                         
                         <div className="mt-4">ชื่อตัวเลือกภายในเมนู</div>
+                        <button
+  className="text-red-500 text-sm hover:underline"
+  onClick={() => {
+    if (window.confirm("คุณต้องการลบตัวเลือกนี้หรือไม่?")) {
+      deleteOption(option.ID);
+      handleDeleteOption(groupIndex, optionIndex); // อัปเดต UI
+    }
+  }}
+>
+  ลบตัวเลือกนี้
+</button>
+
                         <div className="flex px-4 border">
                         <div className="my-2 mx-2">
                           <label>ชื่อตัวเลือก (ไทย)</label>
