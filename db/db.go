@@ -43,7 +43,8 @@ func migrate() {
 	DB.AutoMigrate(&models.Promotion{})
 	DB.AutoMigrate(&models.PromotionItem{})
 	DB.AutoMigrate(&models.PromotionUsage{})
-	// DB.AutoMigrate(&models.OrderBundleItem{})
+	DB.AutoMigrate(&models.Printer{})
+	DB.AutoMigrate(&models.PrintJob{})
 	// DB.AutoMigrate(&models.PromoSalesReport{})
 	// DB.AutoMigrate(&models.TableHistory{})
 }

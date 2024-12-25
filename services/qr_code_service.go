@@ -1,4 +1,4 @@
-package qr_service
+package service
 
 import (
 	"fmt"

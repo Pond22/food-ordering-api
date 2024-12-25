@@ -5,6 +5,7 @@ import (
 	"food-ordering-api/db"
 	_ "food-ordering-api/docs"
 	"food-ordering-api/routes"
+	service "food-ordering-api/services"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
@@ -61,6 +62,9 @@ func main() {
 	app.Get("/swagger/*", swagger.HandlerDefault)
 
 	app.Get("/ws/tables", api_handlers.TableWebSocketHandler(db.DB))
+
+	// app.Use("/ws/printer", api_handlers.HandlePrinterWebSocket)
+	app.Use("/ws/printer", service.HandlePrinterWebSocket)
 
 	routes.SetupRoutes(app)
 

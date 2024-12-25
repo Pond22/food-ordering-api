@@ -61,14 +61,15 @@ type MenuItem struct {
 	Name          string        `gorm:"not null"`
 	NameEn        string        `gorm:"not null"`
 	NameCh        string        `gorm:"not null"`
-	Description   string        `gorm:"type:varchar(10000)"`
-	DescriptionEn string        `gorm:"type:varchar(10000)"`
-	DescriptionCh string        `gorm:"type:varchar(10000)"`
+	Description   string        `gorm:"type:varchar(255)"`
+	DescriptionEn string        `gorm:"type:varchar(255)"`
+	DescriptionCh string        `gorm:"type:varchar(255)"`
 	Image         []byte        `gorm:"type:bytea"`            // ฟิลด์ Image เป็น type bytea
 	CategoryID    uint          `gorm:"not null"`              // foreign key ที่เชื่อมกับ Category
 	Category      Category      `gorm:"foreignKey:CategoryID"` // ลิงก์ไปยังตาราง Category
 	Price         int16         `gorm:"not null"`
 	OptionGroups  []OptionGroup `gorm:"foreignKey:MenuItemID"`
+	Is_available  bool          `gorm:"not null;default:true"` //พร้อมขายหรือไม่
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 	DeletedAt     gorm.DeletedAt `json:"-" swaggerignore:"true"` //เอาไว้ทำ softdelete จะได้ restore ง่ายๆ
@@ -291,4 +292,33 @@ type Receipt struct {
 	Charges       []OrderAdditionalCharge `gorm:"foreignKey:OrderID"`
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+}
+
+type Printer struct {
+	ID          uint       `gorm:"primaryKey"`
+	Name        string     `gorm:"not null"`                  // ชื่อเครื่องพิมพ์
+	IPAddress   string     `gorm:"unique;not null"`           // IP Address
+	Port        int        `gorm:"not null"`                  // Port number
+	Department  string     `gorm:"not null"`                  // แผนก/ฝ่ายที่ใช้งาน
+	Description string     `gorm:"type:text"`                 // รายละเอียดเพิ่มเติม
+	Status      string     `gorm:"not null;default:'active'"` // สถานะ: active, inactive, maintenance
+	LastSeen    time.Time  // เวลาที่เห็นเครื่องพิมพ์ล่าสุด
+	Categories  []Category `gorm:"many2many:printer_categories;"` // หมวดหมู่ที่พิมพ์ได้
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type PrintJob struct {
+	ID        uint   `gorm:"primaryKey"`
+	PrinterIP string `gorm:"not null"`
+	OrderID   *uint  // nullable, เพราะอาจเป็นการพิมพ์ทดสอบ
+	Content   []byte `gorm:"type:bytea"`
+	Status    string `gorm:"not null;default:'pending'"` // pending, processing, completed, failed
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	// Optional: เพิ่ม relation กับ Order ถ้าต้องการ
+	Order *Order `gorm:"foreignKey:OrderID"`
 }

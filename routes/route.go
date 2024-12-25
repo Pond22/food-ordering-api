@@ -59,6 +59,8 @@ func SetupRoutes(app *fiber.App) {
 		menu.Post("/restore/:id", api_handlers.RestoreMenu)
 		menu.Post("/restore-group/:id", api_handlers.RestoreOptionGroup)
 		menu.Post("/restore-option/:id", api_handlers.RestoreOption)
+
+		menu.Put("/status/:id", api_handlers.UpdateMenuStatus)
 	}
 
 	promotion := api.Group("/promotions")
@@ -114,6 +116,22 @@ func SetupRoutes(app *fiber.App) {
 	{
 		qr.Get("/:id", qr_service.HandleQRCodeRequest)
 		qr.Get("/tables", qr_service.Table)
+	}
+
+	printer := api.Group("/printers")
+	{
+		printer.Get("/printer-categories", api_handlers.GetPrinterCategories)
+		printer.Put("/printer-categories/:id", api_handlers.UpdatePrinterCategory)
+		printer.Delete("/printer-categories/:id", api_handlers.DeletePrinterCategory)
+
+		printer.Post("/categories/:id", api_handlers.AssignPrinterCategories)
+		printer.Get("/categories/:id", api_handlers.GetPrinterCategoriesById)
+
+		// printer.Get("/:id", api_handlers.GetPrinterByID)
+		printer.Get("/", api_handlers.GetAllPrinters)
+
+		printer.Get("/pending-jobs", api_handlers.GetPendingPrintJobs)
+		printer.Put("/status/:id", api_handlers.UpdatePrintJobStatus)
 	}
 	SetupUserRoutes(app)
 }

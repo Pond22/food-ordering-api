@@ -17,7 +17,7 @@ type CreateMenuRequest struct {
 	OptionGroups []OptionGroupRequest `json:"option_groups"`
 }
 
-type MenuItemRequest struct { // ไม่ได้ใช้
+type MenuItemRequest struct {
 	Name          string `json:"name" binding:"required"`
 	NameEn        string `json:"name_en" binding:"required"`
 	NameCh        string `json:"name_ch" binding:"required"`
