@@ -68,6 +68,9 @@ func SetupRoutes(app *fiber.App) {
 		promotion.Post("/", api_handlers.CreatePromotion)
 		promotion.Get("/", api_handlers.GetActivePromotions)
 		promotion.Patch("/status/:id ", api_handlers.UpdatePromotionStatus)
+		promotion.Put("/:id ", api_handlers.UpdatePromotion)
+		promotion.Delete("/:id ", api_handlers.DeletePromotion)
+		promotion.Get("/:id ", api_handlers.GetPromotionByID)
 	}
 
 	// Category Management Routes - ต้องการการยืนยันตัวตน และต้องเป็น manager
@@ -120,9 +123,9 @@ func SetupRoutes(app *fiber.App) {
 
 	printer := api.Group("/printers")
 	{
-		printer.Get("/printer-categories", api_handlers.GetPrinterCategories)
-		printer.Put("/printer-categories/:id", api_handlers.UpdatePrinterCategory)
-		printer.Delete("/printer-categories/:id", api_handlers.DeletePrinterCategory)
+		// printer.Get("/printer-categories", api_handlers.GetPrinterCategories)
+		// printer.Put("/printer-categories/:id", api_handlers.UpdatePrinterCategory)
+		// printer.Delete("/printer-categories/:id", api_handlers.DeletePrinterCategory)
 
 		printer.Post("/categories/:id", api_handlers.AssignPrinterCategories)
 		printer.Get("/categories/:id", api_handlers.GetPrinterCategoriesById)
