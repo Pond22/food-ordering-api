@@ -123,7 +123,7 @@ const UserManagement = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 bg-gray-50">
+    <div className="w-min-screen p-5  bg-gray-50  lg:ml-60">
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
         <div className="px-6 py-4 bg-blue-600 text-white flex items-center justify-between">
           <div className="flex items-center">

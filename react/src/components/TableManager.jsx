@@ -124,7 +124,7 @@ const TableManager = () => {
   };
 
   return (
-    <div className="้h-screen overflow-auto p-4">
+    <div className="้h-screen overflow-auto p-4 lg:ml-60">
       {/* ส่วนค้นหาและกรอง */}
       <div className="flex flex-col md:flex-row md:items-center mb-4">
         <input

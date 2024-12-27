@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { BrowserRouter as Router, Routes, Route, Link, Navigate } from "react-router-dom";
+import { ChevronDown, ChevronUp, Search, Filter, X, User, Edit, Trash2 } from 'lucide-react';
 import Header from "./components/Header";
 import Login from "./components/Login";
 import AddCategory from "./components/AddCategory";
@@ -12,6 +13,12 @@ import ErrorBoundary from "./ErrorBoundary";  // import Error Boundary
 import styles from "./styles/App.module.css";
 
 const App = () => {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false); // ควบคุมสถานะของ Dropdown
+
+  const toggleDropdown = () => {
+    setIsDropdownOpen((prev) => !prev);
+  };
+
   // ตรวจสอบว่า token มีอยู่ใน localStorage หรือไม่
   const isLoggedIn = !!localStorage.getItem("token");
 
@@ -52,12 +59,12 @@ const App = () => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (window.innerWidth < 903 && sidebarRef.current && !sidebarRef.current.contains(event.target)) {
+      if (window.innerWidth < 1024 && sidebarRef.current && !sidebarRef.current.contains(event.target)) {
         setIsSidebarOpen(false);
       }
     };
 
-    if (window.innerWidth < 903) {
+    if (window.innerWidth < 1024) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
@@ -93,8 +100,22 @@ const App = () => {
                 <Link to="/dashboard" className={styles.navLink}>เดชบอร์ด</Link>
                 <Link to="/tables" className={styles.navLink}>จัดการโต๊ะ</Link>
                 <Link to="/user" className={styles.navLink}>จัดการผู้ใช้</Link>
-                <Link to="/addMenu" className={styles.navLink}>จัดการเมนูอาหาร</Link>
-                <Link to="/addCategory" className={styles.navLink}>เพิ่มหมวดหมู่</Link>
+                 {/* Dropdown Menu */}
+              <div className="dropdown">
+                <div className="flex">
+                <button
+                  className="dropdown-toggle nav-link"
+                  onClick={toggleDropdown}
+                >
+                  จัดการอาหาร
+                </button>{isDropdownOpen ? <ChevronUp /> : <ChevronDown />}</div>
+                {isDropdownOpen && (
+                  <div className="dropdown-menu">
+                    <Link to="/addMenu" className={styles.navLink}>จัดการเมนูอาหาร</Link>
+                    <Link to="/addCategory" className={styles.navLink}>จัดการหมวดหมู่</Link>
+                  </div>
+                )}
+              </div>
               </nav>
 
               {user && (
@@ -145,7 +166,7 @@ const App = () => {
                 path="/user"
                 element={isLoggedIn && user?.role === 'manager' ? <UserManagement /> : <Navigate to="/login" />}
               />
-
+              
               {/* Add Menu - อนุญาตเฉพาะ Manager */}
               <Route
                 path="/addMenu"

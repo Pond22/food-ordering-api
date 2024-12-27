@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Image, Plus, Search, Filter, X, User, Edit, Trash2 } from 'lucide-react';
+import { Image, Plus, Search, Filter, X, Ellipsis, Edit, Trash2 } from 'lucide-react';
 import axios from "axios";
 import MenuTable from "./MenuTable"; // นำเข้า MenuTable มาใช้
 
@@ -24,6 +24,45 @@ const MenuManagement = () => {
   const [filteredMenus, setFilteredMenus] = useState(menus); // รายการเมนูที่กรองแล้ว
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [menuToDelete, setMenuToDelete] = useState(null); // เก็บเมนูที่ต้องการลบ
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  // const toggleMenuStatus = async (menuId) => {
+  //   try {
+  //     const response = await fetch(`/api/menu/toggle-status/${menuId}`, {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //     });
+  //     if (!response.ok) {
+  //       throw new Error("Failed to update menu status");
+  //     }
+  //     return await response.json(); // ค่าที่เซิร์ฟเวอร์ส่งกลับ
+  //   } catch (error) {
+  //     console.error(error);
+  //     alert("เกิดข้อผิดพลาดในการอัปเดตสถานะเมนู");
+  //     return null;
+  //   }
+  // };
+
+  const toggleDropdown = (ID) => {
+    setIsDropdownOpen((prev) => (prev === ID ? null : ID));
+  };
+
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest("#dropdownMenu")) {
+        closeDropdown();
+      }
+    };
+
+    if (isDropdownOpen) {
+      document.addEventListener("click", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, [isDropdownOpen]);
 
   // ฟังก์ชันกรองข้อมูล
   useEffect(() => {
@@ -53,7 +92,7 @@ const MenuManagement = () => {
     setFilteredMenus(result);
   }, [menus, searchTerm, categoryFilter, optionGroupFilter]);
 
-  
+
 
   // เมื่อ showUploadModal เปลี่ยนสถานะ จะรีเซ็ตค่า selectedImage และ currentMenuId
   useEffect(() => {
@@ -68,6 +107,7 @@ const MenuManagement = () => {
     fetchCategories();
     fetchMenus("getAll");
   }, []);
+
   // ฟังก์ชันเปิด/ปิด อาหารหมด
   const toggleMenuStatus = async (menuId) => {
     try {
@@ -76,7 +116,7 @@ const MenuManagement = () => {
           "Content-Type": "application/json",
         },
       });
-  
+
       if (response.status === 200) {
         alert(`เปลี่ยนสถานะของเมนู ${response.data.Name} เรียบร้อย`);
         fetchMenus(); // โหลดข้อมูลใหม่
@@ -257,79 +297,79 @@ const MenuManagement = () => {
         throw new Error("ไม่สามารถอัปเดตข้อมูลเมนูได้");
       }
 
-       // 2. จัดการข้อมูล Option Groups (แยก POST และ PUT)
-    for (const group of menuDetails.optionGroups) {
-      // ถ้าไม่มี ID ของกลุ่มตัวเลือก (หมายถึงเป็นกลุ่มใหม่), ใช้ POST เพื่อสร้างกลุ่มใหม่
-      if (!group.ID) {
-        const options = Array.isArray(group.options) ? group.options : [];
+      // 2. จัดการข้อมูล Option Groups (แยก POST และ PUT)
+      for (const group of menuDetails.optionGroups) {
+        // ถ้าไม่มี ID ของกลุ่มตัวเลือก (หมายถึงเป็นกลุ่มใหม่), ใช้ POST เพื่อสร้างกลุ่มใหม่
+        if (!group.ID) {
+          const options = Array.isArray(group.options) ? group.options : [];
 
-        const groupPayload = {
-          MaxSelections: group.MaxSelections || 1, // จำนวนที่เลือกได้สูงสุด
-          is_required: group.isRequired || false,  // การบังคับเลือก
-          name: group.name.trim(),
-          name_en: group.nameEn.trim(),
-          name_ch: group.nameCh.trim(),
-          options: options.map((option) => ({
-            name: option.name.trim(),
-            name_en: option.nameEn.trim(),
-            name_ch: option.nameCh.trim(),
-            price: Number(option.price),
-          })),
-        };
+          const groupPayload = {
+            MaxSelections: group.MaxSelections || 1, // จำนวนที่เลือกได้สูงสุด
+            is_required: group.isRequired || false,  // การบังคับเลือก
+            name: group.name.trim(),
+            name_en: group.nameEn.trim(),
+            name_ch: group.nameCh.trim(),
+            options: options.map((option) => ({
+              name: option.name.trim(),
+              name_en: option.nameEn.trim(),
+              name_ch: option.nameCh.trim(),
+              price: Number(option.price),
+            })),
+          };
 
-        // ใช้ API POST ในการสร้าง Option Group ใหม่
-        const groupResponse = await axios.post(
-          `http://localhost:8080/api/menu/option-groups?menu_id=${menuDetails.ID}`,
-          groupPayload,
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
+          // ใช้ API POST ในการสร้าง Option Group ใหม่
+          const groupResponse = await axios.post(
+            `http://localhost:8080/api/menu/option-groups?menu_id=${menuDetails.ID}`,
+            groupPayload,
+            {
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          if (groupResponse.status !== 200) {
+            throw new Error(`ไม่สามารถเพิ่ม Option Group ${group.name} ได้`);
           }
-        );
+        } else {
+          // ถ้ามี ID ของกลุ่มตัวเลือก (หมายถึงกลุ่มตัวเลือกที่มีอยู่แล้ว), ใช้ PUT ในการอัปเดต
+          const options = Array.isArray(group.options) ? group.options : [];
 
-        if (groupResponse.status !== 200) {
-          throw new Error(`ไม่สามารถเพิ่ม Option Group ${group.name} ได้`);
-        }
-      } else {
-        // ถ้ามี ID ของกลุ่มตัวเลือก (หมายถึงกลุ่มตัวเลือกที่มีอยู่แล้ว), ใช้ PUT ในการอัปเดต
-        const options = Array.isArray(group.options) ? group.options : [];
+          const groupPayload = {
+            MaxSelections: group.MaxSelections || 1, // จำนวนที่เลือกได้สูงสุด
+            is_required: group.isRequired || false,  // การบังคับเลือก
+            name: group.name.trim(),
+            name_en: group.nameEn.trim(),
+            name_ch: group.nameCh.trim(),
+            options: options.map((option) => ({
+              name: option.name.trim(),
+              name_en: option.nameEn.trim(),
+              name_ch: option.nameCh.trim(),
+              price: Number(option.price),
+            })),
+          };
 
-        const groupPayload = {
-          MaxSelections: group.MaxSelections || 1, // จำนวนที่เลือกได้สูงสุด
-          is_required: group.isRequired || false,  // การบังคับเลือก
-          name: group.name.trim(),
-          name_en: group.nameEn.trim(),
-          name_ch: group.nameCh.trim(),
-          options: options.map((option) => ({
-            name: option.name.trim(),
-            name_en: option.nameEn.trim(),
-            name_ch: option.nameCh.trim(),
-            price: Number(option.price),
-          })),
-        };
+          // ใช้ API PUT ในการอัปเดต Option Group ที่มีอยู่แล้ว
+          const groupResponse = await axios.put(
+            `http://localhost:8080/api/menu/option-groups/${group.ID}`,
+            groupPayload,
+            {
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          );
 
-        // ใช้ API PUT ในการอัปเดต Option Group ที่มีอยู่แล้ว
-        const groupResponse = await axios.put(
-          `http://localhost:8080/api/menu/option-groups/${group.ID}`,
-          groupPayload,
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
+          if (groupResponse.status !== 200) {
+            throw new Error(`ไม่สามารถอัปเดตข้อมูล Option Group ${group.ID} ได้`);
           }
-        );
-
-        if (groupResponse.status !== 200) {
-          throw new Error(`ไม่สามารถอัปเดตข้อมูล Option Group ${group.ID} ได้`);
         }
       }
-    }
-    
+
       // 3. อัปเดตข้อมูล Options และลบ Options ที่ถูกลบใน UI
       for (const group of menuDetails.optionGroups) {
         const options = Array.isArray(group.options) ? group.options : [];
-      
+
         // สำหรับการเพิ่มหรืออัปเดต Option
         for (const option of options) {
           if (option.ID) {
@@ -341,7 +381,7 @@ const MenuManagement = () => {
                 name_ch: option.nameCh.trim(),
                 price: Number(option.price),
               };
-      
+
               const optionResponse = await axios.put(
                 `http://localhost:8080/api/menu/options/${option.ID}`,
                 optionPayload,
@@ -351,7 +391,7 @@ const MenuManagement = () => {
                   },
                 }
               );
-      
+
               if (optionResponse.status !== 200) {
                 throw new Error(`ไม่สามารถอัปเดตข้อมูล Option ${option.ID} ได้`);
               }
@@ -368,7 +408,7 @@ const MenuManagement = () => {
                 name_ch: option.nameCh.trim(),
                 price: Number(option.price),
               };
-      
+
               const optionResponse = await axios.post(
                 `http://localhost:8080/api/menu/options?OptionGroupID=${group.ID}`,
                 optionPayload,
@@ -378,7 +418,7 @@ const MenuManagement = () => {
                   },
                 }
               );
-      
+
               if (optionResponse.status !== 200) {
                 throw new Error(`ไม่สามารถเพิ่ม Option ใหม่`);
               }
@@ -463,7 +503,7 @@ const MenuManagement = () => {
   //ฟังก์ชันการลบเมนู
   const deleteMenu = async () => {
     if (!menuToDelete) return;
-  
+
     try {
       const response = await axios.delete(`http://localhost:8080/api/menu/${menuToDelete.ID}`);
       if (response.status === 200) {
@@ -483,7 +523,7 @@ const MenuManagement = () => {
 
   const ConfirmDeleteModal = ({ isOpen, onClose, onConfirm, menuName }) => {
     if (!isOpen) return null; // ซ่อน Modal หาก isOpen เป็น false
-  
+
     return (
       <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center">
         <div className="bg-white rounded-lg p-6 w-96 shadow-lg">
@@ -507,84 +547,151 @@ const MenuManagement = () => {
       </div>
     );
   };
-  
+
 
   // ลบ Option Group
-// const deleteOptionGroup = async (groupId) => {
-//   try {
-//     const response = await fetch(`/api/menu/optionGroups/${groupId}`, {
-//       method: "DELETE",
-//     });
-//     if (response.ok) {
-//       alert("ลบกลุ่มตัวเลือกสำเร็จ");
-//     } else {
-//       alert("เกิดข้อผิดพลาดในการลบกลุ่มตัวเลือก");
-//     }
-//   } catch (error) {
-//     console.error("Error deleting option group:", error);
-//     alert("ไม่สามารถลบกลุ่มตัวเลือกได้");
-//   }
-// };
+  // const deleteOptionGroup = async (groupId) => {
+  //   try {
+  //     const response = await fetch(`/api/menu/optionGroups/${groupId}`, {
+  //       method: "DELETE",
+  //     });
+  //     if (response.ok) {
+  //       alert("ลบกลุ่มตัวเลือกสำเร็จ");
+  //     } else {
+  //       alert("เกิดข้อผิดพลาดในการลบกลุ่มตัวเลือก");
+  //     }
+  //   } catch (error) {
+  //     console.error("Error deleting option group:", error);
+  //     alert("ไม่สามารถลบกลุ่มตัวเลือกได้");
+  //   }
+  // };
 
-// ลบ Option
-const deleteOption = async (optionId) => {
-  try {
-    const response = await fetch(`http://localhost:8080/api/menu/options/${optionId}`, {
-      method: "DELETE",
-    });
-    if (response.ok) {
-      alert("ลบตัวเลือกสำเร็จ");
-    } else {
-      alert("เกิดข้อผิดพลาดในการลบตัวเลือก");
+  // ลบ Option
+  const deleteOption = async (optionId) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/menu/options/${optionId}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        alert("ลบตัวเลือกสำเร็จ");
+      } else {
+        alert("เกิดข้อผิดพลาดในการลบตัวเลือก");
+      }
+    } catch (error) {
+      console.error("Error deleting option:", error);
+      alert("ไม่สามารถลบตัวเลือกได้");
     }
-  } catch (error) {
-    console.error("Error deleting option:", error);
-    alert("ไม่สามารถลบตัวเลือกได้");
-  }
-};
-
-
-const handleDeleteOptionGroup = (groupIndex) => {
-  const updatedGroups = menuDetails.optionGroups.filter((_, index) => index !== groupIndex);
-  setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
-};
-
-const handleDeleteOption = (groupIndex, optionIndex) => {
-  const updatedGroups = [...menuDetails.optionGroups];
-  updatedGroups[groupIndex].options = updatedGroups[groupIndex].options.filter((_, index) => index !== optionIndex);
-  setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
-};
-
-// เพิ่ม Group opptions ใหม่ใน modal แก้ไข menu
-const handleAddOptionGroup = () => {
-  const newGroup = {
-    ID: null, // สำหรับ Group ใหม่ยังไม่มี ID
-    name: "",
-    nameEn: "",
-    nameCh: "",
-    MaxSelections: 1, // ค่าเริ่มต้น
-    isRequired: false, // ค่าเริ่มต้น
-    options: [], // เริ่มต้นไม่มี Option
-    
   };
-  setMenuDetails((prevDetails) => ({
-    ...prevDetails,
-    optionGroups: [...prevDetails.optionGroups, newGroup],
-  }));
-};
 
-// เพิ่ม opptions ใหม่ใน modal แก้ไข menu
-const handleAddOption = (groupIndex) => {
-  const updatedGroups = [...menuDetails.optionGroups];
-  updatedGroups[groupIndex].options.push({ name: '', nameEn: '', nameCh: '', price: '' });
-  console.log("Updated Option Groups:", updatedGroups); // ดูค่าที่อัปเดต
-  setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
-};
+
+  const handleDeleteOptionGroup = (groupIndex) => {
+    const updatedGroups = menuDetails.optionGroups.filter((_, index) => index !== groupIndex);
+    setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+  };
+
+  const handleDeleteOption = (groupIndex, optionIndex) => {
+    const updatedGroups = [...menuDetails.optionGroups];
+    updatedGroups[groupIndex].options = updatedGroups[groupIndex].options.filter((_, index) => index !== optionIndex);
+    setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+  };
+
+  // เพิ่ม Group opptions ใหม่ใน modal แก้ไข menu
+  const handleAddOptionGroup = () => {
+    const newGroup = {
+      ID: null, // สำหรับ Group ใหม่ยังไม่มี ID
+      name: "",
+      nameEn: "",
+      nameCh: "",
+      MaxSelections: 1, // ค่าเริ่มต้น
+      isRequired: false, // ค่าเริ่มต้น
+      options: [], // เริ่มต้นไม่มี Option
+
+    };
+    setMenuDetails((prevDetails) => ({
+      ...prevDetails,
+      optionGroups: [...prevDetails.optionGroups, newGroup],
+    }));
+  };
+
+  // เพิ่ม opptions ใหม่ใน modal แก้ไข menu
+  const handleAddOption = (groupIndex) => {
+    const updatedGroups = [...menuDetails.optionGroups];
+    updatedGroups[groupIndex].options.push({ name: '', nameEn: '', nameCh: '', price: '' });
+    console.log("Updated Option Groups:", updatedGroups); // ดูค่าที่อัปเดต
+    setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+  };
 
   return (
-    <div className="bg-white max-h-full h-full lg:ml-60">
-      <div className="flex justify-between items-center bg-white shadow p-4">
-        <h1 className="text-xl ml-10 font-bold text-gray-800">จัดการเมนูอาหาร</h1>
+    <div className="bg-gray-50 max-h-full h-full lg:ml-64 p-2">
+      <div className="flex justify-between rounded items-center bg-gray-800 shadow p-4 ">
+        <h1 className="text-xl ml-10 font-bold text-white ">จัดการเมนูอาหาร</h1>
+        
+      </div>
+
+      <div className="flex mb-4">
+
+      </div>
+      <div className="">
+
+        <div className="flex items-center mb-4">
+          {/* การค้นหาชื่อเมนู */}
+          <input
+            type="text"
+            className="p-2 border border-gray-300 rounded-lg"
+            placeholder="ค้นหาชื่อเมนู ราคา..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+
+          {/* ตัวกรองหมวดหมู่ */}
+          <select
+            className="ml-4 p-2 border border-gray-300 rounded-lg"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
+            <option value="">เลือกหมวดหมู่</option>
+            {categories.map((category) => (
+              <option key={category.ID} value={category.ID}>
+                {category.Name}
+              </option>
+            ))}
+          </select>
+
+          {/* ตัวกรองกลุ่มตัวเลือก */}
+          <select
+            className="ml-4 p-2 border border-gray-300 rounded-lg"
+            value={optionGroupFilter}
+            onChange={(e) => setOptionGroupFilter(e.target.value)}
+          >
+            <option value="">ตัวเลือกทั้งหมด</option>
+            {menus.flatMap((menu) =>
+              menu.OptionGroups.map((group) => (
+                <option key={group.ID} value={group.ID}>
+                  {group.Name}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+
+        <div className="flex justify-between"> 
+            <div>
+        {/* ปุ่มเปลี่ยนตาราง */}
+        <button
+          className={`px-4 py-2 rounded-t-lg ${activeTab === 'menu' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+          onClick={() => setActiveTab('menu')}
+        >
+          ข้อมูลสินค้า
+        </button>
+        <button
+          className={`px-4 py-2 rounded-t-lg ${activeTab === 'promotion' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+          onClick={() => setActiveTab('promotion')}
+        >
+          ข้อมูลตัวเลือกของสินค้า
+        </button>
+        </div>
+{/* สิ้นสุดปุ่มเปลี่ยนตาราง */}
+
         <div>
           <button
             className="bg-blue-500 text-white px-4 py-2 rounded-lg mr-2 hover:bg-blue-600"
@@ -593,218 +700,210 @@ const handleAddOption = (groupIndex) => {
             เพิ่มเมนูอาหาร
           </button>
         </div>
-      </div>
-
-      <div className="flex mb-4">
-
-      </div>
-      <div className="p-4">
-        
-        <div className="flex items-center mb-4">
-        {/* การค้นหาชื่อเมนู */}
-        <input
-          type="text"
-          className="p-2 border border-gray-300 rounded-lg"
-          placeholder="ค้นหาชื่อเมนู ราคา..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-
-        {/* ตัวกรองหมวดหมู่ */}
-        <select
-          className="ml-4 p-2 border border-gray-300 rounded-lg"
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-        >
-          <option value="">เลือกหมวดหมู่</option>
-          {categories.map((category) => (
-            <option key={category.ID} value={category.ID}>
-              {category.Name}
-            </option>
-          ))}
-        </select>
-
-        {/* ตัวกรองกลุ่มตัวเลือก */}
-        <select
-          className="ml-4 p-2 border border-gray-300 rounded-lg"
-          value={optionGroupFilter}
-          onChange={(e) => setOptionGroupFilter(e.target.value)}
-        >
-          <option value="">ตัวเลือกทั้งหมด</option>
-          {menus.flatMap((menu) =>
-            menu.OptionGroups.map((group) => (
-              <option key={group.ID} value={group.ID}>
-                {group.Name}
-              </option>
-            ))
-          )}
-        </select>
-      </div>
-
-      {/* ปุ่มเปลี่ยนตาราง */}
-      <button
-          className={`px-4 py-2 rounded-t-lg ${activeTab === 'menu' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-          onClick={() => setActiveTab('menu')}
-        >
-          ข้อมูลสินค้า
-        </button>
-        <button
-          className={`px-4 py-2 rounded-t-lg ${activeTab === 'options' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-          onClick={() => setActiveTab('options')}
-        >
-          ข้อมูลตัวเลือกของสินค้า
-        </button>
-          {/* สิ้นสุดปุ่มเปลี่ยนตาราง */}
+        </div>
 
         {/* ตารางแสดงเมนู */}
         {activeTab === 'menu' && (
-          
+
           <table className="w-full max-x-full bg-white rounded-3xl shadow-lg border border-gray-300">
-        <thead>
-          <tr className="bg-blue-500 text-left text-white">
-            <th className="p-4">รหัสสินค้า</th>
-            <th className="p-4">รูปสินค้า</th>
-            <th className="p-4">ชื่อเมนู</th>
-            <th className="p-4 w-3/12">คำอธิบาย</th>
-            <th className="p-4">หมวดหมู่</th>
-            <th className="p-4">ราคา (THB)</th>
-            <th className="p-4 text-center">ตัวเลือก</th>
-            <th className="p-4 text-center">สถานะ</th>
-            <th className="p-4 text-center">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {Array.isArray(filteredMenus) && filteredMenus.length > 0 ? (
-            filteredMenus.map((menu) => (
-              <tr key={menu.ID} className="border-t">
-                <td className="text-center">{menu.ID}</td>
-                <td className="">
-                  {menu.Image && menu.Image.length > 0 ? (
-                    <img
-                      src={`data:image/png;base64,${menu.Image}`}
-                      alt={menu.Name}
-                      className="w-40 h-25 object-cover"
-                    />
-                  ) : (
-                    "ไม่มีรูป"
-                  )}
-                </td>
-                <td className="p-2">
-                  <div>TH: {menu.Name} </div>
-                  <div>EN: {menu.NameEn}</div>
-                  <div>CH: {menu.NameCh}</div>
-                </td>
-                <td className="p-2">
-                  <div className="mb-2">TH: {menu.Description}</div>
-                  <div className="mb-2">EN: {menu.DescriptionEn}</div>
-                  <div>CH: {menu.DescriptionCh}</div>
-                </td>
-                <td className="p-2">
-                  {menu.CategoryID ? (
-                    <div>{getCategoryNameById(menu.CategoryID)}</div>
-                  ) : (
-                    "ไม่พบหมวดหมู่"
-                  )}
-                </td>
-                <td className="p-2 text-center">{menu.Price}</td>
-                <td className="p-2">
-                  {/* แสดงตัวเลือก */}
-                  {Array.isArray(menu.OptionGroups) && menu.OptionGroups.length > 0 ? (
-                    <ul className="ml-4">
-                      {menu.OptionGroups.map((group) => (
-                        <li className="border-b"key={group.ID}>
-                          <div>กลุ่ม : {group.ID}</div>
-                          <span>TH : {group.Name} | EN : {group.NameEn} | CH : {group.NameCh}</span>
-                          <ul className="list-circle ml-4">
-                            {group.Options && group.Options.length > 0 ? (
-                              group.Options.map((option) => (
-                                <li key={option.ID}>
-                                  <span>{option.Name} | {option.NameEn} | {option.NameCh} - {option.Price} THB</span> 
-                                </li>
-                              ))
-                            ) : (
-                              <span className="text-red-500 text-center">ไม่มีตัวเลือก</span>
-                            )}
-                          </ul>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <span className="text-red-500 text-center">ไม่มีตัวเลือก</span>
-                  )}
-                    </td>
+            <thead>
+              <tr className="bg-blue-500 text-left text-white">
+                <th className="p-2 text-center">สถานะ</th>
+                <th className="p-1">รหัสสินค้า</th>
+                <th className="p-2">รูปสินค้า</th>
+                <th className="p-2 w-1/12 text-center">ชื่อเมนู</th>
+                <th className="p-2 w-3/12">คำอธิบาย</th>
+                <th className="p-2">หมวดหมู่</th>
+                <th className="p-2">ราคา (THB)</th>
+                <th className="p-2 text-center">ตัวเลือก</th>
+
+                <th className="p-1 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.isArray(filteredMenus) && filteredMenus.length > 0 ? (
+                filteredMenus.map((menu) => (
+                  <tr key={menu.ID} className="border-t">
                     <td className="text-center">
-                    <button
-  className={`p-2 px-4 rounded-lg ${menu.Is_available ? "bg-green-400  hover:bg-green-500" : "bg-red-400 hover:bg-red-500"} text-white`}
-  onClick={() => toggleMenuStatus(menu.ID).then(updatedMenu => {
-    // ใช้ข้อมูลเมนูที่อัปเดตเพื่อรีเฟรช UI
-    if (updatedMenu) {
-      const updatedMenus = menus.map(m => m.ID === updatedMenu.ID ? updatedMenu : m);
-      setMenus(updatedMenus); // อัปเดต state
-    }
-  })}
->
-  {menu.Is_available ? "พร้อม" : "หมด"}
-</button>
+                      <div className="flex items-center justify-center">
+                        <label className="relative  items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={menu.Is_available}
+                            onChange={() => {
+                              // อัปเดตสถานะใน UI ทันที
+                              setMenus((prevMenus) =>
+                                prevMenus.map((m) =>
+                                  m.ID === menu.ID
+                                    ? { ...m, Is_available: !menu.Is_available }
+                                    : m
+                                )
+                              );
+
+                              // ส่งคำขอไปยังเซิร์ฟเวอร์เพื่อเปลี่ยนสถานะ
+                              toggleMenuStatus(menu.ID).then((updatedMenu) => {
+                                if (updatedMenu) {
+                                  // อัปเดตสถานะในกรณีที่เซิร์ฟเวอร์ตอบกลับสำเร็จ
+                                  setMenus((prevMenus) =>
+                                    prevMenus.map((m) =>
+                                      m.ID === updatedMenu.ID ? updatedMenu : m
+                                    )
+                                  );
+                                }
+                              });
+                            }}
+                          />
+                          <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                          <span className="ml-3 text-sm font-medium text-gray-900 ">
+                            {menu.Is_available ? "พร้อม" : "หมด"}
+                          </span>
+                        </label>
+                      </div>
                     </td>
+                    <td className="text-center">{menu.ID}</td>
+                    <td className="w-3/12">
+                      {menu.Image && menu.Image.length > 0 ? (
+                        <img
+                          src={`data:image/png;base64,${menu.Image}`}
+                          alt={menu.Name}
+                          className="w-50 h-30 object-cover"
+                        />
+                      ) : (
+                        "ไม่มีรูป"
+                      )}
+                    </td>
+                    <td className="text-center w-1/12">
+                      <div>TH: {menu.Name} </div>
+                      <div>EN: {menu.NameEn}</div>
+                      <div>CH: {menu.NameCh}</div>
+                    </td>
+                    <td className=" w-3/12">
+                      <div className="mb-2">TH: {menu.Description}</div>
+                      <div className="mb-2">EN: {menu.DescriptionEn}</div>
+                      <div>CH: {menu.DescriptionCh}</div>
+                    </td>
+                    <td className="p-2">
+                      {menu.CategoryID ? (
+                        <div>{getCategoryNameById(menu.CategoryID)}</div>
+                      ) : (
+                        "ไม่พบหมวดหมู่"
+                      )}
+                    </td>
+                    <td className="p-2 text-center">{menu.Price}</td>
+                    <td className="p-2 w-9/12">
+                      {/* แสดงตัวเลือก */}
+                      {Array.isArray(menu.OptionGroups) && menu.OptionGroups.length > 0 ? (
+                        <ul className="ml-4">
+                          {menu.OptionGroups.map((group) => (
+                            <li className="border-b" key={group.ID}>
+                              <div>กลุ่ม : {group.ID}</div>
+                              <span>TH : {group.Name} | EN : {group.NameEn} | CH : {group.NameCh}</span>
+                              <ul className="list-circle ml-4">
+                                {group.Options && group.Options.length > 0 ? (
+                                  group.Options.map((option) => (
+                                    <li key={option.ID}>
+                                      <span>{option.Name} | {option.NameEn} | {option.NameCh} - {option.Price} THB</span>
+                                    </li>
+                                  ))
+                                ) : (
+                                  <span className="text-red-500 text-center">ไม่มีตัวเลือก</span>
+                                )}
+                              </ul>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="text-red-500 text-center">ไม่มีตัวเลือก</span>
+                      )}
+                    </td>
+
                     <td className="justify-center items-center">
                       <div className="flex">
-                        <button
-                          className=" text-blue-500 mx-2 px-2 rounded-lg hover:bg-blue-300"
-                          onClick={() => {
-                            setCurrentMenuId(menu.ID); // ตั้งค่า ID ของเมนูที่ต้องการแก้ไข
-                            setCurrentMenuId(menu.ID);
-                            setMenuDetails({ //ข้อมูลของเมนูทั้งหมดที่ถูกส่งไปให้แก้ไข
-                              ID: menu.ID || "",
-                              name: menu.Name || "",
-                              nameEn: menu.NameEn || "",
-                              nameCh: menu.NameCh || "",
-                              price: menu.Price || 0,
-                              description: menu.Description || "",
-                              descriptionEn: menu.DescriptionEn || "",
-                              descriptionCh: menu.DescriptionCh || "",
-                              categoryId: menu.CategoryID || "",
-                              optionGroups: Array.isArray(menu.OptionGroups) ? menu.OptionGroups.map(group => ({
-                                ID: group.ID || "",
-                                name: group.Name || "",
-                                nameEn: group.NameEn || "",
-                                nameCh: group.NameCh || "",
-                                MaxSelections: group.MaxSelections || 1,
-                                isRequired: group.IsRequired || false,
-                                options: Array.isArray(group.Options) ? group.Options.map(option => ({
-                                  ID: option.ID || "",
-                                  name: option.Name || "",
-                                  nameEn: option.NameEn || "",
-                                  nameCh: option.NameCh || "",
-                                  price: option.Price || 0,
-                                })) : [],
-                              })) : [],
-                            });
-                            setShowEditMenuModal(true);
-                          }}
-                        >
-                          <div className="flex"><Edit className="w-8 h-8"/></div>
-                        </button>
+                        <div className="relative inline-block ">
+                          <div>
+                            <button
+                              onClick={() => toggleDropdown(menu.ID)}>
+                              <Ellipsis />
+                            </button>
+                          </div>
 
-                        <button
-                          className=" text-green-500 px-2 py-2 rounded-lg hover:bg-green-300 "
-                          onClick={() => {
-                            setCurrentMenuId(menu.ID);
-                            setShowUploadModal(true);
-                          }}
-                        >
-
-                          <div className="flex"><Image className="w-8 h-8"/></div>
-                        </button>
-                        <button
-  className="px-2 text-red-500 rounded-lg hover:bg-red-300"
-  onClick={() => {
-    setMenuToDelete(menu); // ตั้งค่าเมนูที่ต้องการลบ
-    setIsDeleteModalOpen(true); // เปิด modal
-  }}
->
-  <Trash2 className="w-8 h-8" />
-</button>
+                          {/* Dropdown menu */}
+                          {isDropdownOpen === menu.ID && (
+                            <div
+                              className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none"
+                            >
+                              <div className="py-1">
+                                <button
+                                  onClick={() => {
+                                    setCurrentMenuId(menu.ID);
+                                    setMenuDetails({
+                                      ID: menu.ID || "",
+                                      name: menu.Name || "",
+                                      nameEn: menu.NameEn || "",
+                                      nameCh: menu.NameCh || "",
+                                      price: menu.Price || 0,
+                                      description: menu.Description || "",
+                                      descriptionEn: menu.DescriptionEn || "",
+                                      descriptionCh: menu.DescriptionCh || "",
+                                      categoryId: menu.CategoryID || "",
+                                      optionGroups: Array.isArray(menu.OptionGroups)
+                                        ? menu.OptionGroups.map((group) => ({
+                                          ID: group.ID || "",
+                                          name: group.Name || "",
+                                          nameEn: group.NameEn || "",
+                                          nameCh: group.NameCh || "",
+                                          MaxSelections: group.MaxSelections || 1,
+                                          isRequired: group.IsRequired || false,
+                                          options: Array.isArray(group.Options)
+                                            ? group.Options.map((option) => ({
+                                              ID: option.ID || "",
+                                              name: option.Name || "",
+                                              nameEn: option.NameEn || "",
+                                              nameCh: option.NameCh || "",
+                                              price: option.Price || 0,
+                                            }))
+                                            : [],
+                                        }))
+                                        : [],
+                                    });
+                                    setIsDropdownOpen(false);
+                                    setShowEditMenuModal(true);
+                                  }}
+                                  className="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100"
+                                  role="menuitem"
+                                >
+                                  <Edit className="inline w-4 h-4 mr-2" />
+                                  แก้ไขเมนู
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setIsDropdownOpen(false);
+                                    setCurrentMenuId(menu.ID);
+                                    setShowUploadModal(true);
+                                  }}
+                                  className="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100"
+                                  role="menuitem"
+                                >
+                                  <Image className="inline w-4 h-4 mr-2" />
+                                  อัปโหลดรูปภาพ
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setIsDropdownOpen(false);
+                                    setMenuToDelete(menu);
+                                    setIsDeleteModalOpen(true);
+                                  }}
+                                  className="text-red-500 block px-4 py-2 text-sm hover:bg-gray-100"
+                                  role="menuitem"
+                                >
+                                  <Trash2 className="inline w-4 h-4 mr-2" />
+                                  ลบเมนู
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -820,14 +919,14 @@ const handleAddOption = (groupIndex) => {
         )}
         {/* สิ้นสุดตารางแสดงข้อมูลสินค้า */}
         <ConfirmDeleteModal
-  isOpen={isDeleteModalOpen}
-  onClose={() => setIsDeleteModalOpen(false)} // ปิด modal เมื่อกด 'ยกเลิก'
-  onConfirm={deleteMenu} // เรียกฟังก์ชัน deleteMenu เมื่อกด 'ลบ'
-  menuName={menuToDelete?.Name || "ไม่พบชื่อเมนู"} // ส่งชื่อเมนูที่ต้องการลบ
-/>
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)} // ปิด modal เมื่อกด 'ยกเลิก'
+          onConfirm={deleteMenu} // เรียกฟังก์ชัน deleteMenu เมื่อกด 'ลบ'
+          menuName={menuToDelete?.Name || "ไม่พบชื่อเมนู"} // ส่งชื่อเมนูที่ต้องการลบ
+        />
 
-        {/* ตารางแสดง options */}
-        {activeTab === 'options' && (
+        {/* ตารางแสดง promotion */}
+        {activeTab === 'promotion' && (
           <table className="w-full bg-white  rounded-lg border border-gray-300 shadow-lg">
             <thead>
               <tr className="bg-blue-500 text-left  text-white">
@@ -836,7 +935,7 @@ const handleAddOption = (groupIndex) => {
                 <th className="border-b px-4 py-2">Max Selections</th>
                 <th className="border-b px-4 py-2">Required</th>
                 <th className="border-b px-4 py-2">Option ID</th>
-                <th className="border-b px-4 py-2">Option Name</th>
+                <th className="border-b px-4 py-2 w-5/12">Option Name</th>
                 <th className="border-b px-4 py-2">Price (THB)</th>
                 <th className="border-b px-4 py-2">Actions</th>
               </tr>
@@ -851,7 +950,7 @@ const handleAddOption = (groupIndex) => {
                       <td className="border-b px-4 py-2">{group.MaxSelections}</td>
                       <td className="border-b px-4 py-2">{group.IsRequired ? 'Yes' : 'No'}</td>
                       <td className="border-b px-4 py-2">{option.ID}</td>
-                      <td className="border-b px-4 py-2">ไทย: {option.Name}<br />อังกฤษ: {option.NameEn}<br />จีน: {option.NameCh}</td>
+                      <td className="border-b w-5/12 px-4 py-2 text-xs">ไทย: {option.Name}<br />อังกฤษ: {option.NameEn}<br />จีน: {option.NameCh}</td>
                       <td className="border-b px-4 py-2">{option.Price}</td>
                       <td className="border-b px-4 py-2">
                         <button onClick={() => handleEditClick(option)}>
@@ -877,7 +976,7 @@ const handleAddOption = (groupIndex) => {
 
       </div>
 
-    
+
 
       {/* Modal สำหรับอัพโหลดรูปภาพ */}
       {showUploadModal && (
@@ -951,37 +1050,37 @@ const handleAddOption = (groupIndex) => {
             </div>
 
             {/* ฟอร์มแก้ไขเมนู */}
-              
-              <div className="mb-4 text-xl"><label>รหัสสินค้า : {menuDetails.ID}</label></div>
-              <label className="text-lg">ชื่อเมนูอาหาร</label>
-              <div className="flex px-4 border">
+
+            <div className="mb-4 text-xl"><label>รหัสสินค้า : {menuDetails.ID}</label></div>
+            <label className="text-lg">ชื่อเมนูอาหาร</label>
+            <div className="flex px-4 border">
               <div className="my-5 mr-2">
-              <label>ชื่อเมนู (ไทย)</label>
-              <input
-                type="text"
-                value={menuDetails.name}
-                onChange={(e) => setMenuDetails({ ...menuDetails, name: e.target.value })}
-                className="border p-2 w-full mt-2"
-              />
-            </div>
-            <div className="mt-4 mx-2">
-              <label className="text-lg">ชื่อเมนู (อังกฤษ)</label>
-              <input
-                type="text"
-                value={menuDetails.nameEn}
-                onChange={(e) => setMenuDetails({ ...menuDetails, nameEn: e.target.value })}
-                className="border p-2 w-full mt-2"
-              />
-            </div>
-            <div className="mt-4 mx-2">
-              <label className="text-lg">ชื่อเมนู (จีน)</label>
-              <input
-                type="text"
-                value={menuDetails.nameCh}
-                onChange={(e) => setMenuDetails({ ...menuDetails, nameCh: e.target.value })}
-                className="border p-2 w-full mt-2"
-              />
-            </div>
+                <label>ชื่อเมนู (ไทย)</label>
+                <input
+                  type="text"
+                  value={menuDetails.name}
+                  onChange={(e) => setMenuDetails({ ...menuDetails, name: e.target.value })}
+                  className="border p-2 w-full mt-2"
+                />
+              </div>
+              <div className="mt-4 mx-2">
+                <label className="text-lg">ชื่อเมนู (อังกฤษ)</label>
+                <input
+                  type="text"
+                  value={menuDetails.nameEn}
+                  onChange={(e) => setMenuDetails({ ...menuDetails, nameEn: e.target.value })}
+                  className="border p-2 w-full mt-2"
+                />
+              </div>
+              <div className="mt-4 mx-2">
+                <label className="text-lg">ชื่อเมนู (จีน)</label>
+                <input
+                  type="text"
+                  value={menuDetails.nameCh}
+                  onChange={(e) => setMenuDetails({ ...menuDetails, nameCh: e.target.value })}
+                  className="border p-2 w-full mt-2"
+                />
+              </div>
             </div>
             <div className="mt-4">
               <label className="text-lg">ราคา</label>
@@ -994,30 +1093,30 @@ const handleAddOption = (groupIndex) => {
             </div>
             <div className="mt-4 text-lg">คำอธิบายของอาหาร</div>
             <div className="border p-4">
-            <div className="mt-4">
-              <label>คำอธิบาย (ไทย)</label>
-              <textarea
-                value={menuDetails.description}
-                onChange={(e) => setMenuDetails({ ...menuDetails, description: e.target.value })}
-                className="border p-2 w-full mt-2"
-              />
-            </div>
-            <div className="mt-4">
-              <label>คำอธิบาย (อังกฤษ)</label>
-              <textarea
-                value={menuDetails.descriptionEn}
-                onChange={(e) => setMenuDetails({ ...menuDetails, descriptionEn: e.target.value })}
-                className="border p-2 w-full mt-2"
-              />
-            </div>
-            <div className="mt-4">
-              <label>คำอธิบาย (จีน)</label>
-              <textarea
-                value={menuDetails.descriptionCh}
-                onChange={(e) => setMenuDetails({ ...menuDetails, descriptionCh: e.target.value })}
-                className="border p-2 w-full mt-2"
-              />
-            </div>
+              <div className="mt-4">
+                <label>คำอธิบาย (ไทย)</label>
+                <textarea
+                  value={menuDetails.description}
+                  onChange={(e) => setMenuDetails({ ...menuDetails, description: e.target.value })}
+                  className="border p-2 w-full mt-2"
+                />
+              </div>
+              <div className="mt-4">
+                <label>คำอธิบาย (อังกฤษ)</label>
+                <textarea
+                  value={menuDetails.descriptionEn}
+                  onChange={(e) => setMenuDetails({ ...menuDetails, descriptionEn: e.target.value })}
+                  className="border p-2 w-full mt-2"
+                />
+              </div>
+              <div className="mt-4">
+                <label>คำอธิบาย (จีน)</label>
+                <textarea
+                  value={menuDetails.descriptionCh}
+                  onChange={(e) => setMenuDetails({ ...menuDetails, descriptionCh: e.target.value })}
+                  className="border p-2 w-full mt-2"
+                />
+              </div>
             </div>
 
             {/* หมวดหมู่ */}
@@ -1045,194 +1144,194 @@ const handleAddOption = (groupIndex) => {
             {/* Option Groups */}
             <div className="mt-6 mb-2 text-lg">ข้อมูลกลุ่มตัวเลือกและตัวเลือกของเมนูอาหาร</div>
             <div className="mt-6">
-            <button
-       
-                  
-    className="bg-green-500 text-white px-4 py-2 rounded-lg mt-4"
-    onClick={handleAddOptionGroup}
-  >
-    เพิ่มกลุ่มตัวเลือก
-  </button>
-</div>
+              <button
+
+
+                className="bg-green-500 text-white px-4 py-2 rounded-lg mt-4"
+                onClick={handleAddOptionGroup}
+              >
+                เพิ่มกลุ่มตัวเลือก
+              </button>
+            </div>
             {menuDetails.optionGroups.length > 0 ? (
               menuDetails.optionGroups.map((group, groupIndex) => (
                 <div key={groupIndex}>
-                   
+
                   <div className="border p-2 pb-8 ">
                     <label>รหัสกลุ่มตัวเลือก : {group.ID}</label>
                     <button
-            className="text-red-500"
-            onClick={() => handleDeleteOptionGroup(groupIndex)}
-          >
-            ลบกลุ่ม
-          </button>
-        
-                  <div className="mt-4">ชื่อกลุ่มตัวเลือกภายในเมนู</div>
-                  <div className="flex px-4 border">
-                  <div className="mt-4 mb-4">
-                    <label>ชื่อกลุ่มตัวเลือก (ไทย)</label>
-                    <input
-                      type="text"
-                      value={group.name}
-                      onChange={(e) => {
-                        const updatedGroups = [...menuDetails.optionGroups];
-                        updatedGroups[groupIndex].name = e.target.value;
-                        setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
-                      }}
-                      className="border p-2 w-full mt-2"
-                    />
-                  </div>
-                  <div className="mt-4 mx-2">
-                    <label>ชื่อกลุ่มตัวเลือก (อังกฤษ)</label>
-                    <input
-                      type="text"
-                      value={group.nameEn}
-                      onChange={(e) => {
-                        const updatedGroups = [...menuDetails.optionGroups];
-                        updatedGroups[groupIndex].nameEn = e.target.value;
-                        setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
-                      }}
-                      className="border p-2 w-full mt-2"
-                    />
-                  </div>
-                  <div className="mt-4">
-                    <label>ชื่อกลุ่มตัวเลือก (จีน)</label>
-                    <input
-                      type="text"
-                      value={group.nameCh}
-                      onChange={(e) => {
-                        const updatedGroups = [...menuDetails.optionGroups];
-                        updatedGroups[groupIndex].nameCh = e.target.value;
-                        setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
-                      }}
-                      className="border p-2 w-full mt-2"
-                    />
-                  </div>
-                  <div className="mt-4">
-                    <label>จำนวนที่เลือกได้สูงสุด</label>
-                    <input
-  type="number"
-  value={group.MaxSelections || ""}
-  onChange={(e) => {
-    const updatedGroups = [...menuDetails.optionGroups];
-    updatedGroups[groupIndex].MaxSelections = Number(e.target.value); // แปลงเป็นตัวเลข
-    setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
-  }}
-  className="border p-2 w-full mt-2"
-/>
-                  </div>
-                  <div className="mt-4">
-                    <label>ต้องเลือกหรือไม่</label>
-                    <input
-                      type="checkbox"
-                      checked={group.isRequired}
-                      onChange={(e) => {
-                        setMenuDetails((prevDetails) => {
-                          const updatedGroups = [...prevDetails.optionGroups];
-                          updatedGroups[groupIndex] = {
-                            ...updatedGroups[groupIndex],
-                            isRequired: e.target.checked,
-                          };
-                          return { ...prevDetails, optionGroups: updatedGroups };
-                        });
-                      }}
-                      className="mt-2 ml-1"
-                    />
-                    
-                  </div>
-                
-                  </div>
-                  {/* ปุ่มเพิ่ม Option */}
-<div className="mt-4">
-  <button
-    className="bg-blue-500 text-white px-4 py-2 rounded-lg"
-    onClick={() => handleAddOption(groupIndex)} // เรียกใช้ฟังก์ชันในการเพิ่ม Option
-  >
-    เพิ่มตัวเลือก
-  </button>
-</div>
-                    
-                 
-                  
-                  {/* ฟอร์มสำหรับแก้ไข Option ใน Option Group */}
-                  {group.options.length > 0 ? (
-                    group.options.map((option, optionIndex) => (
-                      <div key={optionIndex}>
-                        
-                        <div className="mt-4">ชื่อตัวเลือกภายในเมนู</div>
-                        <button
-  className="text-red-500 text-sm hover:underline"
-  onClick={() => {
-    if (window.confirm("คุณต้องการลบตัวเลือกนี้หรือไม่?")) {
-      deleteOption(option.ID);
-      handleDeleteOption(groupIndex, optionIndex); // อัปเดต UI
-    }
-  }}
->
-  ลบตัวเลือกนี้
-</button>
+                      className="text-red-500"
+                      onClick={() => handleDeleteOptionGroup(groupIndex)}
+                    >
+                      ลบกลุ่ม
+                    </button>
 
-                        <div className="flex px-4 border">
-                        <div className="my-2 mx-2">
-                          <label>ชื่อตัวเลือก (ไทย)</label>
-                          <input
-                            type="text"
-                            value={option.name}
-                            onChange={(e) => {
-                              const updatedGroups = [...menuDetails.optionGroups];
-                              updatedGroups[groupIndex].options[optionIndex].name = e.target.value;
-                              setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
-                            }}
-                            className="border p-2 w-full mt-2"
-                          />
-                        </div>
-                        <div className="mt-2 mr-2">
-                          <label>ชื่อตัวเลือก (อังกฤษ)</label>
-                          <input
-                            type="text"
-                            value={option.nameEn}
-                            onChange={(e) => {
-                              const updatedGroups = [...menuDetails.optionGroups];
-                              updatedGroups[groupIndex].options[optionIndex].nameEn = e.target.value;
-                              setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
-                            }}
-                            className="border p-2 w-full mt-2"
-                          />
-                        </div>
-                        <div className="mt-2 mr-2">
-                          <label>ชื่อตัวเลือก (จีน)</label>
-                          <input
-                            type="text"
-                            value={option.nameCh}
-                            onChange={(e) => {
-                              const updatedGroups = [...menuDetails.optionGroups];
-                              updatedGroups[groupIndex].options[optionIndex].nameCh = e.target.value;
-                              setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
-                            }}
-                            className="border p-2 w-full mt-2"
-                          />
-                        </div>
-                        <div className="mt-2">
-                          <label>ราคา Option</label>
-                          <input
-                            type="number"
-                            value={option.price}
-                            onChange={(e) => {
-                              const updatedGroups = [...menuDetails.optionGroups];
-                              updatedGroups[groupIndex].options[optionIndex].price = e.target.value;
-                              setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
-                            }}
-                            className="border p-2 w-16 mt-2"
-                          />THB
-                        </div>
-                        </div>
+                    <div className="mt-4">ชื่อกลุ่มตัวเลือกภายในเมนู</div>
+                    <div className="flex px-4 border">
+                      <div className="mt-4 mb-4">
+                        <label>ชื่อกลุ่มตัวเลือก (ไทย)</label>
+                        <input
+                          type="text"
+                          value={group.name}
+                          onChange={(e) => {
+                            const updatedGroups = [...menuDetails.optionGroups];
+                            updatedGroups[groupIndex].name = e.target.value;
+                            setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+                          }}
+                          className="border p-2 w-full mt-2"
+                        />
                       </div>
-                    ))
-                  ) : (
-                    <p>ไม่มีตัวเลือกในกลุ่มนี้</p>
-                  )}
-                 
-                </div>
+                      <div className="mt-4 mx-2">
+                        <label>ชื่อกลุ่มตัวเลือก (อังกฤษ)</label>
+                        <input
+                          type="text"
+                          value={group.nameEn}
+                          onChange={(e) => {
+                            const updatedGroups = [...menuDetails.optionGroups];
+                            updatedGroups[groupIndex].nameEn = e.target.value;
+                            setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+                          }}
+                          className="border p-2 w-full mt-2"
+                        />
+                      </div>
+                      <div className="mt-4">
+                        <label>ชื่อกลุ่มตัวเลือก (จีน)</label>
+                        <input
+                          type="text"
+                          value={group.nameCh}
+                          onChange={(e) => {
+                            const updatedGroups = [...menuDetails.optionGroups];
+                            updatedGroups[groupIndex].nameCh = e.target.value;
+                            setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+                          }}
+                          className="border p-2 w-full mt-2"
+                        />
+                      </div>
+                      <div className="mt-4">
+                        <label>จำนวนที่เลือกได้สูงสุด</label>
+                        <input
+                          type="number"
+                          value={group.MaxSelections || ""}
+                          onChange={(e) => {
+                            const updatedGroups = [...menuDetails.optionGroups];
+                            updatedGroups[groupIndex].MaxSelections = Number(e.target.value); // แปลงเป็นตัวเลข
+                            setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+                          }}
+                          className="border p-2 w-full mt-2"
+                        />
+                      </div>
+                      <div className="mt-4">
+                        <label>ต้องเลือกหรือไม่</label>
+                        <input
+                          type="checkbox"
+                          checked={group.isRequired}
+                          onChange={(e) => {
+                            setMenuDetails((prevDetails) => {
+                              const updatedGroups = [...prevDetails.optionGroups];
+                              updatedGroups[groupIndex] = {
+                                ...updatedGroups[groupIndex],
+                                isRequired: e.target.checked,
+                              };
+                              return { ...prevDetails, optionGroups: updatedGroups };
+                            });
+                          }}
+                          className="mt-2 ml-1"
+                        />
+
+                      </div>
+
+                    </div>
+                    {/* ปุ่มเพิ่ม Option */}
+                    <div className="mt-4">
+                      <button
+                        className="bg-blue-500 text-white px-4 py-2 rounded-lg"
+                        onClick={() => handleAddOption(groupIndex)} // เรียกใช้ฟังก์ชันในการเพิ่ม Option
+                      >
+                        เพิ่มตัวเลือก
+                      </button>
+                    </div>
+
+
+
+                    {/* ฟอร์มสำหรับแก้ไข Option ใน Option Group */}
+                    {group.options.length > 0 ? (
+                      group.options.map((option, optionIndex) => (
+                        <div key={optionIndex}>
+
+                          <div className="mt-4">ชื่อตัวเลือกภายในเมนู</div>
+                          <button
+                            className="text-red-500 text-sm hover:underline"
+                            onClick={() => {
+                              if (window.confirm("คุณต้องการลบตัวเลือกนี้หรือไม่?")) {
+                                deleteOption(option.ID);
+                                handleDeleteOption(groupIndex, optionIndex); // อัปเดต UI
+                              }
+                            }}
+                          >
+                            ลบตัวเลือกนี้
+                          </button>
+
+                          <div className="flex px-4 border">
+                            <div className="my-2 mx-2">
+                              <label>ชื่อตัวเลือก (ไทย)</label>
+                              <input
+                                type="text"
+                                value={option.name}
+                                onChange={(e) => {
+                                  const updatedGroups = [...menuDetails.optionGroups];
+                                  updatedGroups[groupIndex].options[optionIndex].name = e.target.value;
+                                  setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+                                }}
+                                className="border p-2 w-full mt-2"
+                              />
+                            </div>
+                            <div className="mt-2 mr-2">
+                              <label>ชื่อตัวเลือก (อังกฤษ)</label>
+                              <input
+                                type="text"
+                                value={option.nameEn}
+                                onChange={(e) => {
+                                  const updatedGroups = [...menuDetails.optionGroups];
+                                  updatedGroups[groupIndex].options[optionIndex].nameEn = e.target.value;
+                                  setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+                                }}
+                                className="border p-2 w-full mt-2"
+                              />
+                            </div>
+                            <div className="mt-2 mr-2">
+                              <label>ชื่อตัวเลือก (จีน)</label>
+                              <input
+                                type="text"
+                                value={option.nameCh}
+                                onChange={(e) => {
+                                  const updatedGroups = [...menuDetails.optionGroups];
+                                  updatedGroups[groupIndex].options[optionIndex].nameCh = e.target.value;
+                                  setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+                                }}
+                                className="border p-2 w-full mt-2"
+                              />
+                            </div>
+                            <div className="mt-2">
+                              <label>ราคา Option</label>
+                              <input
+                                type="number"
+                                value={option.price}
+                                onChange={(e) => {
+                                  const updatedGroups = [...menuDetails.optionGroups];
+                                  updatedGroups[groupIndex].options[optionIndex].price = e.target.value;
+                                  setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+                                }}
+                                className="border p-2 w-16 mt-2"
+                              />THB
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p>ไม่มีตัวเลือกในกลุ่มนี้</p>
+                    )}
+
+                  </div>
                 </div>
               ))
             ) : (
@@ -1241,16 +1340,16 @@ const handleAddOption = (groupIndex) => {
 
             <div className="mt-4 flex justify-end">
               <button
-                className="mx-2 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg"
+                className="mx-2 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg"
                 onClick={() => setShowEditMenuModal(false)} // ปิด Modal
               >
                 ยกเลิก
               </button>
               <button
-                className="bg-blue-500 text-white px-4 py-2 rounded-lg"
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
                 onClick={handleEditMenu} // เรียกฟังก์ชันแก้ไขเมนู
               >
-                ยืนยัน
+                บันทึก
               </button>
             </div>
           </div>
@@ -1300,7 +1399,7 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
       ...options,
       {
         MaxSelections: 1,
-        is_required: true,
+        is_required: false,
         name: "",
         name_en: "",
         name_ch: "",
@@ -1525,6 +1624,29 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
 
             {options.map((group, groupIndex) => (
               <div key={groupIndex}>
+                <label className="block mb-2">
+                  จำนวนตัวเลือกสูงสุด
+                  <input
+                    type="number"
+                    value={group.MaxSelections}
+                    onChange={(e) =>
+                      handleOptionGroupChange(groupIndex, "MaxSelections", e.target.value)
+                    }
+                    min={1} // ตั้งค่าจำนวนขั้นต่ำเป็น 1
+                    className="ml-2 w-16 p-2 border rounded"
+                  />
+                </label>
+                <label className="block mb-2">
+                  จำเป็นต้องเลือก?
+                  <input
+                    type="checkbox"
+                    checked={group.is_required}
+                    onChange={(e) =>
+                      handleOptionGroupChange(groupIndex, "is_required", e.target.checked)
+                    }
+                    className="ml-2"
+                  />
+                </label>
                 {/* ฟิลด์ของกลุ่มตัวเลือก */}
                 <input
                   type="text"
@@ -1605,17 +1727,6 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
               </div>
             ))}
           </div>
-
-          {/* รูปภาพ */}
-          {/* <div className="mb-4">
-            <label className="block mb-2">เลือกรูปภาพ</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setImage(e.target.files[0])}
-              className="p-2"
-            />
-          </div> */}
 
           {/* ปุ่มเพิ่มเมนู */}
           <div className="flex justify-end">

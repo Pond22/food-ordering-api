@@ -110,8 +110,9 @@ body{
   margin: 5px 0;
 }
 
+
 /* Media Query for small screens */
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .sidebar {
     position: fixed;
     top: 0;
