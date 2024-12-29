@@ -286,29 +286,53 @@ func CreateOrder(c *fiber.Ctx) error {
 func createOrderPrintContent(order models.Order, categoryName string, items []models.OrderItem) []byte {
 	var buf bytes.Buffer
 
+	// 1. Initialize printer
+	buf.Write([]byte{0x1B, 0x40}) // ESC @ - Initialize printer
+
+	// 2. Select Thai Code Page (WPC1255)
+	buf.Write([]byte{0x1B, 0x74, 0x49}) // OEM864
+
+	// 3. Set Character Size - using standard size as shown in manual
+	buf.Write([]byte{0x1D, 0x21, 0x00}) // GS ! n - Character size x1
+
+	// 4. Set print density (optional - for clearer text)
+	buf.Write([]byte{0x1B, 0x7C, 0x04}) // ESC | n - Set print density
+
 	// Header
+	buf.Write([]byte{0x1B, 0x61, 0x01}) // Center align
 	buf.WriteString(fmt.Sprintf("Order #%d\n", order.ID))
+	buf.Write([]byte{0x1B, 0x61, 0x00}) // Left align
+
 	buf.WriteString(fmt.Sprintf("Table: %d\n", order.TableID))
 	buf.WriteString(fmt.Sprintf("Category: %s\n", categoryName))
 	buf.WriteString("-------------------------\n")
 
-	// รายการอาหาร
+	// Menu items
 	for _, item := range items {
-		buf.WriteString(fmt.Sprintf("%s x%d\n",
-			item.MenuItem.Name,
-			item.Quantity))
+		// Bold for item name
+		buf.Write([]byte{0x1B, 0x45, 0x01}) // Bold on
+		buf.WriteString(fmt.Sprintf("%s", item.MenuItem.Name))
+		buf.Write([]byte{0x1B, 0x45, 0x00}) // Bold off
+		buf.WriteString(fmt.Sprintf(" x%d\n", item.Quantity))
 
-		// ตัวเลือกเพิ่มเติม (ถ้ามี)
+		// Options
 		for _, opt := range item.Options {
 			buf.WriteString(fmt.Sprintf("  + %s\n", opt.MenuOption.Name))
 		}
+
+		// Notes
 		if item.Notes != "" {
 			buf.WriteString(fmt.Sprintf("  Note: %s\n", item.Notes))
 		}
+		buf.WriteString("\n")
 	}
 
+	// Footer
 	buf.WriteString("-------------------------\n")
 	buf.WriteString(fmt.Sprintf("Printed: %s\n", time.Now().Format("15:04:05")))
+
+	// Cut paper
+	buf.Write([]byte{0x1D, 0x56, 0x41, 0x03}) // GS V A 3 - Full cut
 
 	return buf.Bytes()
 }
@@ -568,7 +592,6 @@ func GetActiveOrders(c *fiber.Ctx) error {
 		})
 	}
 
-	// สร้าง Response ที่เรียบง่าย
 	var response []OrderResponse
 	for _, order := range orders {
 		orderResp := OrderResponse{

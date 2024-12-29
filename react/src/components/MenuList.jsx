@@ -3,46 +3,50 @@ import MenuItem from './MenuItem';
 import styles from '../styles/MenuList.module.css';
 
 const MenuList = () => {
+  const [menuItems, setMenuItems] = useState([]);  // State สำหรับเก็บข้อมูลเมนู
+  const [categories, setCategories] = useState([]); // State สำหรับเก็บข้อมูลหมวดหมู่
+  const [selectedCategory, setSelectedCategory] = useState(''); // State สำหรับเก็บหมวดหมู่ที่เลือก
+  const [activeLink, setActiveLink] = useState('');  // State สำหรับเก็บลิงก์ที่ถูกคลิก
+  const navRef = useRef(); // ใช้ ref เพื่อใช้งานกับ nav (ถ้าจำเป็น)
+  const categoryRefs = useRef({}); // ใช้เก็บ refs สำหรับหมวดหมู่แต่ละอัน
   
-  const [menuItems, setMenuItems] = useState([
-    { id: 1, type: 'Promotion', name: '特選リブロース | Premium Ribeye', price: 150, image: 'https://www.mcfs.co.th/wp-content/uploads/2022/08/XL_01094.jpg', description: '特選リブロース | Premium Ribeye', quantity: 0 },
-    { id: 2, type: 'NewMenu', name: 'เนื้อวัว', price: 200, image: 'https://thagoonmanee.com/wp-content/uploads/2019/04/%E0%B8%8A%E0%B8%B2%E0%B8%9A%E0%B8%B9.png', description: '特選リブロース | Premium Ribeye', quantity: 0 },
-    { id: 3, type: 'Aracart', name: 'ไก่', price: 120, image: 'https://s359.kapook.com/pagebuilder/a265eefe-c8d8-4559-9bdd-325004243176.jpg', description: '特選リブロース | Premium Ribeye', quantity: 0 },
-    { id: 4, type: 'Desert', name: 'เนื้อii', price: 150, image: 'https://www.mcfs.co.th/wp-content/uploads/2022/08/XL_01094.jpg', description: '特選リブロース | Premium Ribeye', quantity: 0 },
-    { id: 5, type: 'NewMenu', name: 'เนื้kk', price: 150, image: 'https://www.mcfs.co.th/wp-content/uploads/2022/08/XL_01094.jpg', description: '特選リブロース | Premium Ribeye', quantity: 0 },
-    { id: 6, type: 'Promotion', name: 'เนื้อวัว', price: 200, image: 'https://thagoonmanee.com/wp-content/uploads/2019/04/%E0%B8%8A%E0%B8%B2%E0%B8%9A%E0%B8%B9.png', description: '特選リブロース | Premium Ribeye', quantity: 0 },
-    { id: 7, type: 'NewMenu', name: 'เนื้อวัว', price: 200, image: 'https://thagoonmanee.com/wp-content/uploads/2019/04/%E0%B8%8A%E0%B8%B2%E0%B8%9A%E0%B8%B9.png', description: '特選リブロース | Premium Ribeye', quantity: 0 },
-    { id: 8, type: 'Aracart', name: 'เนื้อวัว', price: 200, image: 'https://thagoonmanee.com/wp-content/uploads/2019/04/%E0%B8%8A%E0%B8%B2%E0%B8%9A%E0%B8%B9.png', description: '特選リブロース | Premium Ribeye', quantity: 0 },
-
-    { id: 9, type: 'Aracart', name: 'เนื้อวัว', price: 200, image: 'https://thagoonmanee.com/wp-content/uploads/2019/04/%E0%B8%8A%E0%B8%B2%E0%B8%9A%E0%B8%B9.png', description: '特選リブロース | Premium Ribeye', quantity: 0 },
-  ]);
-
-  
-  const [activeLink, setActiveLink] = useState('Promotion'); // เริ่มต้นที่ "Promotion"
-  const navRef = useRef(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isManual, setIsManual] = useState(false);
-  const intervalRef = useRef(null);
-  const promotionItems = menuItems.filter(item => item.type === 'Promotion');
-
-  const filteredItems = menuItems.filter(item => item.type === activeLink); // กรองเมนูตามประเภทที่เลือก
-  // ตระกร้า
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState([]); 
   const [isCartVisible, setIsCartVisible] = useState(false);
 
-  const addToCart = (item) => {
-    setCart((prevCart) => {
-      const existingItem = prevCart.find((cartItem) => cartItem.id === item.id);
-      if (existingItem) {
-        return prevCart.map((cartItem) =>
-          cartItem.id === item.id
-            ? { ...cartItem, quantity: cartItem.quantity + 1 }
-            : cartItem
-        );
+  // ฟังก์ชันดึงข้อมูลเมนูจาก API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/menu?action=getAll');
+        const data = await response.json();
+        setMenuItems(data);
+
+        // ดึงหมวดหมู่ที่ไม่ซ้ำกัน
+        const uniqueCategories = [
+          ...new Set(data.map(item => item.Category.Name))
+        ];
+        setCategories(uniqueCategories);
+      } catch (error) {
+        console.error('Error fetching data:', error);
       }
-      return [...prevCart, { ...item, quantity: 1 }];
-    });
+    };
+
+    fetchData();
+  }, []);
+
+  // ฟังก์ชันสำหรับการคลิกหมวดหมู่จากเมนู
+  const handleCategoryClick = (category) => {
+    setSelectedCategory(category); 
+    setActiveLink(category);  // ตั้งค่าหมวดหมู่ที่เลือก และเปลี่ยน active link
+    
+    // เลื่อนหน้าไปยังหมวดหมู่ที่เลือก
+    categoryRefs.current[category]?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  // ฟังก์ชันกรองเมนูตามหมวดหมู่ที่เลือก
+  const filteredMenuItems = menuItems.filter(
+    item => item.Category.Name === selectedCategory
+  );
 
   const getCartItemCount = () => {
     return cart.reduce((total, item) => total + item.quantity, 0);
@@ -51,61 +55,6 @@ const MenuList = () => {
   const handleCartToggle = () => {
     setIsCartVisible(!isCartVisible);
   };
-
-
-
-  const startAutoScroll = () => {
-    intervalRef.current = setInterval(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % promotionItems.length);
-    }, 3000);
-  };
-
-  const stopAutoScroll = () => {
-    clearInterval(intervalRef.current);
-  };
-
-  useEffect(() => {
-    if (!isManual) {
-      startAutoScroll();
-    }
-    return () => stopAutoScroll();
-  }, [isManual, promotionItems.length]);
-
-  const handleNavigatorClick = (index) => {
-    stopAutoScroll();
-    setCurrentIndex(index);
-    setIsManual(true);
-    setTimeout(() => setIsManual(false), 3000); // กลับไปเลื่อนอัตโนมัติหลัง 10 วินาที
-  };
-
-  // ลูกศรใน banner
-  const handleArrowClick = (direction) => {
-    stopAutoScroll();
-    setCurrentIndex((prevIndex) => {
-      if (direction === 'left') {
-        return (prevIndex - 1 + promotionItems.length) % promotionItems.length;
-      } else {
-        return (prevIndex + 1) % promotionItems.length;
-      }
-    });
-    setIsManual(true);
-    setTimeout(() => setIsManual(false), 10000);
-  };
-
-  useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const id = entry.target.id;
-          setActiveLink(id);  // เมื่อ div เข้าในมุมมอง จะทำให้ลิงก์นั้นเปลี่ยนสี
-        }
-      });
-    }, { threshold: 0.5 });
-
-    document.querySelectorAll('[id]').forEach((el) => observer.observe(el));
-
-    return () => observer.disconnect();
-  }, []);
 
   const handleAddToCart = (item) => {
     setCart((prevCart) => {
@@ -121,73 +70,52 @@ const MenuList = () => {
     });
   };
 
-  
-
   // เริ่มแสดงหน้าจอ
   return (
     <div>
       <header className={styles.header}>
         <div className='flex justify-between '>
           <div className='flex justify-center items-center '>
-        <h1>โต๊ะที่{}</h1></div>
-        <div className={styles.cartIcon}>
-          <button className={styles.cartButton} onClick={handleCartToggle}>
-          🛒 {getCartItemCount() > 0 && (
-              <span className={styles.cartBadge}>{getCartItemCount()}</span>
+            <h1>โต๊ะที่{}</h1>
+          </div>
+          <div className={styles.cartIcon}>
+            <button className={styles.cartButton} onClick={handleCartToggle}>
+              🛒 {getCartItemCount() > 0 && (
+                <span className={styles.cartBadge}>{getCartItemCount()}</span>
+              )}
+            </button>
+            {isCartVisible && (
+              <div className={styles.cartDetails}>
+                <ul>
+                  {cart.map((item) => (
+                    <li key={item.id}>
+                      {item.name} x {item.quantity} - {item.price * item.quantity} ฿
+                    </li>
+                  ))}
+                </ul>
+                <button onClick={() => alert('Checkout')}>Checkout</button>
+              </div>
             )}
-          </button>
-          {isCartVisible && (
-            <div className={styles.cartDetails}>
-              <ul>
-                {cart.map((item) => (
-                  <li key={item.id}>
-                    {item.name} x {item.quantity} - {item.price * item.quantity} ฿
-                  </li>
-                ))}
-              </ul>
-              <button onClick={() => alert('Checkout')}>Checkout</button>
-            </div>
-          )}
-        </div>
+          </div>
         </div>
 
-        <nav className={styles.nav} ref={navRef}>
-          {/* ทำจริงใช้ลูป วน a  */}
-
-          {/* ลิงก์เมนูที่กรองจากประเภทของเมนู */}
-          <a
-            href="#Promotion"
-            className={activeLink === 'Promotion' ? styles.active : ''}
-            onClick={() => setActiveLink('Promotion')}
-          >
-            Promotion
-          </a>
-          <a
-            href="#NewMenu"
-            className={activeLink === 'NewMenu' ? styles.active : ''}
-            onClick={() => setActiveLink('NewMenu')}
-          >
-            เมนูใหม่
-          </a>
-          <a
-            href="#Aracart"
-            className={activeLink === 'Aracart' ? styles.active : ''}
-            onClick={() => setActiveLink('Aracart')}
-          >
-            อาหารจานเดียว
-          </a>
-          <a
-            href="#Desert"
-            className={activeLink === 'Desert' ? styles.active : ''}
-            onClick={() => setActiveLink('Desert')}
-          >
-            ของหวาน
-          </a>
+        {/* แสดงหมวดหมู่ในรูปแบบของลิงก์ใน <nav> */}
+        <nav className={styles.nav}>
+          {categories.map((category, index) => (
+            <a
+              key={index}
+              href={`#${category}`} // ใช้ชื่อหมวดหมู่เป็น href
+              className={activeLink === category ? styles.active : ''}
+              onClick={() => handleCategoryClick(category)} // เรียกใช้ฟังก์ชันเมื่อคลิก
+            >
+              {category}  {/* แสดงชื่อหมวดหมู่ */}
+            </a>
+          ))}
         </nav>
       </header>
 
       {/* แสดงเมนูโปรโมชัน */}
-      <div id="Promotion" className={styles.promotionSection}>
+      {/* <div id="" className={styles.promotionSection}>
         <h2>Promotion</h2>
         
         <div className={styles.promotionBanner}>
@@ -197,7 +125,7 @@ const MenuList = () => {
               key={item.id}
               className={
                 index === currentIndex
-                  ? `${styles.promotionItem} ${styles.active}`
+                  ? `${styles.promotionItem} ${styles.active}` 
                   : styles.promotionItem
               }
             >
@@ -217,63 +145,42 @@ const MenuList = () => {
           {promotionItems.map((_, index) => (
             <span
               key={index}
-              className={
-                index === currentIndex
-                  ? `${styles.navigatorDot} ${styles.active}`
+              className={ 
+                index === currentIndex 
+                  ? `${styles.navigatorDot} ${styles.active}` 
                   : styles.navigatorDot
               }
               onClick={() => handleNavigatorClick(index)}
             ></span>
           ))}
         </div>
-      </div>
+      </div> */}
 
-{/* แสดงเมนูตามประเภทที่เลือก */}
-{/* ลูป */}
-      <div id="NewMenu" className={styles.menuList}>
-        <h2>เมนูใหม่</h2>
-        <div className={styles.menuGrid}>
-          {menuItems.filter(item => item.type === 'NewMenu').map(item => (
-            <MenuItem
-              key={item.id}
-              item={item}
-              onUpdateQuantity={() => {}}
-              // เพิ่มลงตระกร้า
-              addToCart={addToCart} 
-            />
-          ))}
-        </div>
-      </div>
-          {/* ลูป */}
-          
-      <div id="Aracart" className={styles.menuList}>
-        <h2>อาหารจานเดียว</h2>
-        <div className={styles.menuGrid}>
-          {menuItems.filter(item => item.type === 'Aracart').map(item => (
-            <MenuItem
-              key={item.id}
-              item={item}
-              onUpdateQuantity={() => {}}
-              // เพิ่มลงตระกร้า
-              addToCart={addToCart} 
-            />
-          ))}
-        </div>
-      </div>
+      {/* แสดงเมนูในรูปแบบ flatlist โดยแยกตามหมวดหมู่ */}
+      <div className={styles.menuList}>
+        {categories.map((category, index) => {
+          // กรองเมนูตามหมวดหมู่
+          const filteredMenuItems = menuItems.filter(
+            (item) => item.Category.Name === category
+          );
 
-      <div id="Desert" className={styles.menuList}>
-        <h2>ของหวาน</h2>
-        <div className={styles.menuGrid}>
-          {menuItems.filter(item => item.type === 'Desert').map(item => (
-            <MenuItem
-              key={item.id}
-              item={item}
-              onUpdateQuantity={() => {}}
-              // เพิ่มลงตระกร้า
-              addToCart={addToCart} 
-            />
-          ))}
-        </div>
+          return (
+            <div
+              key={index}
+              ref={(el) => categoryRefs.current[category] = el} // ตั้ง ref ให้กับแต่ละหมวดหมู่
+              id={category}
+              className={styles.categorySection}
+            >
+              <h2>{category}</h2> {/* แสดงชื่อหมวดหมู่ */}
+              <div className={styles.menuGrid}>
+                {filteredMenuItems.map(item => (
+                  <MenuItem key={item.ID} item={item} addToCart={() => handleAddToCart(item)} 
+                   />
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -645,7 +645,7 @@ const MenuManagement = () => {
 
           {/* ตัวกรองหมวดหมู่ */}
           <select
-            className="ml-4 p-2 border border-gray-300 rounded-lg"
+            className="ml-4 p-2 border border-gray-300 rounded-lg cursor-pointer"
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
           >
@@ -659,7 +659,7 @@ const MenuManagement = () => {
 
           {/* ตัวกรองกลุ่มตัวเลือก */}
           <select
-            className="ml-4 p-2 border border-gray-300 rounded-lg"
+            className="ml-4 p-2 border border-gray-300 rounded-lg cursor-pointer"
             value={optionGroupFilter}
             onChange={(e) => setOptionGroupFilter(e.target.value)}
           >
@@ -716,17 +716,16 @@ const MenuManagement = () => {
                 <th className="p-2">หมวดหมู่</th>
                 <th className="p-2">ราคา (THB)</th>
                 <th className="p-2 text-center">ตัวเลือก</th>
-
-                <th className="p-1 text-center">Actions</th>
+                <th className="p-2 ">Actions</th>
               </tr>
             </thead>
             <tbody>
               {Array.isArray(filteredMenus) && filteredMenus.length > 0 ? (
                 filteredMenus.map((menu) => (
                   <tr key={menu.ID} className="border-t">
-                    <td className="text-center">
-                      <div className="flex items-center justify-center">
-                        <label className="relative  items-center cursor-pointer">
+                    <td className="">
+                      <div className="flex items-center justify-center  ">
+                        <label className="relative  items-center cursor-pointer ">
                           <input
                             type="checkbox"
                             className="sr-only peer"
@@ -818,14 +817,18 @@ const MenuManagement = () => {
                       )}
                     </td>
 
-                    <td className="justify-center items-center">
+                    <td className="flex justify-center ">
                       <div className="flex">
                         <div className="relative inline-block ">
-                          <div>
-                            <button
+                          <div className="relative group">
+                            <button className="hover:bg-gray-100 p-2 rounded-full"
                               onClick={() => toggleDropdown(menu.ID)}>
+                                
                               <Ellipsis />
                             </button>
+                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-400 text-white text-sm py-1 px-2 rounded-md shadow-lg">
+    จัดการข้อมูล
+  </div>
                           </div>
 
                           {/* Dropdown menu */}

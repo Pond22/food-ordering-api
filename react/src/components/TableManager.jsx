@@ -1,113 +1,127 @@
-import React, { useState } from "react";
-import TableDetail from "./TableDetail";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import styles from "../styles/TableDetail.module.css";
 
-// ข้อมูลตัวอย่าง
-const initialTables = [
-  { id: 1, number: 1, seats: 4, status: "ว่าง", time: null, customerName: null, customerCount: null },
-  { id: 2, number: 2, seats: 2, status: "ไม่ว่าง", time: "18:30", customerName: "คุณสมชาย", customerCount: 2 },
-  { id: 3, number: 3, seats: 6, status: "จอง", time: "19:00", customerName: "คุณสมหญิง", customerCount: 5 },
-  { id: 4, number: 4, seats: 4, status: "ว่าง", time: null, customerName: null, customerCount: null },
-  { id: 5, number: 5, seats: 8, status: "ไม่ว่าง", time: "18:45", customerName: "คุณสมศรี", customerCount: 7 },
-  { id: 6, number: 6, seats: 4, status: "ว่าง", time: null, customerName: null, customerCount: null },
-  { id: 7, number: 7, seats: 4, status: "ว่าง", time: null, customerName: null, customerCount: null },
-  { id: 8, number: 8, seats: 4, status: "ว่าง", time: null, customerName: null, customerCount: null },
-  { id: 9, number: 9, seats: 4, status: "ว่าง", time: null, customerName: null, customerCount: null },
-  { id: 10, number: 10, seats: 4, status: "ว่าง", time: null, customerName: null, customerCount: null },
-  { id: 11, number: 11, seats: 4, status: "ว่าง", time: null, customerName: null, customerCount: null },
-];
+// Helper component for displaying table info
+const TableInfo = ({ label, value }) => (
+  <div className="flex justify-between mb-2">
+    <span>{label}:</span>
+    <span>{value}</span>
+  </div>
+);
 
-// การจัดการโต๊ะทั้งหมด
 const TableManager = () => {
-  const [tables, setTables] = useState(initialTables);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
-  const [selectedTable, setSelectedTable] = useState(null);
-  const [tablesToCombine, setTablesToCombine] = useState([]); // สำหรับโต๊ะที่จะรวม
+  const [tables, setTables] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isCombineDialogOpen, setIsCombineDialogOpen] = useState(false); // Dialog สำหรับรวมโต๊ะ
+  const [newTableName, setNewTableName] = useState("");
+  const [newTableCapacity, setNewTableCapacity] = useState(0);
+  const [newTableStatus, setNewTableStatus] = useState("ว่าง");
+  const [message, setMessage] = useState("");
+  const [isNameConflict, setIsNameConflict] = useState(false);
+  const [selectedTables, setSelectedTables] = useState([]);
+  const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
+  const [primaryTable, setPrimaryTable] = useState(null);
 
-  const [formData, setFormData] = useState({
-    customerName: "",
-    customerCount: "",
-    time: "",
-    status: "",
-  });
-
-  
-// ฟังก์ชันรวมโต๊ะ
-  const handleCombineTables = () => {
-    if (tablesToCombine.length > 1) {
-      const mainTable = tablesToCombine[0]; // โต๊ะหลัก
-      const combinedCustomerCount = tablesToCombine.reduce((sum, table) => sum + (table.customerCount || 0), 0);
-      const combinedTime = mainTable.time; // ใช้เวลาของโต๊ะหลัก
-      const customerName = mainTable.customerName || "รวมโต๊ะ";
-  
-      const updatedTables = tables.map((table) => {
-        if (tablesToCombine.some((t) => t.id === table.id)) {
-          return {
-            ...table,
-            status: `รวมอยู่กับโต๊ะ ${mainTable.number}`, // แสดงสถานะรวม
-            customerCount: combinedCustomerCount,
-            customerName: customerName,
-            time: combinedTime,
-          };
-        }
-        return table;
-      });
-  
-      setTables(updatedTables);
-      setIsCombineDialogOpen(false); // ปิด dialog
-      setTablesToCombine([]); // รีเซ็ตโต๊ะที่จะรวม
-    } else {
-      alert("กรุณาเลือกโต๊ะอย่างน้อย 2 โต๊ะ");
+ // Fetch tables from API and sort by ID
+useEffect(() => {
+  const fetchTables = async () => {
+    try {
+      const response = await axios.get("http://localhost:8080/api/tables");
+      // Sorting tables by ID in ascending order
+      const sortedTables = response.data.sort((a, b) => a.ID - b.ID);
+      setTables(sortedTables); // Store sorted tables into state
+    } catch (error) {
+      console.error("Error fetching tables:", error);
     }
   };
 
-  // เปิด dialog การรวมโต๊ะ
-  const handleTableCombine = (table) => {
-    setTablesToCombine([table]); // กำหนดโต๊ะหลัก
-    setIsCombineDialogOpen(true); // เปิด dialog
-  };
+  fetchTables(); // Fetch tables when the component mounts
 
-  // ฟังก์ชันค้นหาและกรองโต๊ะ
-  const filteredTables = tables.filter((table) => {
-    const matchesSearch = table.number.toString().includes(searchQuery);
-    const matchesStatus = filterStatus ? table.status === filterStatus : true;
-    return matchesSearch && matchesStatus;
-  });
+    // Optionally, you can reconnect the WebSocket here to listen for table updates
+    const connectWebSocket = () => {
+      try {
+        const socket = new WebSocket("ws://localhost:8080/ws/tables");
 
-  const handleSearchChange = (e) => setSearchQuery(e.target.value);
-  const handleFilterChange = (e) => setFilterStatus(e.target.value);
+        socket.onopen = () => {
+          console.log("WebSocket connected successfully!");
+        };
 
-  // ฟังก์ชันการจัดการโต๊ะ
-  const handleTableAction = (table) => {
-    setSelectedTable(table);
-    setFormData({
-      customerName: table.customerName || "",
-      customerCount: table.customerCount || "",
-      time: table.time || "",
-      status: table.status || "ว่าง", // กำหนดสถานะเริ่มต้นเป็น "ว่าง"
-    });
-    setIsDialogOpen(true);
-  };
-  
-  // ฟังก์ชันการยีนยันสถานะของโต๊ะ
-  const handleFormSubmit = () => {
-    const updatedTables = tables.map((table) =>
-      table.id === selectedTable.id
-        ? {
-            ...table,
-            ...formData,
-            time: formData.status === "ใช้งาน" ? new Date().toLocaleTimeString() : formData.time,
+        socket.onerror = (error) => {
+          console.error("WebSocket error:", error);
+        };
+
+        socket.onmessage = (event) => {
+          const message = JSON.parse(event.data);
+          if (message.type === "table_update") {
+            setTables(message.data);
           }
-        : table
-    );
-  
-    setTables(updatedTables);
-    setIsDialogOpen(false);
+        };
+
+        socket.onclose = () => {
+          console.log("WebSocket connection closed. Attempting reconnect...");
+          setTimeout(connectWebSocket, 5000);
+        };
+
+        return socket;
+      } catch (error) {
+        console.error("Failed to connect to WebSocket:", error);
+        setTimeout(connectWebSocket, 5000);
+      }
+    };
+
+    const socket = connectWebSocket();
+
+    return () => {
+      socket.close();
+    };
+  }, []); // Empty dependency array to run only on mount
+
+   // Check if table name is duplicated
+   const checkTableNameConflict = async () => {
+    try {
+      const response = await axios.get("http://localhost:8080/api/tables");
+      const data = response.data;
+      return data.some((table) => table.Name === newTableName);
+    } catch (error) {
+      console.error("Error fetching tables:", error);
+      return false;
+    }
   };
 
-  // ฟังก์ชันการเคลียร์โต๊ะ
+  const handleTableAction = async (action, table) => {
+    if (!table || !table.ID) {
+      alert("ข้อมูลโต๊ะไม่ถูกต้อง");
+      return;
+    }
+
+    const endpoint =
+      action === "reserve"
+        ? `http://localhost:8080/api/table/reservedTable/${table.ID}`
+        : action === "unreserve"
+        ? `http://localhost:8080/api/table/unreservedTable/${table.ID}`
+        : null;
+
+    if (!endpoint) {
+      console.warn("Unsupported action:", action);
+      return;
+    }
+
+    try {
+      const response = await axios.post(endpoint, {});
+      alert(response.data.message || "ดำเนินการสำเร็จ");
+      setTables((prevTables) =>
+        prevTables.map((t) =>
+          t.ID === table.ID
+            ? { ...t, Status: action === "reserve" ? "reserved" : "available" }
+            : t
+        )
+      );
+    } catch (error) {
+      console.error(`Error processing ${action}:`, error);
+      alert("เกิดข้อผิดพลาดในการดำเนินการ");
+    }
+  };
+
   const handleClearTable = (tableId) => {
     const updatedTables = tables.map((table) =>
       table.id === tableId
@@ -123,180 +137,280 @@ const TableManager = () => {
     setTables(updatedTables);
   };
 
+  // Create a new table
+  const createTable = async () => {
+    const isConflict = await checkTableNameConflict();
+    if (isConflict) {
+      setIsNameConflict(true);
+      setMessage("ชื่อโต๊ะซ้ำกับโต๊ะที่มีอยู่แล้ว");
+      return;
+    }
+
+    const tableData = {
+      capacity: parseInt(newTableCapacity),
+      name: newTableName,
+      status: newTableStatus,
+    };
+
+    try {
+      const response = await axios.post("http://localhost:8080/api/table", tableData, {
+        headers: {
+          "Content-Type": "application/json",
+          accept: "application/json",
+        },
+      });
+
+      const data = response.data;
+
+      if (response.status === 200) {
+        setMessage(`โต๊ะ "${data.Name}" ถูกสร้างเรียบร้อยแล้ว!`);
+        setTables((prevTables) => [...prevTables, data]);
+        setIsDialogOpen(false);
+      } else {
+        setMessage(`เกิดข้อผิดพลาด: ${data.error || "ข้อมูลไม่ถูกต้อง"}`);
+      }
+    } catch (error) {
+      setMessage("เกิดข้อผิดพลาดในการเชื่อมต่อ API");
+      console.error(error);
+    }
+  };
+
+  const handlePrimaryTableSelection = (table) => {
+    setPrimaryTable(table); // เมื่อผู้ใช้เลือกโต๊ะหลัก
+  };
+
+  const handleSelectTable = (tableId) => {
+    setSelectedTables((prevSelected) =>
+      prevSelected.includes(tableId)
+        ? prevSelected.filter((id) => id !== tableId)
+        : [...prevSelected, tableId]
+    );
+  };
+
+  const mergeTables = async () => {
+  if (selectedTables.length < 2) {
+    alert("กรุณาเลือกโต๊ะอย่างน้อย 2 โต๊ะ");
+    return;
+  }
+
+  try {
+    const response = await axios.post("http://localhost:8080/api/table/mergeTable", {
+      table_ids: selectedTables,
+    });
+
+    if (response.status === 200) {
+      const { group_id, main_table_id, message } = response.data;
+      alert(message || "รวมโต๊ะสำเร็จ");
+
+      // อัปเดตสถานะโต๊ะที่รวมแล้ว และเก็บค่า group_id
+      setTables((prevTables) =>
+        prevTables.map((table) =>
+          selectedTables.includes(table.ID)
+            ? { 
+                ...table, 
+                Status: "merged", 
+                GroupID: group_id, 
+                MainTableID: main_table_id 
+              }
+            : table
+        )
+      );
+
+      // เรียงโต๊ะตาม ID จากน้อยไปมาก
+      setTables(prevTables => {
+        const sortedTables = prevTables.sort((a, b) => a.ID - b.ID);
+        return sortedTables;
+      });
+
+      // เคลียร์โต๊ะที่เลือก
+      setSelectedTables([]); 
+    } else {
+      alert("ไม่สามารถรวมโต๊ะได้");
+    }
+  } catch (error) {
+    console.error("Error merging tables:", error);
+    alert("เกิดข้อผิดพลาดในการรวมโต๊ะ");
+  }
+};
+
+  const handleMergeTables = async () => {
+    try {
+      if (!primaryTable || selectedTables.length === 0) {
+        alert("กรุณาเลือกโต๊ะหลักและโต๊ะที่ต้องการรวม");
+        return;
+      }
+
+      const response = await axios.post("http://localhost:8080/api/table/mergeTable", {
+        primary_table: primaryTable.ID, // Send ID of primary table
+        selected_table_ids: selectedTables.map((table) => table.ID), // Send IDs of selected tables
+      });
+
+      if (response.status === 200) {
+        alert("รวมโต๊ะสำเร็จ");
+        // Optionally, update tables state to reflect the merged status
+      } else {
+        alert("ไม่สามารถรวมโต๊ะได้");
+      }
+    } catch (error) {
+      console.error("เกิดข้อผิดพลาดในการรวมโต๊ะ:", error);
+      alert("เกิดข้อผิดพลาดในการรวมโต๊ะ");
+    }
+  };
+
+  const handleSplitTable = async (groupId) => {
+    try {
+      const response = await axios.post(`http://localhost:8080/api/table/splitTable/${groupId}`);
+  
+      if (response.status === 200) {
+        alert(response.data.message || "แยกโต๊ะสำเร็จ");
+  
+        // อัปเดตสถานะของโต๊ะกลับไปเป็นสถานะเดิม
+        setTables((prevTables) =>
+          prevTables.map((table) =>
+            table.GroupID === groupId
+              ? { ...table, Status: "available", GroupID: null, MainTableID: null }
+              : table
+          )
+        );
+      } else {
+        alert("ไม่สามารถแยกโต๊ะได้");
+      }
+    } catch (error) {
+      console.error("เกิดข้อผิดพลาดในการแยกโต๊ะ:", error);
+      alert("เกิดข้อผิดพลาดในการแยกโต๊ะ");
+    }
+  };
+
+  // Table rendering
+  const renderTableActionButtons = (table) => {
+    const status = table.Status || "available";
+    const tableStyles = status === "reserved" ? styles.reservedTable : status === "merged" ? styles.mergedTable : styles.availableTable;
+
+    return (
+      <div className={tableStyles}>
+        {status === "available" && (
+          <button className="bg-blue-500 text-white px-4 py-2 rounded mb-2" onClick={() => handleTableAction("reserve", table)}>
+            จอง
+          </button>
+        )}
+        {status === "reserved" && (
+          <button className="bg-gray-500 text-white px-4 py-2 rounded" onClick={() => handleTableAction("unreserve", table)}>
+            ยกเลิกการจอง
+          </button>
+        )}
+        {status === "available" && (
+          <button className="bg-gray-500 text-white px-4 py-2 rounded" onClick={() => handleSplitTable(table.GroupID)}>
+            แยกโต๊ะ
+          </button>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div className="้h-screen overflow-auto p-4 lg:ml-60">
-      {/* ส่วนค้นหาและกรอง */}
-      <div className="flex flex-col md:flex-row md:items-center mb-4">
-        <input
-          type="text"
-          placeholder="ค้นหาโต๊ะ..."
-          value={searchQuery}
-          onChange={handleSearchChange}
-          className="border p-2 rounded w-full md:w-1/3 mb-2 md:mb-0 md:mr-4"
-        />
-        <select
-          value={filterStatus}
-          onChange={handleFilterChange}
-          className="border p-2 rounded w-full md:w-1/4"
-        >
-          <option value="">สถานะทั้งหมด</option>
-          <option value="ว่าง">ว่าง</option>
-          <option value="จอง">จอง</option>
-          <option value="ไม่ว่าง">ไม่ว่าง</option>
-        </select>
+    <div className="h-screen overflow-auto p-4 lg:ml-60">
+      {/* Render tables */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {tables.map((table) => (
+          <div key={table.ID} className="border p-4 rounded-lg shadow-lg">
+            <h3 className="text-xl font-bold mb-2">{table.Name}</h3>
+            <TableInfo label="Capacity" value={table.Capacity} />
+            <TableInfo label="Status" value={table.Status} />
+            {renderTableActionButtons(table)}
+            {/* Additional table actions can go here */}
+            
+          </div>
+        ))}
       </div>
 
-      {/* ตารางแสดงข้อมูลโต๊ะ */}
-      <TableDetail
-        tables={filteredTables}
-        onTableAction={handleTableAction}
-        onClearTable={handleClearTable}
-        onTableCombine={handleTableCombine} // ส่งฟังก์ชันรวมโต๊ะ
-      />
+      <button onClick={() => setIsDialogOpen(true)} className="bg-blue-500 text-white px-4 py-2 rounded mt-4">
+        สร้างโต๊ะใหม่
+      </button>
 
-     {/* Dialog สำหรับจัดการโต๊ะ */}
-{isDialogOpen && (
-  <div
-    className="fixed top-0 left-0 w-full h-full flex justify-center items-center"
-    style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}
-  >
-    <div className="bg-white p-10 border rounded-xl w-96 shadow-md">
-      <h2 className="text-lg font-bold mb-4">จัดการโต๊ะ</h2>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleFormSubmit();
-        }}
+      <button onClick={() => setIsMergeDialogOpen(true)} className="bg-blue-500 text-white px-4 py-2 rounded">
+        รวมกลุ่มโต๊ะ
+      </button>
+
+      {/* Merge Dialog */}
+      {isMergeDialogOpen && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+            <h3 className="text-xl font-bold mb-4">เลือกโต๊ะสำหรับรวม</h3>
+            <div className="mb-4">
+              {tables.map((table) => (
+                <div key={table.ID} className="flex items-center mb-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedTables.includes(table.ID)}
+                    onChange={() => handleSelectTable(table.ID)}
+                    className="mr-2"
+                  />
+                  <label className="text-gray-800">{table.Name}</label>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between">
+              <button onClick={() => { mergeTables(); setIsMergeDialogOpen(false); }} className="bg-green-500 text-white px-4 py-2 rounded">
+                รวมโต๊ะ
+              </button>
+              <button onClick={() => setIsMergeDialogOpen(false)} className="bg-red-500 text-white px-4 py-2 rounded">
+                ยกเลิก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+       {/* ถ้าคุณเลือกโต๊ะที่รวมแล้ว แสดงปุ่มยกเลิกการรวม */}
+    {selectedTables.length > 0 && selectedTables[0].GroupID && (
+      <button
+        onClick={() => cancelMerge(selectedTables[0].GroupID)}
+        className="bg-red-500 text-white px-4 py-2 rounded mt-4"
       >
-        <div className="mb-4">
-          <label>สถานะ:</label>
-          <select
-            className="w-full p-2 border rounded"
-            value={formData.status}
-            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-          >
-            <option value="ว่าง">ว่าง</option>
-            <option value="จอง">จอง</option>
-            <option value="ใช้งาน">ใช้งาน</option>
-          </select>
-        </div>
+        ยกเลิกการรวมโต๊ะ
+      </button>
+    )}
 
-        {/* แสดงฟิลด์เวลาเฉพาะเมื่อสถานะคือ "จอง" */}
-        {formData.status === "จอง" && (
-          <div className="mb-4">
-            <label>เวลาในการจอง:</label>
+      {/* New Table Dialog */}
+      {isDialogOpen && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+            <h3 className="text-xl mb-4">สร้างโต๊ะใหม่</h3>
             <input
-              type="time"
-              className="w-full p-2 border rounded"
-              value={formData.time}
-              onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+              type="text"
+              value={newTableName}
+              onChange={(e) => setNewTableName(e.target.value)}
+              className="border p-2 mb-4 w-full"
+              placeholder="ชื่อโต๊ะ"
             />
+            <input
+              type="number"
+              value={newTableCapacity}
+              onChange={(e) => setNewTableCapacity(e.target.value)}
+              className="border p-2 mb-4 w-full"
+              placeholder="ความจุ"
+            />
+            <select
+              value={newTableStatus}
+              onChange={(e) => setNewTableStatus(e.target.value)}
+              className="border p-2 mb-4 w-full"
+            >
+              <option value="ว่าง">ว่าง</option>
+              <option value="จอง">จอง</option>
+              <option value="ไม่ว่าง">ไม่ว่าง</option>
+            </select>
+            {isNameConflict && <div className="text-red-500 text-sm mb-4">{message}</div>}
+            <div className="flex justify-between">
+              <button onClick={createTable} className="bg-blue-500 text-white px-4 py-2 rounded">
+                สร้างโต๊ะ
+              </button>
+              <button onClick={() => setIsDialogOpen(false)} className="bg-red-500 text-white px-4 py-2 rounded">
+                ยกเลิก
+              </button>
+            </div>
           </div>
-        )}
-
-        {/* แสดงเวลาเช็คอินเมื่อสถานะคือ "ใช้งาน" */}
-        {formData.status === "ใช้งาน" && (
-          <div className="mb-4">
-            <label>เช็คอินเวลา:</label>
-            <p className="p-2 border rounded bg-gray-100">
-              {new Date().toLocaleTimeString()}
-            </p>
-          </div>
-        )}
-        {/*สิ้นสุด แสดงเวลาเช็คอินเมื่อสถานะคือ "ใช้งาน" */}
-
-        <div className="mb-4">
-          <label>ชื่อลูกค้า:</label>
-          <input
-            type="text"
-            className="w-full p-2 border rounded"
-            value={formData.customerName}
-            onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-          />
         </div>
-        <div className="mb-4">
-          <label>จำนวนลูกค้า:</label>
-          <input
-            type="number"
-            className="w-full p-2 border rounded"
-            value={formData.customerCount}
-            onChange={(e) => setFormData({ ...formData, customerCount: e.target.value })}
-          />
-        </div>
-
-        <div className="flex justify-end space-x-2">
-          <button
-            type="submit"
-            className={`py-2 px-4 rounded ${
-              formData.status === "ว่าง"
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-blue-500 hover:bg-blue-700 text-white"
-            }`}
-            disabled={formData.status === "ว่าง"}
-          >
-            บันทึก
-          </button>
-          <button
-            type="button"
-            className="bg-red-500 text-white py-2 px-4 rounded hover:bg-red-700"
-            onClick={() => setIsDialogOpen(false)}
-          >
-            ยกเลิก
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-)}
-
-  {/* Dialog สำหรับรวมโต๊ะ */}
-{isCombineDialogOpen && (
-  <div className="fixed top-0 left-0 w-full h-full flex justify-center items-center" style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}>
-    <div className="bg-white p-10 border rounded-xl w-96 shadow-md">
-      <h2 className="text-lg font-bold mb-4">รวมโต๊ะ</h2>
-      <p>คุณต้องการรวมโต๊ะที่เลือกไว้ใช่หรือไม่?</p>
-
-      <div className="mb-4">
-        <label htmlFor="tablesToCombine" className="block font-medium mb-2">เลือกโต๊ะที่จะรวม:</label>
-        <select
-          id="tablesToCombine"
-          multiple
-          value={tablesToCombine.map((table) => table.id)}
-          onChange={(e) => {
-            const selectedTableIds = Array.from(e.target.selectedOptions, (option) => parseInt(option.value));
-            const selectedTables = tables.filter((table) => selectedTableIds.includes(table.id));
-            setTablesToCombine([...tablesToCombine.slice(0, 1), ...selectedTables]); // เก็บโต๊ะหลักไว้
-          }}
-          className="w-full p-2 border rounded"
-        >
-          {tables
-            .filter((table) => table.id !== tablesToCombine[0]?.id) // ไม่แสดงโต๊ะหลัก
-            .map((table) => (
-              <option key={table.id} value={table.id}>
-                โต๊ะ {table.number} - {table.status}
-              </option>
-            ))}
-        </select>
-      </div>
-      
-      <div className="flex justify-end space-x-2">
-        <button
-          className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-700"
-          onClick={handleCombineTables}
-        >
-          ยืนยัน
-        </button>
-        <button
-          className="bg-red-500 text-white py-2 px-4 rounded hover:bg-red-700"
-          onClick={() => setIsCombineDialogOpen(false)}
-        >
-          ยกเลิก
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
+      )}
     </div>
   );
 };

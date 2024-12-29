@@ -22,6 +22,8 @@ WORKDIR /app
 
 # Copy the binary from builder
 COPY --from=builder /app/main .
+# Copy font file
+COPY --from=builder /app/THSarabunNew.ttf .
 
 # Command to run the application
 CMD ["./main"]

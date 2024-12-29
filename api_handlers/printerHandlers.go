@@ -33,91 +33,91 @@ type PrinterResponse struct {
 	Categories []models.Category `json:"categories"`
 }
 
-// @Summary ดึงรายการหมวดหมู่ทั้งหมด
-// @Description ดึงรายการหมวดหมู่เครื่องพิมพ์ทั้งหมด
-// @Produce json
-// @Success 200 {array} models.Category
-// @Router /api/printers/printer-categories [get]
-// @Tags Printer
-func GetPrinterCategories(c *fiber.Ctx) error {
-	var categories []models.Category
-	if err := db.DB.Find(&categories).Error; err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to fetch categories",
-		})
-	}
-	return c.JSON(categories)
-}
+// // @Summary ดึงรายการหมวดหมู่ทั้งหมด
+// // @Description ดึงรายการหมวดหมู่เครื่องพิมพ์ทั้งหมด
+// // @Produce json
+// // @Success 200 {array} models.Category
+// // @Router /api/printers/printer-categories [get]
+// // @Tags Printer
+// func GetPrinterCategories(c *fiber.Ctx) error {
+// 	var categories []models.Category
+// 	if err := db.DB.Find(&categories).Error; err != nil {
+// 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+// 			"error": "Failed to fetch categories",
+// 		})
+// 	}
+// 	return c.JSON(categories)
+// }
 
-// @Summary อัพเดทข้อมูลหมวดหมู่
-// @Description อัพเดทข้อมูลของหมวดหมู่เครื่องพิมพ์
-// @Accept json
-// @Produce json
-// @Param id path int true "Category ID"
-// @Param category body UpdateCategoryRequest true "ข้อมูลที่ต้องการอัพเดท"
-// @Success 200 {object} models.Category
-// @Router /api/printers/printer-categories/{id} [put]
-// @Tags Printer
-func UpdatePrinterCategory(c *fiber.Ctx) error {
-	id := c.Params("id")
-	var req UpdateCategoryRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request format",
-		})
-	}
+// // @Summary อัพเดทข้อมูลหมวดหมู่
+// // @Description อัพเดทข้อมูลของหมวดหมู่เครื่องพิมพ์
+// // @Accept json
+// // @Produce json
+// // @Param id path int true "Category ID"
+// // @Param category body UpdateCategoryRequest true "ข้อมูลที่ต้องการอัพเดท"
+// // @Success 200 {object} models.Category
+// // @Router /api/printers/printer-categories/{id} [put]
+// // @Tags Printer
+// func UpdatePrinterCategory(c *fiber.Ctx) error {
+// 	id := c.Params("id")
+// 	var req UpdateCategoryRequest
+// 	if err := c.BodyParser(&req); err != nil {
+// 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+// 			"error": "Invalid request format",
+// 		})
+// 	}
 
-	var category models.Category
-	if err := db.DB.First(&category, id).Error; err != nil {
-		return c.Status(http.StatusNotFound).JSON(fiber.Map{
-			"error": "Category not found",
-		})
-	}
+// 	var category models.Category
+// 	if err := db.DB.First(&category, id).Error; err != nil {
+// 		return c.Status(http.StatusNotFound).JSON(fiber.Map{
+// 			"error": "Category not found",
+// 		})
+// 	}
 
-	updates := map[string]interface{}{}
-	if req.Name != "" {
-		updates["name"] = req.Name
-	}
-	if req.Description != "" {
-		updates["description"] = req.Description
-	}
+// 	updates := map[string]interface{}{}
+// 	if req.Name != "" {
+// 		updates["name"] = req.Name
+// 	}
+// 	if req.Description != "" {
+// 		updates["description"] = req.Description
+// 	}
 
-	if err := db.DB.Model(&category).Updates(updates).Error; err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to update category",
-		})
-	}
+// 	if err := db.DB.Model(&category).Updates(updates).Error; err != nil {
+// 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+// 			"error": "Failed to update category",
+// 		})
+// 	}
 
-	return c.JSON(category)
-}
+// 	return c.JSON(category)
+// }
 
-// @Summary ลบหมวดหมู่
-// @Description ลบหมวดหมู่เครื่องพิมพ์
-// @Produce json
-// @Param id path int true "Category ID"
-// @Success 200 {object} map[string]interface{}
-// @Router /api/printers/printer-categories/{id} [delete]
-// @Tags Printer
-func DeletePrinterCategory(c *fiber.Ctx) error {
-	id := c.Params("id")
+// // @Summary ลบหมวดหมู่
+// // @Description ลบหมวดหมู่เครื่องพิมพ์
+// // @Produce json
+// // @Param id path int true "Category ID"
+// // @Success 200 {object} map[string]interface{}
+// // @Router /api/printers/printer-categories/{id} [delete]
+// // @Tags Printer
+// func DeletePrinterCategory(c *fiber.Ctx) error {
+// 	id := c.Params("id")
 
-	// ลบความสัมพันธ์กับเครื่องพิมพ์ก่อน
-	if err := db.DB.Exec("DELETE FROM printer_categories WHERE category_id = ?", id).Error; err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to remove printer associations",
-		})
-	}
+// 	// ลบความสัมพันธ์กับเครื่องพิมพ์ก่อน
+// 	if err := db.DB.Exec("DELETE FROM printer_categories WHERE category_id = ?", id).Error; err != nil {
+// 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+// 			"error": "Failed to remove printer associations",
+// 		})
+// 	}
 
-	if err := db.DB.Delete(&models.Category{}, id).Error; err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to delete category",
-		})
-	}
+// 	if err := db.DB.Delete(&models.Category{}, id).Error; err != nil {
+// 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+// 			"error": "Failed to delete category",
+// 		})
+// 	}
 
-	return c.JSON(fiber.Map{
-		"message": "Category deleted successfully",
-	})
-}
+// 	return c.JSON(fiber.Map{
+// 		"message": "Category deleted successfully",
+// 	})
+// }
 
 // @Summary กำหนดหมวดหมู่ให้เครื่องพิมพ์
 // @Description กำหนดหมวดหมู่ที่เครื่องพิมพ์สามารถพิมพ์ได้

@@ -160,6 +160,57 @@ definitions:
       uuid:
         type: string
     type: object
+  api_handlers.PaymentDiscountRequest:
+    properties:
+      discount_type_id:
+        type: integer
+      reason:
+        type: string
+      value:
+        type: number
+    required:
+    - discount_type_id
+    - value
+    type: object
+  api_handlers.PaymentExtraChargeRequest:
+    properties:
+      amount:
+        type: number
+      charge_type_id:
+        type: integer
+      note:
+        type: string
+      quantity:
+        minimum: 1
+        type: integer
+    required:
+    - amount
+    - charge_type_id
+    - quantity
+    type: object
+  api_handlers.PaymentRequest:
+    properties:
+      discounts:
+        items:
+          $ref: '#/definitions/api_handlers.PaymentDiscountRequest'
+        type: array
+      extra_charges:
+        items:
+          $ref: '#/definitions/api_handlers.PaymentExtraChargeRequest'
+        type: array
+      order_id:
+        type: integer
+      payment_method:
+        type: string
+      service_charge:
+        type: number
+      staff_id:
+        description: อย่าลืมแก้ binding:"required"`
+        type: integer
+    required:
+    - order_id
+    - payment_method
+    type: object
   api_handlers.PrinterResponse:
     properties:
       categories:
@@ -212,6 +263,10 @@ definitions:
       name:
         example: ลด 20% ทุกเมนูข้าว
         type: string
+      nameCh:
+        type: string
+      nameEn:
+        type: string
       start_date:
         type: string
       type:
@@ -246,13 +301,6 @@ definitions:
       name:
         type: string
       status:
-        type: string
-    type: object
-  api_handlers.UpdateCategoryRequest:
-    properties:
-      description:
-        type: string
-      name:
         type: string
     type: object
   api_handlers.UpdateStatusRequest:
@@ -306,6 +354,10 @@ definitions:
         type: array
       name:
         type: string
+      nameCh:
+        type: string
+      nameEn:
+        type: string
       price:
         type: number
       start_date:
@@ -358,6 +410,36 @@ definitions:
     - menu_item_id
     - quantity
     type: object
+  api_handlers.updatePromo_req:
+    properties:
+      description:
+        type: string
+      end_date:
+        type: string
+      items:
+        items:
+          properties:
+            id:
+              description: สำหรับ item ที่มีอยู่แล้ว
+              type: integer
+            menu_item_id:
+              type: integer
+            quantity:
+              minimum: 1
+              type: integer
+          type: object
+        type: array
+      name:
+        type: string
+      nameCh:
+        type: string
+      nameEn:
+        type: string
+      price:
+        type: number
+      start_date:
+        type: string
+    type: object
   api_handlers.updateStatusRequest:
     properties:
       status:
@@ -370,6 +452,23 @@ definitions:
         type: string
     required:
     - status
+    type: object
+  models.AdditionalChargeType:
+    properties:
+      createdAt:
+        type: string
+      defaultAmount:
+        description: ราคาเริ่มต้น
+        type: number
+      id:
+        type: integer
+      isActive:
+        type: boolean
+      name:
+        description: เช่น "แก้วแตก", "จานแตก"
+        type: string
+      updatedAt:
+        type: string
     type: object
   models.Category:
     properties:
@@ -415,6 +514,26 @@ definitions:
     - password
     - role
     - username
+    type: object
+  models.DiscountType:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      isActive:
+        type: boolean
+      name:
+        description: เช่น "ส่วนลดพนักงาน", "ส่วนลดสมาชิก"
+        type: string
+      type:
+        description: percentage/amount
+        type: string
+      updatedAt:
+        type: string
+      value:
+        description: จำนวนหรือเปอร์เซ็นต์
+        type: number
     type: object
   models.MenuItem:
     properties:
@@ -591,6 +710,60 @@ definitions:
       uuid:
         type: string
     type: object
+  models.OrderAdditionalCharge:
+    properties:
+      amount:
+        description: จำนวนเงินที่เก็บจริง
+        type: number
+      chargeType:
+        $ref: '#/definitions/models.AdditionalChargeType'
+      chargeTypeID:
+        type: integer
+      createdAt:
+        type: string
+      id:
+        type: integer
+      note:
+        description: บันทึกเพิ่มเติม
+        type: string
+      order:
+        $ref: '#/definitions/models.Order'
+      orderID:
+        type: integer
+      quantity:
+        type: integer
+      staff:
+        $ref: '#/definitions/models.Users'
+      staffID:
+        description: พนักงานที่บันทึก
+        type: integer
+    type: object
+  models.OrderDiscount:
+    properties:
+      createdAt:
+        type: string
+      discountType:
+        $ref: '#/definitions/models.DiscountType'
+      discountTypeID:
+        type: integer
+      id:
+        type: integer
+      order:
+        $ref: '#/definitions/models.Order'
+      orderID:
+        type: integer
+      reason:
+        description: เหตุผลที่ให้ส่วนลด (ถ้ามี)
+        type: string
+      staff:
+        $ref: '#/definitions/models.Users'
+      staffID:
+        description: พนักงานที่ให้ส่วนลด
+        type: integer
+      value:
+        description: จำนวนส่วนลดที่ใช้จริง
+        type: number
+    type: object
   models.OrderItem:
     properties:
       createdAt:
@@ -730,6 +903,54 @@ definitions:
       uuid:
         type: string
     type: object
+  models.Receipt:
+    properties:
+      chargeTotal:
+        description: ยอดรวมค่าใช้จ่ายเพิ่ม
+        type: number
+      charges:
+        items:
+          $ref: '#/definitions/models.OrderAdditionalCharge'
+        type: array
+      createdAt:
+        type: string
+      discountTotal:
+        description: ยอดรวมส่วนลด
+        type: number
+      discounts:
+        items:
+          $ref: '#/definitions/models.OrderDiscount'
+        type: array
+      id:
+        type: integer
+      order:
+        $ref: '#/definitions/models.Order'
+      orderID:
+        type: integer
+      paymentMethod:
+        description: วิธีการชำระเงิน
+        type: string
+      serviceCharge:
+        description: ค่าบริการ (ถ้ามี)
+        type: number
+      staff:
+        $ref: '#/definitions/models.Users'
+      staffID:
+        description: พนักงานที่รับชำระ
+        type: integer
+      subTotal:
+        description: ยอดรวมก่อนส่วนลด/ค่าใช้จ่ายเพิ่ม
+        type: number
+      tableID:
+        type: integer
+      total:
+        description: ยอดสุทธิ
+        type: number
+      updatedAt:
+        type: string
+      uuid:
+        type: string
+    type: object
   models.Table:
     properties:
       capacity:
@@ -762,6 +983,23 @@ definitions:
     - RoleStaff
     - RoleManager
     - RoleChef
+  models.Users:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      password:
+        type: string
+      role:
+        $ref: '#/definitions/models.UserRole'
+      updatedAt:
+        type: string
+      username:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -2272,6 +2510,129 @@ paths:
               $ref: '#/definitions/models.Order'
             type: array
       summary: ดึงรายการออเดอร์ตามโต๊ะ
+  /api/payment/charge-types:
+    get:
+      description: ดึงรายการประเภทค่าใช้จ่ายเพิ่มเติมที่เปิดใช้งาน
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.AdditionalChargeType'
+            type: array
+      summary: ดึงประเภทค่าใช้จ่ายเพิ่มเติมที่ใช้งานได้
+      tags:
+      - Payment
+    post:
+      consumes:
+      - application/json
+      description: สร้างประเภทค่าใช้จ่ายเพิ่มเติมใหม่ (สำหรับผู้จัดการ)
+      parameters:
+      - description: ข้อมูลประเภทค่าใช้จ่าย
+        in: body
+        name: charge
+        required: true
+        schema:
+          $ref: '#/definitions/models.AdditionalChargeType'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.AdditionalChargeType'
+      summary: สร้างประเภทค่าใช้จ่ายเพิ่มเติมใหม่
+      tags:
+      - Payment
+  /api/payment/discount-types:
+    get:
+      description: ดึงรายการประเภทส่วนลดที่เปิดใช้งาน
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.DiscountType'
+            type: array
+      summary: ดึงประเภทส่วนลดที่ใช้งานได้
+      tags:
+      - Payment
+    post:
+      consumes:
+      - application/json
+      description: สร้างประเภทส่วนลดใหม่ (สำหรับผู้จัดการ)
+      parameters:
+      - description: ข้อมูลประเภทส่วนลด
+        in: body
+        name: discount
+        required: true
+        schema:
+          $ref: '#/definitions/models.DiscountType'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.DiscountType'
+      summary: สร้างประเภทส่วนลดใหม่
+      tags:
+      - Payment
+  /api/payment/process:
+    post:
+      consumes:
+      - application/json
+      description: ชำระเงินสำหรับออเดอร์ พร้อมส่วนลดและค่าใช้จ่ายเพิ่มเติม
+      parameters:
+      - description: ข้อมูลการชำระเงิน
+        in: body
+        name: payment
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.PaymentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Receipt'
+        "400":
+          description: ข้อมูลไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: ไม่พบออเดอร์
+          schema:
+            additionalProperties: true
+            type: object
+      summary: ชำระเงิน
+      tags:
+      - Payment
+  /api/payment/receipt/{id}:
+    get:
+      description: ดึงข้อมูลใบเสร็จตาม ID
+      parameters:
+      - description: Receipt ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Receipt'
+      summary: ดึงใบเสร็จ
+      tags:
+      - Payment
   /api/printers:
     get:
       description: ดึงรายการเครื่องพิมพ์ทั้งหมดพร้อมหมวดหมู่
@@ -2353,67 +2714,6 @@ paths:
               $ref: '#/definitions/models.PrintJob'
             type: array
       summary: รับงานพิมพ์ที่รอดำเนินการ
-      tags:
-      - Printer
-  /api/printers/printer-categories:
-    get:
-      description: ดึงรายการหมวดหมู่เครื่องพิมพ์ทั้งหมด
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/models.Category'
-            type: array
-      summary: ดึงรายการหมวดหมู่ทั้งหมด
-      tags:
-      - Printer
-  /api/printers/printer-categories/{id}:
-    delete:
-      description: ลบหมวดหมู่เครื่องพิมพ์
-      parameters:
-      - description: Category ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      summary: ลบหมวดหมู่
-      tags:
-      - Printer
-    put:
-      consumes:
-      - application/json
-      description: อัพเดทข้อมูลของหมวดหมู่เครื่องพิมพ์
-      parameters:
-      - description: Category ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: ข้อมูลที่ต้องการอัพเดท
-        in: body
-        name: category
-        required: true
-        schema:
-          $ref: '#/definitions/api_handlers.UpdateCategoryRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.Category'
-      summary: อัพเดทข้อมูลหมวดหมู่
       tags:
       - Printer
   /api/printers/status/{id}:
@@ -2511,6 +2811,119 @@ paths:
       security:
       - BearerAuth: []
       summary: สร้างโปรโมชั่นใหม่
+      tags:
+      - promotions
+  /api/promotions/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: ลบโปรโมชั่นแบบ Soft Delete โดยการตั้งค่า DeletedAt
+      parameters:
+      - description: ID ของโปรโมชั่น
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ลบโปรโมชั่นสำเร็จ
+          schema:
+            $ref: '#/definitions/api_handlers.SuccessResponse'
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "404":
+          description: ไม่พบโปรโมชั่นที่ระบุ
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "500":
+          description: เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: ลบโปรโมชั่น (Soft Delete)
+      tags:
+      - promotions
+    get:
+      consumes:
+      - application/json
+      description: ดึงข้อมูลรายละเอียดของโปรโมชั่นตาม ID ที่ระบุ
+      parameters:
+      - description: ID ของโปรโมชั่น
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของโปรโมชั่น
+          schema:
+            $ref: '#/definitions/api_handlers.PromotionResponse'
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "404":
+          description: ไม่พบโปรโมชั่นที่ระบุ
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "500":
+          description: เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: ดึงข้อมูลโปรโมชั่นตาม ID
+      tags:
+      - promotions
+    put:
+      consumes:
+      - application/json
+      description: อัพเดตข้อมูลโปรโมชั่นและรายการสินค้าที่ร่วมรายการ
+      parameters:
+      - description: ID ของโปรโมชั่น
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ข้อมูลโปรโมชั่นที่ต้องการอัพเดต
+        in: body
+        name: promotion
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.updatePromo_req'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของโปรโมชั่นที่อัพเดตสำเร็จ
+          schema:
+            $ref: '#/definitions/api_handlers.PromotionResponse'
+        "400":
+          description: ข้อมูลไม่ถูกต้อง
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "404":
+          description: ไม่พบโปรโมชั่นที่ระบุ
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "500":
+          description: เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: อัพเดตข้อมูลโปรโมชั่น
       tags:
       - promotions
   /api/promotions/status/{id}:

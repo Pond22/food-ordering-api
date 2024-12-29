@@ -2276,6 +2276,193 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/payment/charge-types": {
+            "get": {
+                "description": "ดึงรายการประเภทค่าใช้จ่ายเพิ่มเติมที่เปิดใช้งาน",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment"
+                ],
+                "summary": "ดึงประเภทค่าใช้จ่ายเพิ่มเติมที่ใช้งานได้",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.AdditionalChargeType"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "สร้างประเภทค่าใช้จ่ายเพิ่มเติมใหม่ (สำหรับผู้จัดการ)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment"
+                ],
+                "summary": "สร้างประเภทค่าใช้จ่ายเพิ่มเติมใหม่",
+                "parameters": [
+                    {
+                        "description": "ข้อมูลประเภทค่าใช้จ่าย",
+                        "name": "charge",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.AdditionalChargeType"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.AdditionalChargeType"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/payment/discount-types": {
+            "get": {
+                "description": "ดึงรายการประเภทส่วนลดที่เปิดใช้งาน",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment"
+                ],
+                "summary": "ดึงประเภทส่วนลดที่ใช้งานได้",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.DiscountType"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "สร้างประเภทส่วนลดใหม่ (สำหรับผู้จัดการ)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment"
+                ],
+                "summary": "สร้างประเภทส่วนลดใหม่",
+                "parameters": [
+                    {
+                        "description": "ข้อมูลประเภทส่วนลด",
+                        "name": "discount",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.DiscountType"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.DiscountType"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/payment/process": {
+            "post": {
+                "description": "ชำระเงินสำหรับออเดอร์ พร้อมส่วนลดและค่าใช้จ่ายเพิ่มเติม",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment"
+                ],
+                "summary": "ชำระเงิน",
+                "parameters": [
+                    {
+                        "description": "ข้อมูลการชำระเงิน",
+                        "name": "payment",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.PaymentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Receipt"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบออเดอร์",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/payment/receipt/{id}": {
+            "get": {
+                "description": "ดึงข้อมูลใบเสร็จตาม ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment"
+                ],
+                "summary": "ดึงใบเสร็จ",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Receipt ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Receipt"
+                        }
+                    }
+                }
+            }
+        },
         "/api/printers": {
             "get": {
                 "description": "ดึงรายการเครื่องพิมพ์ทั้งหมดพร้อมหมวดหมู่",
@@ -2397,98 +2584,6 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/models.PrintJob"
                             }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/printers/printer-categories": {
-            "get": {
-                "description": "ดึงรายการหมวดหมู่เครื่องพิมพ์ทั้งหมด",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Printer"
-                ],
-                "summary": "ดึงรายการหมวดหมู่ทั้งหมด",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.Category"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/printers/printer-categories/{id}": {
-            "put": {
-                "description": "อัพเดทข้อมูลของหมวดหมู่เครื่องพิมพ์",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Printer"
-                ],
-                "summary": "อัพเดทข้อมูลหมวดหมู่",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Category ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "ข้อมูลที่ต้องการอัพเดท",
-                        "name": "category",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api_handlers.UpdateCategoryRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Category"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "ลบหมวดหมู่เครื่องพิมพ์",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Printer"
-                ],
-                "summary": "ลบหมวดหมู่",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Category ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
                         }
                     }
                 }
@@ -2702,6 +2797,182 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบโปรโมชั่นที่ระบุ",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/promotions/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ดึงข้อมูลรายละเอียดของโปรโมชั่นตาม ID ที่ระบุ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "promotions"
+                ],
+                "summary": "ดึงข้อมูลโปรโมชั่นตาม ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของโปรโมชั่น",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของโปรโมชั่น",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.PromotionResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบโปรโมชั่นที่ระบุ",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "อัพเดตข้อมูลโปรโมชั่นและรายการสินค้าที่ร่วมรายการ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "promotions"
+                ],
+                "summary": "อัพเดตข้อมูลโปรโมชั่น",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของโปรโมชั่น",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "ข้อมูลโปรโมชั่นที่ต้องการอัพเดต",
+                        "name": "promotion",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.updatePromo_req"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของโปรโมชั่นที่อัพเดตสำเร็จ",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.PromotionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบโปรโมชั่นที่ระบุ",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ลบโปรโมชั่นแบบ Soft Delete โดยการตั้งค่า DeletedAt",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "promotions"
+                ],
+                "summary": "ลบโปรโมชั่น (Soft Delete)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของโปรโมชั่น",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ลบโปรโมชั่นสำเร็จ",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.SuccessResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
                         "schema": {
                             "$ref": "#/definitions/api_handlers.ErrorResponse"
                         }
@@ -3685,6 +3956,81 @@ const docTemplate = `{
                 }
             }
         },
+        "api_handlers.PaymentDiscountRequest": {
+            "type": "object",
+            "required": [
+                "discount_type_id",
+                "value"
+            ],
+            "properties": {
+                "discount_type_id": {
+                    "type": "integer"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "number"
+                }
+            }
+        },
+        "api_handlers.PaymentExtraChargeRequest": {
+            "type": "object",
+            "required": [
+                "amount",
+                "charge_type_id",
+                "quantity"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "charge_type_id": {
+                    "type": "integer"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
+        "api_handlers.PaymentRequest": {
+            "type": "object",
+            "required": [
+                "order_id",
+                "payment_method"
+            ],
+            "properties": {
+                "discounts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api_handlers.PaymentDiscountRequest"
+                    }
+                },
+                "extra_charges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api_handlers.PaymentExtraChargeRequest"
+                    }
+                },
+                "order_id": {
+                    "type": "integer"
+                },
+                "payment_method": {
+                    "type": "string"
+                },
+                "service_charge": {
+                    "type": "number"
+                },
+                "staff_id": {
+                    "description": "อย่าลืมแก้ binding:\"required\"` + "`" + `",
+                    "type": "integer"
+                }
+            }
+        },
         "api_handlers.PrinterResponse": {
             "type": "object",
             "properties": {
@@ -3763,6 +4109,12 @@ const docTemplate = `{
                     "type": "string",
                     "example": "ลด 20% ทุกเมนูข้าว"
                 },
+                "nameCh": {
+                    "type": "string"
+                },
+                "nameEn": {
+                    "type": "string"
+                },
                 "start_date": {
                     "type": "string"
                 },
@@ -3814,17 +4166,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "api_handlers.UpdateCategoryRequest": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "name": {
                     "type": "string"
                 }
             }
@@ -3912,6 +4253,12 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "nameCh": {
+                    "type": "string"
+                },
+                "nameEn": {
+                    "type": "string"
+                },
                 "price": {
                     "type": "number"
                 },
@@ -3981,6 +4328,51 @@ const docTemplate = `{
                 }
             }
         },
+        "api_handlers.updatePromo_req": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "description": "สำหรับ item ที่มีอยู่แล้ว",
+                                "type": "integer"
+                            },
+                            "menu_item_id": {
+                                "type": "integer"
+                            },
+                            "quantity": {
+                                "type": "integer",
+                                "minimum": 1
+                            }
+                        }
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "nameCh": {
+                    "type": "string"
+                },
+                "nameEn": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "start_date": {
+                    "type": "string"
+                }
+            }
+        },
         "api_handlers.updateStatusRequest": {
             "type": "object",
             "required": [
@@ -3996,6 +4388,31 @@ const docTemplate = `{
                         "served",
                         "cancelled"
                     ]
+                }
+            }
+        },
+        "models.AdditionalChargeType": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "defaultAmount": {
+                    "description": "ราคาเริ่มต้น",
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "isActive": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "description": "เช่น \"แก้วแตก\", \"จานแตก\"",
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
                 }
             }
         },
@@ -4063,6 +4480,35 @@ const docTemplate = `{
                 "username": {
                     "type": "string",
                     "minLength": 3
+                }
+            }
+        },
+        "models.DiscountType": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "isActive": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "description": "เช่น \"ส่วนลดพนักงาน\", \"ส่วนลดสมาชิก\"",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "percentage/amount",
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "value": {
+                    "description": "จำนวนหรือเปอร์เซ็นต์",
+                    "type": "number"
                 }
             }
         },
@@ -4327,6 +4773,85 @@ const docTemplate = `{
                 }
             }
         },
+        "models.OrderAdditionalCharge": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "description": "จำนวนเงินที่เก็บจริง",
+                    "type": "number"
+                },
+                "chargeType": {
+                    "$ref": "#/definitions/models.AdditionalChargeType"
+                },
+                "chargeTypeID": {
+                    "type": "integer"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "note": {
+                    "description": "บันทึกเพิ่มเติม",
+                    "type": "string"
+                },
+                "order": {
+                    "$ref": "#/definitions/models.Order"
+                },
+                "orderID": {
+                    "type": "integer"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "staff": {
+                    "$ref": "#/definitions/models.Users"
+                },
+                "staffID": {
+                    "description": "พนักงานที่บันทึก",
+                    "type": "integer"
+                }
+            }
+        },
+        "models.OrderDiscount": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "discountType": {
+                    "$ref": "#/definitions/models.DiscountType"
+                },
+                "discountTypeID": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "order": {
+                    "$ref": "#/definitions/models.Order"
+                },
+                "orderID": {
+                    "type": "integer"
+                },
+                "reason": {
+                    "description": "เหตุผลที่ให้ส่วนลด (ถ้ามี)",
+                    "type": "string"
+                },
+                "staff": {
+                    "$ref": "#/definitions/models.Users"
+                },
+                "staffID": {
+                    "description": "พนักงานที่ให้ส่วนลด",
+                    "type": "integer"
+                },
+                "value": {
+                    "description": "จำนวนส่วนลดที่ใช้จริง",
+                    "type": "number"
+                }
+            }
+        },
         "models.OrderItem": {
             "type": "object",
             "properties": {
@@ -4531,6 +5056,75 @@ const docTemplate = `{
                 }
             }
         },
+        "models.Receipt": {
+            "type": "object",
+            "properties": {
+                "chargeTotal": {
+                    "description": "ยอดรวมค่าใช้จ่ายเพิ่ม",
+                    "type": "number"
+                },
+                "charges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.OrderAdditionalCharge"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "discountTotal": {
+                    "description": "ยอดรวมส่วนลด",
+                    "type": "number"
+                },
+                "discounts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.OrderDiscount"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "order": {
+                    "$ref": "#/definitions/models.Order"
+                },
+                "orderID": {
+                    "type": "integer"
+                },
+                "paymentMethod": {
+                    "description": "วิธีการชำระเงิน",
+                    "type": "string"
+                },
+                "serviceCharge": {
+                    "description": "ค่าบริการ (ถ้ามี)",
+                    "type": "number"
+                },
+                "staff": {
+                    "$ref": "#/definitions/models.Users"
+                },
+                "staffID": {
+                    "description": "พนักงานที่รับชำระ",
+                    "type": "integer"
+                },
+                "subTotal": {
+                    "description": "ยอดรวมก่อนส่วนลด/ค่าใช้จ่ายเพิ่ม",
+                    "type": "number"
+                },
+                "tableID": {
+                    "type": "integer"
+                },
+                "total": {
+                    "description": "ยอดสุทธิ",
+                    "type": "number"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
         "models.Table": {
             "type": "object",
             "properties": {
@@ -4575,6 +5169,32 @@ const docTemplate = `{
                 "RoleManager",
                 "RoleChef"
             ]
+        },
+        "models.Users": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "role": {
+                    "$ref": "#/definitions/models.UserRole"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
         }
     },
     "securityDefinitions": {

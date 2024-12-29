@@ -26,7 +26,7 @@ min-width: fit-content;
 
 .menuList {
     padding: 2px;
-    padding-top: 20px;
+    padding-top: 110px;
     
   }
   
@@ -256,4 +256,10 @@ h1{
   border-radius: 50%;
   width: 25px;
   height: 25px;
+}
+@media (min-width: 1025px) {
+  .header{
+    margin-left: 250px;
+  }
+
 }
