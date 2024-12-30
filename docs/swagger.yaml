@@ -280,6 +280,17 @@ definitions:
           type: integer
         type: array
     type: object
+  api_handlers.ReservationRequest:
+    properties:
+      customer_name:
+        type: string
+      guest_count:
+        type: integer
+      phone_number:
+        type: string
+      reserved_for:
+        type: string
+    type: object
   api_handlers.ResetPasswordRequest:
     properties:
       new_password:
@@ -420,6 +431,7 @@ definitions:
         items:
           properties:
             id:
+              description: สำหรับ item ที่มีอยู่แล้ว
               type: integer
             menu_item_id:
               type: integer
@@ -3240,6 +3252,12 @@ paths:
       - application/json
       description: จองโต๊ะโดยโต๊ะต้องอยู่ในถานะพร้อมให้บริการถึงจองได้
       parameters:
+      - description: ข้อมูลการจองโต๊ะ
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.ReservationRequest'
       - description: ID ของกลุ่มโต๊ะนั้นๆ
         in: path
         name: id

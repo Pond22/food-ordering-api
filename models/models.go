@@ -124,6 +124,20 @@ type Table struct {
 	DeletedAt gorm.DeletedAt `json:"-" swaggerignore:"true"`
 }
 
+type TableReservation struct {
+	ID           uint      `gorm:"primaryKey"`
+	TableID      uint      `gorm:"not null"`                   // Foreign key to Table
+	Table        Table     `gorm:"foreignKey:TableID"`         // Relation to Table
+	CustomerName string    `gorm:"type:varchar(100);not null"` // ชื่อลูกค้าที่จอง
+	PhoneNumber  string    `gorm:"type:varchar(20);not null"`  // เบอร์โทรศัพท์
+	GuestCount   int       `gorm:"not null"`                   // จำนวนลูกค้า
+	ReservedFor  time.Time `gorm:"not null"`                   // เวลาที่ลูกค้าจะมาใช้บริการ
+	Status       string    `gorm:"not null;default:'active'"`  // active, cancelled, completed
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	DeletedAt    gorm.DeletedAt `json:"-" swaggerignore:"true"`
+}
+
 // TableHistory - เก็บประวัติการย้าย/รวมโต๊ะ
 // type TableHistory struct {
 // 	ID          uint   `gorm:"primaryKey"`

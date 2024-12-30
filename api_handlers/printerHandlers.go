@@ -1,11 +1,22 @@
 package api_handlers
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/base64"
+	"fmt"
 	"food-ordering-api/db"
 	"food-ordering-api/models"
+	"image"
+	"image/draw"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang/freetype/truetype"
+	"golang.org/x/image/font"
+	"golang.org/x/image/math/fixed"
 )
 
 // Request structs
@@ -268,7 +279,174 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(jobs)
+	// แปลงเนื้อหาของแต่ละ job เป็น bitmap
+	var processedJobs []fiber.Map
+	for _, job := range jobs {
+		// สร้าง bitmap จาก content
+		bitmapImage, err := convertToBitmap(job.Content)
+		if err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"error": fmt.Sprintf("Failed to convert job %d to bitmap", job.ID),
+			})
+		}
+
+		processedJobs = append(processedJobs, fiber.Map{
+			"ID":        job.ID,
+			"PrinterIP": job.PrinterIP,
+			"OrderID":   job.OrderID,
+			"Content":   base64.StdEncoding.EncodeToString(bitmapImage), // แปลงเป็น base64
+			"Status":    job.Status,
+			"CreatedAt": job.CreatedAt,
+		})
+	}
+
+	return c.JSON(processedJobs)
+}
+
+// ฟังก์ชันแปลงเนื้อหาเป็น bitmap
+func convertToBitmap(content []byte) ([]byte, error) {
+	// กำหนดค่าพื้นฐาน
+	width := 576
+	dpi := 203.0
+	fontSize := 18.0
+	lineSpacing := 3.0
+	leftPadding := 10
+	printableWidth := width - (leftPadding * 2)
+
+	// โหลดฟอนต์
+	fontBytes, err := os.ReadFile("THSarabunNew.ttf")
+	if err != nil {
+		return nil, fmt.Errorf("error loading font: %v", err)
+	}
+
+	f, err := truetype.Parse(fontBytes)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing font: %v", err)
+	}
+
+	// สร้าง font.Face
+	face := truetype.NewFace(f, &truetype.Options{
+		Size:    fontSize,
+		DPI:     dpi,
+		Hinting: font.HintingNone,
+	})
+	defer face.Close()
+
+	// สร้าง drawer
+	d := &font.Drawer{
+		Dst:  nil, // จะกำหนดหลังจากสร้างภาพ
+		Src:  image.Black,
+		Face: face,
+	}
+
+	// เตรียม drawer สำหรับวัดความกว้าง
+	tempImg := image.NewRGBA(image.Rect(0, 0, width, 1000))
+	d.Dst = tempImg
+
+	// เก็บบรรทัดที่ถูกตัดคำ
+	var allLines []string
+
+	// อ่านข้อความบรรทัดต่อบรรทัด
+	scanner := bufio.NewScanner(bytes.NewReader(content))
+	for scanner.Scan() {
+		text := scanner.Text()
+
+		// ตัดคำตามความกว้าง
+		wrappedLines := segmentText(text, printableWidth, d)
+		allLines = append(allLines, wrappedLines...)
+	}
+
+	// คำนวณความสูงของภาพ
+	totalLines := len(allLines)
+	height := int(float64(totalLines)*fontSize*lineSpacing) + 100
+
+	// สร้างภาพใหม่พื้นขาว
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	draw.Draw(img, img.Bounds(), image.White, image.Point{}, draw.Src)
+
+	// กำหนดภาพให้กับ drawer
+	d.Dst = img
+
+	// วาดข้อความ
+	y := int(fontSize * 3.0)
+	for _, text := range allLines {
+		d.Dot = fixed.Point26_6{
+			X: fixed.I(leftPadding),
+			Y: fixed.I(y),
+		}
+		d.DrawString(text)
+		y += int(fontSize * lineSpacing)
+	}
+
+	// แปลงเป็น bitmap
+	var buf bytes.Buffer
+	buf.Write([]byte{0x1D, 0x76, 0x30, 0x00}) // Set bitmap mode
+
+	// คำนวณขนาด bitmap
+	widthBytes := (width + 7) / 8
+	buf.WriteByte(byte(widthBytes & 0xFF))
+	buf.WriteByte(byte(widthBytes >> 8))
+	buf.WriteByte(byte(height & 0xFF))
+	buf.WriteByte(byte(height >> 8))
+
+	// แปลงภาพเป็น bitmap
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x += 8 {
+			var b byte
+			for bit := 0; bit < 8; bit++ {
+				if x+bit < width {
+					r, g, b_, _ := img.At(x+bit, y).RGBA()
+					if (r+g+b_)/3 < 0xCFFF {
+						b |= 1 << (7 - bit)
+					}
+				}
+			}
+			buf.WriteByte(b)
+		}
+	}
+
+	return buf.Bytes(), nil
+}
+
+func segmentText(text string, maxWidth int, d *font.Drawer) []string {
+	var segments []string
+	currentSegment := ""
+
+	// แยกข้อความออกเป็นคำๆ
+	words := strings.Fields(text)
+
+	for _, word := range words {
+		// ทดสอบความยาวของประโยคปัจจุบัน
+		testSegment := currentSegment + word
+		if currentSegment != "" {
+			testSegment = currentSegment + " " + word
+		}
+
+		// วัดความกว้างของข้อความ
+		testWidth := d.MeasureString(testSegment).Ceil()
+
+		if testWidth > maxWidth {
+			// ถ้าความยาวเกินที่กำหนด ให้บันทึกส่วนปัจจุบัน
+			if currentSegment != "" {
+				segments = append(segments, strings.TrimSpace(currentSegment))
+			}
+			currentSegment = word
+		} else {
+			// ถ้าสามารถใส่คำได้ ให้เพิ่มคำ
+			if currentSegment == "" {
+				currentSegment = word
+			} else {
+				currentSegment += " " + word
+			}
+		}
+	}
+
+	// เพิ่มส่วนสุดท้าย
+	if currentSegment != "" {
+		segments = append(segments, strings.TrimSpace(currentSegment))
+	}
+
+	return segments
 }
 
 // @Summary อัพเดทสถานะงานพิมพ์

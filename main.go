@@ -10,18 +10,18 @@ import (
 	service "food-ordering-api/services"
 	"image"
 	"image/draw"
-	"image/png"
 	"log"
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/swagger"
-	"github.com/golang/freetype"
 	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/font"
+	"golang.org/x/image/math/fixed"
 )
 
 // @title Food Ordering API
@@ -95,7 +95,6 @@ func main() {
 }
 
 // type Command struct {
-// 	// สำหรับสะสมคำสั่ง ESC/POS
 // 	data []byte
 // }
 
@@ -113,142 +112,137 @@ func main() {
 // 	c.data = append(c.data, []byte(s)...)
 // }
 
+// func (c *Command) AddThaiString(s string) {
+// 	tis620Bytes := utf8ToTis620(s)
+// 	c.data = append(c.data, tis620Bytes...)
+// }
+
+// func utf8ToTis620(s string) []byte {
+// 	result := make([]byte, 0, len(s))
+// 	for _, r := range s {
+// 		if r <= 0xFF {
+// 			result = append(result, byte(r))
+// 		} else if r >= 0x0E01 && r <= 0x0E5B {
+// 			result = append(result, byte(r-0x0D60))
+// 		}
+// 	}
+// 	return result
+// }
+
 // func testCharacterControl(printerIP string, port int) error {
-// 	// สร้างชุดคำสั่งทั้งหมดที่เกี่ยวกับตัวอักษร
 // 	controls := []struct {
 // 		name string
 // 		cmds [][]byte
 // 	}{
-// 		// FS ! n Select print mode(s) for Kanji characters
-// 		{"Kanji Mode 1", [][]byte{
-// 			{0x1B, 0x40},       // Initialize
-// 			{0x1C, 0x21, 0x00}, // FS ! n
-// 			{0x1C, 0x26},       // FS & Select Kanji character mode
-// 		}},
-
-// 		// Select character code table
-// 		{"Code Table Test 1", [][]byte{
-// 			{0x1B, 0x40},       // Initialize
-// 			{0x1B, 0x74, 0x01}, // ESC t n
-// 			{0x1C, 0x43, 0x01}, // FS C n
-// 		}},
-
-// 		{"Code Table Test 2", [][]byte{
-// 			{0x1B, 0x40},       // Initialize
-// 			{0x1B, 0x74, 0x02}, // ESC t n
-// 			{0x1C, 0x43, 0x02}, // FS C n
-// 		}},
-
-// 		// Try different character sets
-// 		{"Character Set 1", [][]byte{
-// 			{0x1B, 0x40},       // Initialize
-// 			{0x1B, 0x52, 0x0D}, // ESC R n
-// 			{0x1B, 0x74, 0x11}, // ESC t n
-// 		}},
-
-// 		{"Character Set 2", [][]byte{
-// 			{0x1B, 0x40},       // Initialize
-// 			{0x1B, 0x52, 0x0E}, // ESC R n
-// 			{0x1B, 0x74, 0x1C}, // ESC t n
-// 		}},
-
-// 		// Try different combinations
-// 		{"Combo 1", [][]byte{
-// 			{0x1B, 0x40},       // Initialize
-// 			{0x1B, 0x4D, 0x01}, // Select character font
-// 			{0x1B, 0x74, 0x11}, // Select character code table
-// 			{0x1B, 0x52, 0x0D}, // Select international character set
-// 		}},
-
-// 		{"Combo 2", [][]byte{
-// 			{0x1B, 0x40},       // Initialize
-// 			{0x1B, 0x4D, 0x00}, // Select character font
-// 			{0x1B, 0x74, 0x1C}, // Select character code table
-// 			{0x1B, 0x52, 0x0E}, // Select international character set
-// 		}},
-
-// 		// Try extended commands
-// 		{"Extended 1", [][]byte{
-// 			{0x1B, 0x40},       // Initialize
-// 			{0x1C, 0x21, 0x00}, // Select character size for Kanji
-// 			{0x1C, 0x2E},       // Cancel Kanji character mode
-// 			{0x1B, 0x74, 0x11}, // Select character code table
-// 		}},
-
-// 		{"Extended 2", [][]byte{
-// 			{0x1B, 0x40},       // Initialize
-// 			{0x1C, 0x21, 0x00}, // Select character size for Kanji
-// 			{0x1C, 0x26},       // Select Kanji character mode
-// 			{0x1B, 0x74, 0x1C}, // Select character code table
-// 		}},
-
-// 		// Try user-defined characters
-// 		{"User Defined", [][]byte{
-// 			{0x1B, 0x40},       // Initialize
-// 			{0x1B, 0x25, 0x01}, // Select user-defined character set
-// 			{0x1B, 0x74, 0x11}, // Select character code table
-// 		}},
-
-// 		// Try different text modes
-// 		{"Text Mode 1", [][]byte{
-// 			{0x1B, 0x40},       // Initialize
-// 			{0x1B, 0x21, 0x00}, // Select print mode(s)
-// 			{0x1B, 0x74, 0x11}, // Select character code table
-// 			{0x1B, 0x52, 0x0D}, // Select international character set
-// 		}},
-
-// 		// Additional combinations
-// 		{"Additional 1", [][]byte{
-// 			{0x1B, 0x40},       // Initialize
-// 			{0x1C, 0x26},       // Select Kanji mode
-// 			{0x1B, 0x74, 0x11}, // TIS-620
-// 			{0x1B, 0x52, 0x0E}, // Thai character set
-// 		}},
-
-// 		{"Additional 2", [][]byte{
-// 			{0x1B, 0x40},       // Initialize
-// 			{0x1C, 0x26},       // Select Kanji mode
-// 			{0x1B, 0x74, 0x1C}, // CP-874
-// 			{0x1B, 0x52, 0x0D}, // Thai character set
-// 		}},
-
-// 		// Try every possible code page one by one
-// 		{"Code Page Loop", [][]byte{
-// 			{0x1B, 0x40},       // Initialize
-// 			{0x1B, 0x74, 0xFF}, // Will be replaced in loop
-// 		}},
+// 		// ชุดทดสอบพื้นฐาน TIS-620
+// 		{
+// 			"TIS-620 Basic", [][]byte{
+// 				{0x1B, 0x40},       // Initialize
+// 				{0x1B, 0x74, 0x11}, // TIS-620
+// 				{0x1B, 0x52, 0x0D}, // Thai character set
+// 			},
+// 		},
+// 		// ชุดทดสอบพื้นฐาน CP-874
+// 		{
+// 			"CP-874 Basic", [][]byte{
+// 				{0x1B, 0x40},       // Initialize
+// 				{0x1B, 0x74, 0x1C}, // CP-874
+// 				{0x1B, 0x52, 0x0D}, // Thai character set
+// 			},
+// 		},
+// 		// ชุดทดสอบ Thai 3-Pass
+// 		{
+// 			"Thai 3-Pass Mode", [][]byte{
+// 				{0x1B, 0x40},       // Initialize
+// 				{0x1B, 0x74, 0x1C}, // CP-874
+// 				{0x1B, 0x52, 0x0D}, // Thai character set
+// 				{0x1C, 0x43, 0x01}, // Thai 3-pass mode
+// 			},
+// 		},
+// 		// ชุดทดสอบตัวหนา
+// 		{
+// 			"Bold Thai", [][]byte{
+// 				{0x1B, 0x40},       // Initialize
+// 				{0x1B, 0x74, 0x1C}, // CP-874
+// 				{0x1B, 0x45, 0x01}, // Bold
+// 				{0x1C, 0x43, 0x01}, // Thai 3-pass
+// 			},
+// 		},
+// 		// ชุดทดสอบขนาดตัวอักษร
+// 		{
+// 			"Double Size Thai", [][]byte{
+// 				{0x1B, 0x40},       // Initialize
+// 				{0x1B, 0x74, 0x1C}, // CP-874
+// 				{0x1B, 0x21, 0x30}, // Double width & height
+// 				{0x1C, 0x43, 0x01}, // Thai 3-pass
+// 			},
+// 		},
+// 		// ชุดทดสอบระยะห่าง
+// 		{
+// 			"Thai Spacing", [][]byte{
+// 				{0x1B, 0x40},       // Initialize
+// 				{0x1B, 0x74, 0x1C}, // CP-874
+// 				{0x1B, 0x20, 0x08}, // Character spacing
+// 				{0x1B, 0x33, 0x24}, // Line spacing
+// 				{0x1C, 0x43, 0x01}, // Thai 3-pass
+// 			},
+// 		},
+// 		// ชุดทดสอบแบบผสม
+// 		{
+// 			"Mixed Thai Format", [][]byte{
+// 				{0x1B, 0x40},       // Initialize
+// 				{0x1B, 0x74, 0x1C}, // CP-874
+// 				{0x1B, 0x21, 0x30}, // Double size
+// 				{0x1B, 0x45, 0x01}, // Bold
+// 				{0x1B, 0x2D, 0x01}, // Underline
+// 				{0x1C, 0x43, 0x01}, // Thai 3-pass
+// 			},
+// 		},
 // 	}
 
-// 	// ทดสอบแต่ละชุดคำสั่ง
+// 	thaiTestStrings := []string{
+// 		"ทดสอบภาษาไทย",
+// 		"สวัสดีครับ/ค่ะ",
+// 		"กขคงจฉชซ",
+// 		"ฟหกด่าสวงเืท",
+// 		"๐๑๒๓๔๕๖๗๘๙",
+// 	}
+
 // 	for _, control := range controls {
 // 		cmd := NewCommand()
 
-// 		// Special case for code page loop
-// 		if control.name == "Code Page Loop" {
+// 		if control.name == "Code Page Test" {
+// 			// ทดสอบทุก code page ที่เป็นไปได้
 // 			for i := 0; i < 256; i++ {
 // 				cmd.AddBytes([]byte{0x1B, 0x40})          // Initialize
-// 				cmd.AddBytes([]byte{0x1B, 0x74, byte(i)}) // Try each code page
-// 				cmd.AddString(fmt.Sprintf("\n=== Testing Code Page %d ===\n", i))
-// 				cmd.AddString("ทดสอบภาษาไทย\n")
-// 				cmd.AddString("สวัสดีครับ/ค่ะ\n")
-// 				cmd.AddString("กขคงจฉชซ\n")
+// 				cmd.AddBytes([]byte{0x1B, 0x74, byte(i)}) // Set code page
+// 				cmd.AddString(fmt.Sprintf("\n=== Code Page %d ===\n", i))
+
+// 				for _, thaiStr := range thaiTestStrings {
+// 					cmd.AddThaiString(thaiStr + "\n")
+// 				}
 // 				cmd.AddString("---------------\n")
+// 				time.Sleep(1 * time.Second)
 // 			}
 // 		} else {
 // 			cmd.AddString(fmt.Sprintf("\n=== %s ===\n", control.name))
+
+// 			// ใส่คำสั่งควบคุมเครื่องพิมพ์
 // 			for _, command := range control.cmds {
 // 				cmd.AddBytes(command)
 // 			}
-// 			cmd.AddString("ทดสอบภาษาไทย\n")
-// 			cmd.AddString("สวัสดีครับ/ค่ะ\n")
-// 			cmd.AddString("กขคงจฉชซ\n")
+
+// 			// พิมพ์ข้อความทดสอบ
+// 			for _, thaiStr := range thaiTestStrings {
+// 				cmd.AddThaiString(thaiStr + "\n")
+// 			}
 // 			cmd.AddString("---------------\n")
 // 		}
 
-// 		// Cut paper between tests
+// 		// ตัดกระดาษ
 // 		cmd.AddBytes([]byte{0x1D, 0x56, 0x41, 0x03})
 
-// 		// Send to printer
+// 		// เชื่อมต่อและส่งข้อมูล
 // 		conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", printerIP, port))
 // 		if err != nil {
 // 			return fmt.Errorf("connection failed for %s: %v", control.name, err)
@@ -256,30 +250,103 @@ func main() {
 
 // 		_, err = conn.Write(cmd.data)
 // 		if err != nil {
+// 			conn.Close()
 // 			return fmt.Errorf("write failed for %s: %v", control.name, err)
 // 		}
 
 // 		conn.Close()
-// 		time.Sleep(2 * time.Second) // รอระหว่างแต่ละชุดทดสอบ
+// 		time.Sleep(4 * time.Second) // รอระหว่างแต่ละชุดทดสอบ
 // 	}
 
 // 	return nil
 // }
 
+func generateDashedLine(lineWidth int) string {
+	// คำนวณจำนวนขีดที่ต้องการ โดยหารด้วยความกว้างของเครื่องหมาย '-'
+	// ในที่นี้ใช้ 9 พิกเซลต่อขีด (ปรับตามขนาดฟอนต์และ DPI)
+	count := lineWidth / 9
+	// สร้าง slice ของเครื่องหมายขีด
+	dashes := make([]byte, count)
+	for i := range dashes {
+		dashes[i] = '-'
+	}
+	return string(dashes)
+}
+
+// type wordDict map[string]bool
+
+// func loadDictionary(filePath string) (wordDict, error) {
+// 	// อ่านข้อมูลจากไฟล์ lexitron.txt
+// 	fileData, err := os.ReadFile(filePath)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	// แยกคำเป็น slice
+// 	words := strings.Split(string(fileData), "\n")
+
+// 	// สร้าง wordDict
+// 	dict := make(wordDict)
+// 	for _, word := range words {
+// 		dict[word] = true
+// 	}
+
+// 	return dict, nil
+// }
+
+func segmentText(text string, maxWidth int, d *font.Drawer) []string {
+	var segments []string
+	currentSegment := ""
+
+	// แยกข้อความออกเป็นคำๆ
+	words := strings.Fields(text)
+
+	for _, word := range words {
+		// ทดสอบความยาวของประโยคปัจจุบัน
+		testSegment := currentSegment + word
+		if currentSegment != "" {
+			testSegment = currentSegment + " " + word
+		}
+
+		// วัดความกว้างของข้อความ
+		testWidth := d.MeasureString(testSegment).Ceil()
+
+		if testWidth > maxWidth {
+			// ถ้าความยาวเกินที่กำหนด ให้บันทึกส่วนปัจจุบัน
+			if currentSegment != "" {
+				segments = append(segments, strings.TrimSpace(currentSegment))
+			}
+			currentSegment = word
+		} else {
+			// ถ้าสามารถใส่คำได้ ให้เพิ่มคำ
+			if currentSegment == "" {
+				currentSegment = word
+			} else {
+				currentSegment += " " + word
+			}
+		}
+	}
+
+	// เพิ่มส่วนสุดท้าย
+	if currentSegment != "" {
+		segments = append(segments, strings.TrimSpace(currentSegment))
+	}
+
+	return segments
+}
+
 func testDirectImagePrint(printerIP string, port int) error {
-	// สร้างภาพทดสอบ
-	width := 384 // เพิ่มความกว้าง
-	height := 400
-	dpi := float64(203)             // ตั้งค่า DPI ตามเครื่องพิมพ์
-	fontSize := 16.0                // เพิ่มขนาดฟอนต์
-	lineSpacing := (fontSize * 1.5) // ระยะห่างระหว่างบรรทัด
-	maxLineWidth := 32              // จำนวนตัวอักษรต่อบรรทัด
+	// กำหนดค่าพื้นฐาน
+	width := 576 //640
+	dpi := 203.0
+	fontSize := 14.0
+	lineSpacing := 2.5
+	leftPadding := 10
 
-	// สร้างภาพใหม่พื้นขาว
-	img := image.NewRGBA(image.Rect(0, 0, width, height))
-	draw.Draw(img, img.Bounds(), image.White, image.Point{}, draw.Src)
+	// คำนวณความกว้างที่พิมพ์ได้จริง
+	printableWidth := width - (leftPadding * 2)
 
-	// โหลด font
+	// โหลดฟอนต์
 	fontBytes, err := os.ReadFile("THSarabunNew.ttf")
 	if err != nil {
 		return fmt.Errorf("error loading font: %v", err)
@@ -290,96 +357,165 @@ func testDirectImagePrint(printerIP string, port int) error {
 		return fmt.Errorf("error parsing font: %v", err)
 	}
 
-	c := freetype.NewContext()
-	c.SetDPI(dpi)
-	c.SetFont(f)
-	c.SetFontSize(fontSize)
-	c.SetClip(img.Bounds())
-	c.SetDst(img)
-	c.SetSrc(image.Black)
-	c.SetHinting(font.HintingFull)
+	// สร้าง font.Face
+	face := truetype.NewFace(f, &truetype.Options{
+		Size:    fontSize,
+		DPI:     dpi,
+		Hinting: font.HintingNone,
+	})
+	defer face.Close()
 
-	// ข้อความทดสอบ
-	longText := "ทดสอบภาษาไทยโดยหลับปุ๋ย ทดสอบการตัดข้อความและความถูกต้องในการพิมพ์เมื่อข้อความยาว ทดสอบ123ทดสอบ123ทดสอบ123ทดสอบ123"
-
-	// แบ่งข้อความเป็นบรรทัด
-	var lines []string
-	words := strings.Fields(longText)
-	currentLine := ""
-
-	for _, word := range words {
-		testLine := currentLine
-		if testLine != "" {
-			testLine += " "
-		}
-		testLine += word
-
-		if len(testLine) > maxLineWidth {
-			if currentLine != "" {
-				lines = append(lines, currentLine)
-				currentLine = word
-			} else {
-				// คำเดียวยาวเกิน แบ่งกลางคำ
-				lines = append(lines, word[:maxLineWidth])
-				currentLine = word[maxLineWidth:]
-			}
-		} else {
-			currentLine = testLine
-		}
-	}
-	if currentLine != "" {
-		lines = append(lines, currentLine)
+	// สร้าง drawer
+	d := &font.Drawer{
+		Dst:  nil, // จะกำหนดหลังจากสร้างภาพ
+		Src:  image.Black,
+		Face: face,
 	}
 
-	// วาดแต่ละบรรทัด
-	y := int(fontSize * 1.5) // เริ่มต้นจากด้านบน
+	// สร้างเส้นขีด
+	dashedLine := generateDashedLine(printableWidth)
 
-	for _, line := range lines {
-		pt := freetype.Pt(20, y)
-		_, err = c.DrawString(line, pt)
-		if err != nil {
-			return fmt.Errorf("error drawing text: %v", err)
+	// ข้อความตัวอย่าง
+	headerText := []string{
+		"ร้านอาหารครัวคุณแม่",
+		"123 ถนนสุขุมวิท แขวงคลองเตย",
+		"เขตคลองเตย กรุงเทพฯ 10110",
+		"โทร. 02-123-4567",
+	}
+
+	contentText := []string{
+		dashedLine,
+		"ใบเสร็จรับเงิน/ใบกำกับภาษีอย่างย่อ",
+		"วันที่: " + time.Now().Format("02/01/2006 15:04:05"),
+		"โต๊ะที่: A1",
+		"พนักงาน: สมชาย",
+		dashedLine,
+		"1. ข้าวผัดหมู ของพิเศษ เสิร์ฟพร้อมไข่ดาวและของตกแต่งพิเศษ x1    60.00",
+		"   - ไข่ดาว                        +10.00",
+		"   - พิเศษ                         +20.00",
+		"2. ต้มยำกุ้งสดใหม่ ปรุงพิเศษ รสชาติเข้มข้น x1   120.00",
+		"3. น้ำเปล่า                   x2    30.00",
+		dashedLine,
+		"รวม                               240.00",
+		"Service Charge 10%                24.00",
+		"VAT 7%                            16.80",
+		"รวมทั้งสิ้น                      280.80",
+		dashedLine,
+		"เงินสด                           300.00",
+		"เงินทอน                           19.20",
+		dashedLine,
+	}
+
+	footerText := []string{
+		"",
+		"ขอบคุณที่ใช้บริการ",
+		"Welcome back again",
+		"",
+	}
+
+	// เตรียมข้อมูลที่จะวาด
+	var allLines []string
+
+	// Wrap header text
+	allLines = append(allLines, headerText...)
+
+	// Wrap content text with proper line wrapping
+	for _, text := range contentText {
+		wrappedLines := segmentText(text, printableWidth, d)
+		allLines = append(allLines, wrappedLines...)
+	}
+
+	// Wrap footer text
+	allLines = append(allLines, footerText...)
+
+	// นับจำนวนบรรทัดทั้งหมด
+	totalLines := len(allLines)
+
+	// คำนวณความสูงของภาพ
+	height := int(float64(totalLines)*fontSize*lineSpacing) + 100
+
+	// สร้างภาพใหม่พื้นขาว
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	draw.Draw(img, img.Bounds(), image.White, image.Point{}, draw.Src)
+
+	// กำหนดภาพให้กับ drawer
+	d.Dst = img
+
+	// ฟังก์ชันจัดกึ่งกลาง
+	drawCenteredString := func(text string, y int) error {
+		textWidth := d.MeasureString(text).Ceil()
+		x := leftPadding + (printableWidth-textWidth)/2
+		d.Dot = fixed.Point26_6{
+			X: fixed.I(x),
+			Y: fixed.I(y),
+		}
+		d.DrawString(text)
+		return nil
+	}
+
+	// วาดส่วนหัว (จัดกึ่งกลาง)
+	y := int(fontSize * 3.0)
+	for _, text := range headerText {
+		if err := drawCenteredString(text, y); err != nil {
+			return err
 		}
 		y += int(fontSize * lineSpacing)
 	}
 
-	// วาดข้อความทดสอบอื่นๆ
-	testText := []string{
-		"สวัสดีครับ/ค่ะ",
-		"ทดสอบ 1234567890",
-		"กขคงจฉชซ",
-		"ฟหกด่าสวง",
+	// วาดส่วนเนื้อหา (ชิดซ้าย)
+	for _, text := range allLines {
+		d.Dot = fixed.Point26_6{
+			X: fixed.I(leftPadding),
+			Y: fixed.I(y),
+		}
+		d.DrawString(text)
+		y += int(fontSize * lineSpacing)
 	}
 
-	for _, text := range testText {
-		pt := freetype.Pt(20, y)
-		_, err = c.DrawString(text, pt)
-		if err != nil {
-			return fmt.Errorf("error drawing text: %v", err)
+	// วาดส่วนท้าย (จัดกึ่งกลาง)
+	for _, text := range footerText {
+		if text != "" {
+			if err := drawCenteredString(text, y); err != nil {
+				return err
+			}
 		}
 		y += int(fontSize * lineSpacing)
 	}
 
 	// แปลงเป็น ESC/POS command
 	var buf bytes.Buffer
-	buf.Write([]byte{0x1B, 0x40})             // Initialize printer
-	buf.Write([]byte{0x1D, 0x76, 0x30, 0x00}) // Set bitmap mode
 
+	// Initialize printer
+	buf.Write([]byte{0x1B, 0x40})
+
+	// Set character size and font
+	buf.Write([]byte{0x1D, 0x21, 0x00}) // Normal size
+	buf.Write([]byte{0x1B, 0x4D, 0x00}) // Font A
+
+	// Set line spacing
+	buf.Write([]byte{0x1B, 0x33, 60}) // Set line spacing to 60 dots
+
+	// Set print density
+	buf.Write([]byte{0x1D, 0x7C, 0x08}) // Highest density
+
+	// Set bitmap mode
+	buf.Write([]byte{0x1D, 0x76, 0x30, 0x00})
+
+	// Calculate and send bitmap size
 	widthBytes := (width + 7) / 8
 	buf.WriteByte(byte(widthBytes & 0xFF))
 	buf.WriteByte(byte(widthBytes >> 8))
 	buf.WriteByte(byte(height & 0xFF))
 	buf.WriteByte(byte(height >> 8))
 
-	// แปลงภาพเป็น bitmap โดยปรับ threshold
+	// Convert to bitmap with improved threshold
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x += 8 {
 			var b byte
 			for bit := 0; bit < 8; bit++ {
 				if x+bit < width {
 					r, g, b_, _ := img.At(x+bit, y).RGBA()
-					// ปรับ threshold ให้ตัวอักษรชัดขึ้น
-					if (r+g+b_)/3 < 0x7FFF {
+					if (r+g+b_)/3 < 0xCFFF {
 						b |= 1 << (7 - bit)
 					}
 				}
@@ -388,9 +524,11 @@ func testDirectImagePrint(printerIP string, port int) error {
 		}
 	}
 
-	buf.Write([]byte{0x1D, 0x56, 0x41, 0x03}) // Cut paper
+	// Feed and cut
+	buf.Write([]byte{0x1B, 0x64, 0x10})       // Feed more lines
+	buf.Write([]byte{0x1D, 0x56, 0x41, 0x03}) // Partial cut with feed
 
-	// ส่งไปยังเครื่องพิมพ์
+	// ส่งข้อมูลไปยังเครื่องพิมพ์
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", printerIP, port))
 	if err != nil {
 		return fmt.Errorf("connection failed: %v", err)
@@ -403,13 +541,4 @@ func testDirectImagePrint(printerIP string, port int) error {
 	}
 
 	return nil
-}
-
-func saveImageForDebug(img image.Image, filename string) error {
-	f, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return png.Encode(f, img)
 }

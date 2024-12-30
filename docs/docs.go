@@ -3256,6 +3256,15 @@ const docTemplate = `{
                 "summary": "จองโต๊ะ",
                 "parameters": [
                     {
+                        "description": "ข้อมูลการจองโต๊ะ",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ReservationRequest"
+                        }
+                    },
+                    {
                         "type": "string",
                         "description": "ID ของกลุ่มโต๊ะนั้นๆ",
                         "name": "id",
@@ -4135,6 +4144,23 @@ const docTemplate = `{
                 }
             }
         },
+        "api_handlers.ReservationRequest": {
+            "type": "object",
+            "properties": {
+                "customer_name": {
+                    "type": "string"
+                },
+                "guest_count": {
+                    "type": "integer"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "reserved_for": {
+                    "type": "string"
+                }
+            }
+        },
         "api_handlers.ResetPasswordRequest": {
             "type": "object",
             "required": [
@@ -4343,6 +4369,7 @@ const docTemplate = `{
                         "type": "object",
                         "properties": {
                             "id": {
+                                "description": "สำหรับ item ที่มีอยู่แล้ว",
                                 "type": "integer"
                             },
                             "menu_item_id": {

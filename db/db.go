@@ -29,6 +29,7 @@ func migrate() {
 	DB.AutoMigrate(&models.MenuItemStats{})
 	DB.AutoMigrate(&models.Category{})
 	DB.AutoMigrate(&models.Table{})
+	DB.AutoMigrate(&models.TableReservation{})
 	DB.AutoMigrate(&models.DailySales{})
 	DB.AutoMigrate(&models.Order{})
 	DB.AutoMigrate(&models.OrderItem{})
