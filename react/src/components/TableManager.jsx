@@ -21,6 +21,15 @@ const TableManager = () => {
   const [selectedTables, setSelectedTables] = useState([]);
   const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
   const [primaryTable, setPrimaryTable] = useState(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+const [tableToDelete, setTableToDelete] = useState(null);
+
+  // Reservation Dialog States
+  const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
+  const [customerName, setCustomerName] = useState("");
+  const [customerCount, setCustomerCount] = useState(0);
+  const [reservationTime, setReservationTime] = useState("");
+  const [selectedTable, setSelectedTable] = useState(null);
 
  // Fetch tables from API and sort by ID
 useEffect(() => {
@@ -88,6 +97,24 @@ useEffect(() => {
     }
   };
 
+  // Table rendering
+  const renderTableDetails = (table) => {
+    // ตรวจสอบว่าโต๊ะมี GroupID หรือไม่
+    if (table.GroupID) {
+      // หากมี GroupID, แสดงรายละเอียดเกี่ยวกับโต๊ะในกลุ่ม
+      const groupedTables = tables.filter(t => t.GroupID === table.GroupID); // โต๊ะในกลุ่มเดียวกัน
+      return (
+        <div className="mt-4">
+          <h4 className="text-base text-black/50 font-semibold">รหัสกลุ่ม : {table.GroupID}</h4>
+          {groupedTables.map((groupedTable) => (
+            <TableInfo key={groupedTable.ID} label={`โต๊ะ ${groupedTable.Name}`} value={`ความจุ: ${groupedTable.Capacity}`} />
+          ))}
+        </div>
+      );
+    }
+    return null; // ถ้าไม่มี GroupID จะไม่แสดงอะไร
+  };
+
   const handleTableAction = async (action, table) => {
     if (!table || !table.ID) {
       alert("ข้อมูลโต๊ะไม่ถูกต้อง");
@@ -122,20 +149,52 @@ useEffect(() => {
     }
   };
 
-  const handleClearTable = (tableId) => {
-    const updatedTables = tables.map((table) =>
-      table.id === tableId
-        ? {
-            ...table,
-            status: "ว่าง",
-            customerName: null,
-            customerCount: null,
-            time: null,
-          }
-        : table
-    );
-    setTables(updatedTables);
+  
+
+  const handleReservationSubmit = () => {
+    const currentTime = new Date();
+    const reservationDate = new Date(reservationTime);
+
+    if (reservationDate < currentTime) {
+      alert("เวลาจองต้องไม่ใช่เวลาในอดีต");
+      return;
+    }
+
+    if (selectedTable) {
+      const updatedTables = tables.map((table) =>
+        table.ID === selectedTable.ID
+          ? {
+              ...table,
+              Status: "reserved",
+              customerName,
+              customerCount,
+              reservationTime,
+            }
+          : table
+      );
+
+      setTables(updatedTables);
+      setIsReservationDialogOpen(false);
+      setCustomerName("");
+      setCustomerCount(0);
+      setReservationTime("");
+    }
   };
+
+  // const handleClearTable = (tableId) => {
+  //   const updatedTables = tables.map((table) =>
+  //     table.id === tableId
+  //       ? {
+  //           ...table,
+  //           status: "ว่าง",
+  //           customerName: null,
+  //           customerCount: null,
+  //           time: null,
+  //         }
+  //       : table
+  //   );
+  //   setTables(updatedTables);
+  // };
 
   // Create a new table
   const createTable = async () => {
@@ -173,6 +232,24 @@ useEffect(() => {
       setMessage("เกิดข้อผิดพลาดในการเชื่อมต่อ API");
       console.error(error);
     }
+  };
+
+  const handleDeleteTable = async () => {
+    if (tableToDelete && tableToDelete.ID) {
+      try {
+        const response = await axios.delete(`http://localhost:8080/api/table/${tableToDelete.ID}`);
+        if (response.status === 200) {
+          alert("โต๊ะถูกลบเรียบร้อยแล้ว!");
+          setTables((prevTables) => prevTables.filter((table) => table.ID !== tableToDelete.ID));
+        } else {
+          alert("ไม่สามารถลบโต๊ะได้");
+        }
+      } catch (error) {
+        console.error("Error deleting table:", error);
+        alert("เกิดข้อผิดพลาดในการลบโต๊ะ");
+      }
+    }
+    setIsDeleteDialogOpen(false); // Close the dialog after deletion
   };
 
   const handlePrimaryTableSelection = (table) => {
@@ -233,29 +310,29 @@ useEffect(() => {
   }
 };
 
-  const handleMergeTables = async () => {
-    try {
-      if (!primaryTable || selectedTables.length === 0) {
-        alert("กรุณาเลือกโต๊ะหลักและโต๊ะที่ต้องการรวม");
-        return;
-      }
+  // const handleMergeTables = async () => {
+  //   try {
+  //     if (!primaryTable || selectedTables.length === 0) {
+  //       alert("กรุณาเลือกโต๊ะหลักและโต๊ะที่ต้องการรวม");
+  //       return;
+  //     }
 
-      const response = await axios.post("http://localhost:8080/api/table/mergeTable", {
-        primary_table: primaryTable.ID, // Send ID of primary table
-        selected_table_ids: selectedTables.map((table) => table.ID), // Send IDs of selected tables
-      });
+  //     const response = await axios.post("http://localhost:8080/api/table/mergeTable", {
+  //       primary_table: primaryTable.ID, // Send ID of primary table
+  //       selected_table_ids: selectedTables.map((table) => table.ID), // Send IDs of selected tables
+  //     });
 
-      if (response.status === 200) {
-        alert("รวมโต๊ะสำเร็จ");
-        // Optionally, update tables state to reflect the merged status
-      } else {
-        alert("ไม่สามารถรวมโต๊ะได้");
-      }
-    } catch (error) {
-      console.error("เกิดข้อผิดพลาดในการรวมโต๊ะ:", error);
-      alert("เกิดข้อผิดพลาดในการรวมโต๊ะ");
-    }
-  };
+  //     if (response.status === 200) {
+  //       alert("รวมโต๊ะสำเร็จ");
+  //       // Optionally, update tables state to reflect the merged status
+  //     } else {
+  //       alert("ไม่สามารถรวมโต๊ะได้");
+  //     }
+  //   } catch (error) {
+  //     console.error("เกิดข้อผิดพลาดในการรวมโต๊ะ:", error);
+  //     alert("เกิดข้อผิดพลาดในการรวมโต๊ะ");
+  //   }
+  // };
 
   const handleSplitTable = async (groupId) => {
     try {
@@ -288,21 +365,32 @@ useEffect(() => {
 
     return (
       <div className={tableStyles}>
-        {status === "available" && (
+        {status === "available" && ( <>
           <button className="bg-blue-500 text-white px-4 py-2 rounded mb-2" onClick={() => handleTableAction("reserve", table)}>
             จอง
           </button>
+           <button
+            className="bg-red-500 text-white px-4 py-2 rounded"
+            onClick={() => {
+              setTableToDelete(table);
+              setIsDeleteDialogOpen(true); // Open delete confirmation dialog
+            }}
+          >
+            ลบโต๊ะ
+          </button>
+          </>
         )}
         {status === "reserved" && (
           <button className="bg-gray-500 text-white px-4 py-2 rounded" onClick={() => handleTableAction("unreserve", table)}>
             ยกเลิกการจอง
           </button>
         )}
-        {status === "available" && (
-          <button className="bg-gray-500 text-white px-4 py-2 rounded" onClick={() => handleSplitTable(table.GroupID)}>
-            แยกโต๊ะ
-          </button>
-        )}
+        {/* Show "แยกโต๊ะ" button only if GroupID is available */}
+      {table.GroupID && (
+        <button className="bg-gray-500 text-white px-4 py-2 rounded" onClick={() => handleSplitTable(table.GroupID)}>
+          แยกโต๊ะ
+        </button>
+      )}
       </div>
     );
   };
@@ -311,16 +399,27 @@ useEffect(() => {
     <div className="h-screen overflow-auto p-4 lg:ml-60">
       {/* Render tables */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {tables.map((table) => (
-          <div key={table.ID} className="border p-4 rounded-lg shadow-lg">
-            <h3 className="text-xl font-bold mb-2">{table.Name}</h3>
-            <TableInfo label="Capacity" value={table.Capacity} />
-            <TableInfo label="Status" value={table.Status} />
-            {renderTableActionButtons(table)}
-            {/* Additional table actions can go here */}
-            
-          </div>
-        ))}
+      {tables
+  .sort((a, b) => a.ID - b.ID)  // จัดเรียงโต๊ะตาม ID (ascending)
+  .map((table) => (
+    <div
+      key={table.ID}
+      className={`border p-4 rounded-lg shadow-lg ${table.GroupID ? 'border-orange-500 bg-orange-100' : ''}`}
+    >
+      <div className="flex justify-between">
+      <h3 className="text-xl font-bold mb-2">{table.Name}</h3>
+      {renderTableActionButtons(table)}
+      </div>
+      {/* Additional table actions can go here */}
+      <TableInfo label="Capacity" value={table.Capacity} />
+      <TableInfo label="Status" value={table.Status} />
+      {/* แสดงรายละเอียดของกลุ่มโต๊ะหากโต๊ะมี GroupID */}
+      {renderTableDetails(table)}
+
+      
+      
+    </div>
+  ))}
       </div>
 
       <button onClick={() => setIsDialogOpen(true)} className="bg-blue-500 text-white px-4 py-2 rounded mt-4">
@@ -331,29 +430,39 @@ useEffect(() => {
         รวมกลุ่มโต๊ะ
       </button>
 
-      {/* Merge Dialog */}
-      {isMergeDialogOpen && (
+      {/* Reservation Dialog */}
+      {isReservationDialogOpen && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-96">
-            <h3 className="text-xl font-bold mb-4">เลือกโต๊ะสำหรับรวม</h3>
-            <div className="mb-4">
-              {tables.map((table) => (
-                <div key={table.ID} className="flex items-center mb-2">
-                  <input
-                    type="checkbox"
-                    checked={selectedTables.includes(table.ID)}
-                    onChange={() => handleSelectTable(table.ID)}
-                    className="mr-2"
-                  />
-                  <label className="text-gray-800">{table.Name}</label>
-                </div>
-              ))}
-            </div>
+            <h3 className="text-xl mb-4">จองโต๊ะ</h3>
+            <input
+              type="text"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              className="border p-2 mb-4 w-full"
+              placeholder="ชื่อผู้จอง"
+            />
+            <input
+              type="number"
+              value={customerCount}
+              onChange={(e) => setCustomerCount(e.target.value)}
+              className="border p-2 mb-4 w-full"
+              placeholder="จำนวนคน"
+            />
+            <input
+              type="datetime-local"
+              value={reservationTime}
+              onChange={(e) => setReservationTime(e.target.value)}
+              className="border p-2 mb-4 w-full"
+            />
             <div className="flex justify-between">
-              <button onClick={() => { mergeTables(); setIsMergeDialogOpen(false); }} className="bg-green-500 text-white px-4 py-2 rounded">
-                รวมโต๊ะ
+              <button onClick={() => handleTableAction("reserve", table)} className="bg-green-500 text-white px-4 py-2 rounded">
+                ยืนยันการจอง
               </button>
-              <button onClick={() => setIsMergeDialogOpen(false)} className="bg-red-500 text-white px-4 py-2 rounded">
+              <button
+                onClick={() => setIsReservationDialogOpen(false)}
+                className="bg-red-500 text-white px-4 py-2 rounded"
+              >
                 ยกเลิก
               </button>
             </div>
@@ -361,15 +470,59 @@ useEffect(() => {
         </div>
       )}
 
-       {/* ถ้าคุณเลือกโต๊ะที่รวมแล้ว แสดงปุ่มยกเลิกการรวม */}
-    {selectedTables.length > 0 && selectedTables[0].GroupID && (
-      <button
-        onClick={() => cancelMerge(selectedTables[0].GroupID)}
-        className="bg-red-500 text-white px-4 py-2 rounded mt-4"
-      >
-        ยกเลิกการรวมโต๊ะ
-      </button>
-    )}
+      {/* Merge Dialog */}
+{isMergeDialogOpen && (
+  <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
+    <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+      <h3 className="text-xl font-bold mb-4">เลือกโต๊ะสำหรับรวม</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 p-4">
+        {tables.map((table) => (
+          <div
+            key={table.ID}
+            onClick={() => handleSelectTable(table.ID)} // คลิกที่ div เพื่อเลือก
+            className={`flex items-center justify-between p-4 rounded-lg shadow-lg cursor-pointer ${
+              selectedTables.includes(table.ID) ? 'bg-blue-100' : 'bg-white'
+            } hover:bg-blue-50 transition-all duration-300 ease-in-out`}
+          >
+            <label className="text-lg font-medium text-gray-800">{table.Name}</label>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex justify-between">
+        <button
+          onClick={() => {
+            mergeTables();
+            setSelectedTables([]); // เคลียร์การเลือกโต๊ะหลังจากรวมโต๊ะ
+            setIsMergeDialogOpen(false); // ปิด dialog
+          }}
+          className="bg-green-500 text-white px-4 py-2 rounded"
+        >
+          รวมโต๊ะ
+        </button>
+        <button
+          onClick={() => {
+            setSelectedTables([]); // เคลียร์การเลือกโต๊ะเมื่อปิด dialog
+            setIsMergeDialogOpen(false); // ปิด dialog
+          }}
+          className="bg-red-500 text-white px-4 py-2 rounded"
+        >
+          ยกเลิก
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* ถ้าคุณเลือกโต๊ะที่รวมแล้ว แสดงปุ่มยกเลิกการรวม */}
+{selectedTables.length > 0 && selectedTables[0].GroupID && (
+  <button
+    onClick={() => cancelMerge(selectedTables[0].GroupID)}
+    className="bg-red-500 text-white px-4 py-2 rounded mt-4"
+  >
+    ยกเลิกการรวมโต๊ะ
+  </button>
+)}
 
       {/* New Table Dialog */}
       {isDialogOpen && (
@@ -411,6 +564,25 @@ useEffect(() => {
           </div>
         </div>
       )}
+
+       {/* Delete Table Confirmation Dialog */}
+       {isDeleteDialogOpen && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+            <h3 className="text-xl mb-4">ยืนยันการลบโต๊ะ</h3>
+            <p>คุณแน่ใจหรือไม่ว่าต้องการลบโต๊ะ "{tableToDelete.Name}"?</p>
+            <div className="flex justify-between mt-4">
+              <button onClick={handleDeleteTable} className="bg-red-500 text-white px-4 py-2 rounded">
+                ยืนยัน
+              </button>
+              <button onClick={() => setIsDeleteDialogOpen(false)} className="bg-gray-500 text-white px-4 py-2 rounded">
+                ยกเลิก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
