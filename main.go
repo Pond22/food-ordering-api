@@ -1,27 +1,16 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
 	"food-ordering-api/api_handlers"
 	"food-ordering-api/db"
 	_ "food-ordering-api/docs"
 	"food-ordering-api/routes"
 	service "food-ordering-api/services"
-	"image"
-	"image/draw"
 	"log"
-	"net"
-	"os"
-	"strings"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/swagger"
-	"github.com/golang/freetype/truetype"
-	"golang.org/x/image/font"
-	"golang.org/x/image/math/fixed"
 )
 
 // @title Food Ordering API
@@ -51,15 +40,15 @@ import (
 func main() {
 	db.InitDatabase()
 
-	printerIP := "192.168.1.100" // เปลี่ยนเป็น IP จริงของเครื่องพิมพ์
-	port := 9100
+	// printerIP := "192.168.1.100" // เปลี่ยนเป็น IP จริงของเครื่องพิมพ์
+	// port := 9100
 
-	err := testDirectImagePrint(printerIP, port)
-	if err != nil {
-		fmt.Printf("Test failed: %v\n", err)
-		return
-	}
-	fmt.Println("Test completed successfully")
+	// err := testDirectImagePrint(printerIP, port)
+	// if err != nil {
+	// 	fmt.Printf("Test failed: %v\n", err)
+	// 	return
+	// }
+	// fmt.Println("Test completed successfully")
 
 	app := fiber.New(fiber.Config{
 		EnableTrustedProxyCheck: true,
@@ -261,17 +250,17 @@ func main() {
 // 	return nil
 // }
 
-func generateDashedLine(lineWidth int) string {
-	// คำนวณจำนวนขีดที่ต้องการ โดยหารด้วยความกว้างของเครื่องหมาย '-'
-	// ในที่นี้ใช้ 9 พิกเซลต่อขีด (ปรับตามขนาดฟอนต์และ DPI)
-	count := lineWidth / 9
-	// สร้าง slice ของเครื่องหมายขีด
-	dashes := make([]byte, count)
-	for i := range dashes {
-		dashes[i] = '-'
-	}
-	return string(dashes)
-}
+// func generateDashedLine(lineWidth int) string {
+// 	// คำนวณจำนวนขีดที่ต้องการ โดยหารด้วยความกว้างของเครื่องหมาย '-'
+// 	// ในที่นี้ใช้ 9 พิกเซลต่อขีด (ปรับตามขนาดฟอนต์และ DPI)
+// 	count := lineWidth / 9
+// 	// สร้าง slice ของเครื่องหมายขีด
+// 	dashes := make([]byte, count)
+// 	for i := range dashes {
+// 		dashes[i] = '-'
+// 	}
+// 	return string(dashes)
+// }
 
 // type wordDict map[string]bool
 
@@ -294,251 +283,251 @@ func generateDashedLine(lineWidth int) string {
 // 	return dict, nil
 // }
 
-func segmentText(text string, maxWidth int, d *font.Drawer) []string {
-	var segments []string
-	currentSegment := ""
+// func segmentText(text string, maxWidth int, d *font.Drawer) []string {
+// 	var segments []string
+// 	currentSegment := ""
 
-	// แยกข้อความออกเป็นคำๆ
-	words := strings.Fields(text)
+// 	// แยกข้อความออกเป็นคำๆ
+// 	words := strings.Fields(text)
 
-	for _, word := range words {
-		// ทดสอบความยาวของประโยคปัจจุบัน
-		testSegment := currentSegment + word
-		if currentSegment != "" {
-			testSegment = currentSegment + " " + word
-		}
+// 	for _, word := range words {
+// 		// ทดสอบความยาวของประโยคปัจจุบัน
+// 		testSegment := currentSegment + word
+// 		if currentSegment != "" {
+// 			testSegment = currentSegment + " " + word
+// 		}
 
-		// วัดความกว้างของข้อความ
-		testWidth := d.MeasureString(testSegment).Ceil()
+// 		// วัดความกว้างของข้อความ
+// 		testWidth := d.MeasureString(testSegment).Ceil()
 
-		if testWidth > maxWidth {
-			// ถ้าความยาวเกินที่กำหนด ให้บันทึกส่วนปัจจุบัน
-			if currentSegment != "" {
-				segments = append(segments, strings.TrimSpace(currentSegment))
-			}
-			currentSegment = word
-		} else {
-			// ถ้าสามารถใส่คำได้ ให้เพิ่มคำ
-			if currentSegment == "" {
-				currentSegment = word
-			} else {
-				currentSegment += " " + word
-			}
-		}
-	}
+// 		if testWidth > maxWidth {
+// 			// ถ้าความยาวเกินที่กำหนด ให้บันทึกส่วนปัจจุบัน
+// 			if currentSegment != "" {
+// 				segments = append(segments, strings.TrimSpace(currentSegment))
+// 			}
+// 			currentSegment = word
+// 		} else {
+// 			// ถ้าสามารถใส่คำได้ ให้เพิ่มคำ
+// 			if currentSegment == "" {
+// 				currentSegment = word
+// 			} else {
+// 				currentSegment += " " + word
+// 			}
+// 		}
+// 	}
 
-	// เพิ่มส่วนสุดท้าย
-	if currentSegment != "" {
-		segments = append(segments, strings.TrimSpace(currentSegment))
-	}
+// 	// เพิ่มส่วนสุดท้าย
+// 	if currentSegment != "" {
+// 		segments = append(segments, strings.TrimSpace(currentSegment))
+// 	}
 
-	return segments
-}
+// 	return segments
+// }
 
-func testDirectImagePrint(printerIP string, port int) error {
-	// กำหนดค่าพื้นฐาน
-	width := 576 //640
-	dpi := 203.0
-	fontSize := 14.0
-	lineSpacing := 2.5
-	leftPadding := 10
+// func testDirectImagePrint(printerIP string, port int) error {
+// 	// กำหนดค่าพื้นฐาน
+// 	width := 576 //640
+// 	dpi := 203.0
+// 	fontSize := 14.0
+// 	lineSpacing := 2.5
+// 	leftPadding := 10
 
-	// คำนวณความกว้างที่พิมพ์ได้จริง
-	printableWidth := width - (leftPadding * 2)
+// 	// คำนวณความกว้างที่พิมพ์ได้จริง
+// 	printableWidth := width - (leftPadding * 2)
 
-	// โหลดฟอนต์
-	fontBytes, err := os.ReadFile("THSarabunNew.ttf")
-	if err != nil {
-		return fmt.Errorf("error loading font: %v", err)
-	}
+// 	// โหลดฟอนต์
+// 	fontBytes, err := os.ReadFile("THSarabunNew.ttf")
+// 	if err != nil {
+// 		return fmt.Errorf("error loading font: %v", err)
+// 	}
 
-	f, err := truetype.Parse(fontBytes)
-	if err != nil {
-		return fmt.Errorf("error parsing font: %v", err)
-	}
+// 	f, err := truetype.Parse(fontBytes)
+// 	if err != nil {
+// 		return fmt.Errorf("error parsing font: %v", err)
+// 	}
 
-	// สร้าง font.Face
-	face := truetype.NewFace(f, &truetype.Options{
-		Size:    fontSize,
-		DPI:     dpi,
-		Hinting: font.HintingNone,
-	})
-	defer face.Close()
+// 	// สร้าง font.Face
+// 	face := truetype.NewFace(f, &truetype.Options{
+// 		Size:    fontSize,
+// 		DPI:     dpi,
+// 		Hinting: font.HintingNone,
+// 	})
+// 	defer face.Close()
 
-	// สร้าง drawer
-	d := &font.Drawer{
-		Dst:  nil, // จะกำหนดหลังจากสร้างภาพ
-		Src:  image.Black,
-		Face: face,
-	}
+// 	// สร้าง drawer
+// 	d := &font.Drawer{
+// 		Dst:  nil, // จะกำหนดหลังจากสร้างภาพ
+// 		Src:  image.Black,
+// 		Face: face,
+// 	}
 
-	// สร้างเส้นขีด
-	dashedLine := generateDashedLine(printableWidth)
+// 	// สร้างเส้นขีด
+// 	dashedLine := generateDashedLine(printableWidth)
 
-	// ข้อความตัวอย่าง
-	headerText := []string{
-		"ร้านอาหารครัวคุณแม่",
-		"123 ถนนสุขุมวิท แขวงคลองเตย",
-		"เขตคลองเตย กรุงเทพฯ 10110",
-		"โทร. 02-123-4567",
-	}
+// 	// ข้อความตัวอย่าง
+// 	headerText := []string{
+// 		"ร้านอาหารครัวคุณแม่",
+// 		"123 ถนนสุขุมวิท แขวงคลองเตย",
+// 		"เขตคลองเตย กรุงเทพฯ 10110",
+// 		"โทร. 02-123-4567",
+// 	}
 
-	contentText := []string{
-		dashedLine,
-		"ใบเสร็จรับเงิน/ใบกำกับภาษีอย่างย่อ",
-		"วันที่: " + time.Now().Format("02/01/2006 15:04:05"),
-		"โต๊ะที่: A1",
-		"พนักงาน: สมชาย",
-		dashedLine,
-		"1. ข้าวผัดหมู ของพิเศษ เสิร์ฟพร้อมไข่ดาวและของตกแต่งพิเศษ x1    60.00",
-		"   - ไข่ดาว                        +10.00",
-		"   - พิเศษ                         +20.00",
-		"2. ต้มยำกุ้งสดใหม่ ปรุงพิเศษ รสชาติเข้มข้น x1   120.00",
-		"3. น้ำเปล่า                   x2    30.00",
-		dashedLine,
-		"รวม                               240.00",
-		"Service Charge 10%                24.00",
-		"VAT 7%                            16.80",
-		"รวมทั้งสิ้น                      280.80",
-		dashedLine,
-		"เงินสด                           300.00",
-		"เงินทอน                           19.20",
-		dashedLine,
-	}
+// 	contentText := []string{
+// 		dashedLine,
+// 		"ใบเสร็จรับเงิน/ใบกำกับภาษีอย่างย่อ",
+// 		"วันที่: " + time.Now().Format("02/01/2006 15:04:05"),
+// 		"โต๊ะที่: A1",
+// 		"พนักงาน: สมชาย",
+// 		dashedLine,
+// 		"1. ข้าวผัดหมู ของพิเศษ เสิร์ฟพร้อมไข่ดาวและของตกแต่งพิเศษ x1    60.00",
+// 		"   - ไข่ดาว                        +10.00",
+// 		"   - พิเศษ                         +20.00",
+// 		"2. ต้มยำกุ้งสดใหม่ ปรุงพิเศษ รสชาติเข้มข้น x1   120.00",
+// 		"3. น้ำเปล่า                   x2    30.00",
+// 		dashedLine,
+// 		"รวม                               240.00",
+// 		"Service Charge 10%                24.00",
+// 		"VAT 7%                            16.80",
+// 		"รวมทั้งสิ้น                      280.80",
+// 		dashedLine,
+// 		"เงินสด                           300.00",
+// 		"เงินทอน                           19.20",
+// 		dashedLine,
+// 	}
 
-	footerText := []string{
-		"",
-		"ขอบคุณที่ใช้บริการ",
-		"Welcome back again",
-		"",
-	}
+// 	footerText := []string{
+// 		"",
+// 		"ขอบคุณที่ใช้บริการ",
+// 		"Welcome back again",
+// 		"",
+// 	}
 
-	// เตรียมข้อมูลที่จะวาด
-	var allLines []string
+// 	// เตรียมข้อมูลที่จะวาด
+// 	var allLines []string
 
-	// Wrap header text
-	allLines = append(allLines, headerText...)
+// 	// Wrap header text
+// 	allLines = append(allLines, headerText...)
 
-	// Wrap content text with proper line wrapping
-	for _, text := range contentText {
-		wrappedLines := segmentText(text, printableWidth, d)
-		allLines = append(allLines, wrappedLines...)
-	}
+// 	// Wrap content text with proper line wrapping
+// 	for _, text := range contentText {
+// 		wrappedLines := segmentText(text, printableWidth, d)
+// 		allLines = append(allLines, wrappedLines...)
+// 	}
 
-	// Wrap footer text
-	allLines = append(allLines, footerText...)
+// 	// Wrap footer text
+// 	allLines = append(allLines, footerText...)
 
-	// นับจำนวนบรรทัดทั้งหมด
-	totalLines := len(allLines)
+// 	// นับจำนวนบรรทัดทั้งหมด
+// 	totalLines := len(allLines)
 
-	// คำนวณความสูงของภาพ
-	height := int(float64(totalLines)*fontSize*lineSpacing) + 100
+// 	// คำนวณความสูงของภาพ
+// 	height := int(float64(totalLines)*fontSize*lineSpacing) + 100
 
-	// สร้างภาพใหม่พื้นขาว
-	img := image.NewRGBA(image.Rect(0, 0, width, height))
-	draw.Draw(img, img.Bounds(), image.White, image.Point{}, draw.Src)
+// 	// สร้างภาพใหม่พื้นขาว
+// 	img := image.NewRGBA(image.Rect(0, 0, width, height))
+// 	draw.Draw(img, img.Bounds(), image.White, image.Point{}, draw.Src)
 
-	// กำหนดภาพให้กับ drawer
-	d.Dst = img
+// 	// กำหนดภาพให้กับ drawer
+// 	d.Dst = img
 
-	// ฟังก์ชันจัดกึ่งกลาง
-	drawCenteredString := func(text string, y int) error {
-		textWidth := d.MeasureString(text).Ceil()
-		x := leftPadding + (printableWidth-textWidth)/2
-		d.Dot = fixed.Point26_6{
-			X: fixed.I(x),
-			Y: fixed.I(y),
-		}
-		d.DrawString(text)
-		return nil
-	}
+// 	// ฟังก์ชันจัดกึ่งกลาง
+// 	drawCenteredString := func(text string, y int) error {
+// 		textWidth := d.MeasureString(text).Ceil()
+// 		x := leftPadding + (printableWidth-textWidth)/2
+// 		d.Dot = fixed.Point26_6{
+// 			X: fixed.I(x),
+// 			Y: fixed.I(y),
+// 		}
+// 		d.DrawString(text)
+// 		return nil
+// 	}
 
-	// วาดส่วนหัว (จัดกึ่งกลาง)
-	y := int(fontSize * 3.0)
-	for _, text := range headerText {
-		if err := drawCenteredString(text, y); err != nil {
-			return err
-		}
-		y += int(fontSize * lineSpacing)
-	}
+// 	// วาดส่วนหัว (จัดกึ่งกลาง)
+// 	y := int(fontSize * 3.0)
+// 	for _, text := range headerText {
+// 		if err := drawCenteredString(text, y); err != nil {
+// 			return err
+// 		}
+// 		y += int(fontSize * lineSpacing)
+// 	}
 
-	// วาดส่วนเนื้อหา (ชิดซ้าย)
-	for _, text := range allLines {
-		d.Dot = fixed.Point26_6{
-			X: fixed.I(leftPadding),
-			Y: fixed.I(y),
-		}
-		d.DrawString(text)
-		y += int(fontSize * lineSpacing)
-	}
+// 	// วาดส่วนเนื้อหา (ชิดซ้าย)
+// 	for _, text := range allLines {
+// 		d.Dot = fixed.Point26_6{
+// 			X: fixed.I(leftPadding),
+// 			Y: fixed.I(y),
+// 		}
+// 		d.DrawString(text)
+// 		y += int(fontSize * lineSpacing)
+// 	}
 
-	// วาดส่วนท้าย (จัดกึ่งกลาง)
-	for _, text := range footerText {
-		if text != "" {
-			if err := drawCenteredString(text, y); err != nil {
-				return err
-			}
-		}
-		y += int(fontSize * lineSpacing)
-	}
+// 	// วาดส่วนท้าย (จัดกึ่งกลาง)
+// 	for _, text := range footerText {
+// 		if text != "" {
+// 			if err := drawCenteredString(text, y); err != nil {
+// 				return err
+// 			}
+// 		}
+// 		y += int(fontSize * lineSpacing)
+// 	}
 
-	// แปลงเป็น ESC/POS command
-	var buf bytes.Buffer
+// 	// แปลงเป็น ESC/POS command
+// 	var buf bytes.Buffer
 
-	// Initialize printer
-	buf.Write([]byte{0x1B, 0x40})
+// 	// Initialize printer
+// 	buf.Write([]byte{0x1B, 0x40})
 
-	// Set character size and font
-	buf.Write([]byte{0x1D, 0x21, 0x00}) // Normal size
-	buf.Write([]byte{0x1B, 0x4D, 0x00}) // Font A
+// 	// Set character size and font
+// 	buf.Write([]byte{0x1D, 0x21, 0x00}) // Normal size
+// 	buf.Write([]byte{0x1B, 0x4D, 0x00}) // Font A
 
-	// Set line spacing
-	buf.Write([]byte{0x1B, 0x33, 60}) // Set line spacing to 60 dots
+// 	// Set line spacing
+// 	buf.Write([]byte{0x1B, 0x33, 60}) // Set line spacing to 60 dots
 
-	// Set print density
-	buf.Write([]byte{0x1D, 0x7C, 0x08}) // Highest density
+// 	// Set print density
+// 	buf.Write([]byte{0x1D, 0x7C, 0x08}) // Highest density
 
-	// Set bitmap mode
-	buf.Write([]byte{0x1D, 0x76, 0x30, 0x00})
+// 	// Set bitmap mode
+// 	buf.Write([]byte{0x1D, 0x76, 0x30, 0x00})
 
-	// Calculate and send bitmap size
-	widthBytes := (width + 7) / 8
-	buf.WriteByte(byte(widthBytes & 0xFF))
-	buf.WriteByte(byte(widthBytes >> 8))
-	buf.WriteByte(byte(height & 0xFF))
-	buf.WriteByte(byte(height >> 8))
+// 	// Calculate and send bitmap size
+// 	widthBytes := (width + 7) / 8
+// 	buf.WriteByte(byte(widthBytes & 0xFF))
+// 	buf.WriteByte(byte(widthBytes >> 8))
+// 	buf.WriteByte(byte(height & 0xFF))
+// 	buf.WriteByte(byte(height >> 8))
 
-	// Convert to bitmap with improved threshold
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x += 8 {
-			var b byte
-			for bit := 0; bit < 8; bit++ {
-				if x+bit < width {
-					r, g, b_, _ := img.At(x+bit, y).RGBA()
-					if (r+g+b_)/3 < 0xCFFF {
-						b |= 1 << (7 - bit)
-					}
-				}
-			}
-			buf.WriteByte(b)
-		}
-	}
+// 	// Convert to bitmap with improved threshold
+// 	for y := 0; y < height; y++ {
+// 		for x := 0; x < width; x += 8 {
+// 			var b byte
+// 			for bit := 0; bit < 8; bit++ {
+// 				if x+bit < width {
+// 					r, g, b_, _ := img.At(x+bit, y).RGBA()
+// 					if (r+g+b_)/3 < 0xCFFF {
+// 						b |= 1 << (7 - bit)
+// 					}
+// 				}
+// 			}
+// 			buf.WriteByte(b)
+// 		}
+// 	}
 
-	// Feed and cut
-	buf.Write([]byte{0x1B, 0x64, 0x10})       // Feed more lines
-	buf.Write([]byte{0x1D, 0x56, 0x41, 0x03}) // Partial cut with feed
+// 	// Feed and cut
+// 	buf.Write([]byte{0x1B, 0x64, 0x10})       // Feed more lines
+// 	buf.Write([]byte{0x1D, 0x56, 0x41, 0x03}) // Partial cut with feed
 
-	// ส่งข้อมูลไปยังเครื่องพิมพ์
-	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", printerIP, port))
-	if err != nil {
-		return fmt.Errorf("connection failed: %v", err)
-	}
-	defer conn.Close()
+// 	// ส่งข้อมูลไปยังเครื่องพิมพ์
+// 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", printerIP, port))
+// 	if err != nil {
+// 		return fmt.Errorf("connection failed: %v", err)
+// 	}
+// 	defer conn.Close()
 
-	_, err = conn.Write(buf.Bytes())
-	if err != nil {
-		return fmt.Errorf("print failed: %v", err)
-	}
+// 	_, err = conn.Write(buf.Bytes())
+// 	if err != nil {
+// 		return fmt.Errorf("print failed: %v", err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }

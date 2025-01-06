@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
+	"unicode"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/freetype/truetype"
@@ -253,7 +255,91 @@ func GetAllPrinters(c *fiber.Ctx) error {
 // 	return c.JSON(printer)
 // }
 
-// printerHandlers.go
+// ฟังก์ชันสำหรับทำความสะอาดข้อความ
+func cleanText(text string) string {
+	// แทนที่ตัวอักษรควบคุมและจัดการช่องว่าง
+	text = strings.Map(func(r rune) rune {
+		if unicode.IsPrint(r) || unicode.IsSpace(r) {
+			return r
+		}
+		return -1
+	}, text)
+	return strings.TrimSpace(text)
+}
+
+// ฟังก์ชันสำหรับเตรียมเนื้อหาสำหรับพิมพ์ออเดอร์ไปครัว
+func preparePrintContent(job models.PrintJob) ([]byte, error) {
+	var content bytes.Buffer
+
+	if job.Order != nil {
+		headerLines := []string{
+			"Order #" + fmt.Sprintf("%d", job.Order.ID),
+			"โต๊ะ: " + fmt.Sprintf("%d", job.Order.TableID),
+			"----------------------------------------",
+			fmt.Sprintf("วันที่-เวลา: %s", time.Now().Format("02/01/2006 15:04:05")),
+			"----------------------------------------",
+		}
+
+		for _, line := range headerLines {
+			content.WriteString(cleanText(line) + "\n")
+		}
+
+		// แยกรายการตามสถานะ
+		var newItems []models.OrderItem
+		for _, item := range job.Order.Items {
+			if item.Status == "pending" {
+				newItems = append(newItems, item)
+			}
+		}
+
+		if len(newItems) > 0 {
+			content.WriteString("\n[รายการใหม่]\n")
+			content.WriteString("----------------------------------------\n")
+
+			for i, item := range newItems {
+				// หมายเลขรายการและชื่ออาหาร
+				itemLine := fmt.Sprintf("%d. %s", i+1, item.MenuItem.Name)
+				if item.Quantity > 1 {
+					itemLine += fmt.Sprintf(" x%d", item.Quantity)
+				}
+				content.WriteString(cleanText(itemLine) + "\n")
+
+				// ตัวเลือกเพิ่มเติม
+				for _, opt := range item.Options {
+					// ใช้ MenuOption ที่เชื่อมโยงกับ OrderItemOption
+					optionLine := fmt.Sprintf("   • %s: %s",
+						cleanText(opt.MenuOption.OptionGroup.Name),
+						cleanText(opt.MenuOption.Name))
+					content.WriteString(optionLine + "\n")
+				}
+
+				// หมายเหตุพิเศษ
+				if item.Notes != "" {
+					content.WriteString(fmt.Sprintf("   [หมายเหตุ: %s]\n", cleanText(item.Notes)))
+				}
+
+				// เว้นบรรทัดระหว่างรายการ
+				if i < len(newItems)-1 {
+					content.WriteString("----------------\n")
+				}
+			}
+		}
+
+		footerLines := []string{
+			"========================================",
+			"** กรุณาตรวจสอบรายการให้ครบถ้วน **",
+			"========================================",
+		}
+
+		for _, line := range footerLines {
+			content.WriteString(line + "\n")
+		}
+	} else {
+		content.Write(job.Content)
+	}
+
+	return content.Bytes(), nil
+}
 
 // @Summary รับงานพิมพ์ที่รอดำเนินการ
 // @Description ดึงรายการงานพิมพ์ที่ยังไม่ได้พิมพ์สำหรับ IP ที่ระบุ
@@ -269,9 +355,16 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 			"error": "Printer IP is required",
 		})
 	}
+
 	s := "pending"
 	var jobs []models.PrintJob
 	if err := db.DB.Where("printer_ip = ? AND status = ?", printerIP, s).
+		Preload("Order").
+		Preload("Order.Items", "status = ?", "pending").
+		Preload("Order.Items.MenuItem").
+		Preload("Order.Items.Options").
+		Preload("Order.Items.Options.MenuOption").
+		Preload("Order.Items.Options.MenuOption.OptionGroup").
 		Order("created_at ASC").
 		Find(&jobs).Error; err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -279,14 +372,19 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 		})
 	}
 
-	// แปลงเนื้อหาของแต่ละ job เป็น bitmap
 	var processedJobs []fiber.Map
 	for _, job := range jobs {
-		// สร้าง bitmap จาก content
-		bitmapImage, err := convertToBitmap(job.Content)
+		preparedContent, err := preparePrintContent(job)
 		if err != nil {
 			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-				"error": fmt.Sprintf("Failed to convert job %d to bitmap", job.ID),
+				"error": fmt.Sprintf("Failed to prepare content for job %d: %v", job.ID, err),
+			})
+		}
+
+		bitmapImage, err := convertToBitmap(preparedContent)
+		if err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"error": fmt.Sprintf("Failed to convert job %d to bitmap: %v", job.ID, err),
 			})
 		}
 
@@ -294,7 +392,7 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 			"ID":        job.ID,
 			"PrinterIP": job.PrinterIP,
 			"OrderID":   job.OrderID,
-			"Content":   base64.StdEncoding.EncodeToString(bitmapImage), // แปลงเป็น base64
+			"Content":   base64.StdEncoding.EncodeToString(bitmapImage),
 			"Status":    job.Status,
 			"CreatedAt": job.CreatedAt,
 		})
@@ -324,17 +422,16 @@ func convertToBitmap(content []byte) ([]byte, error) {
 		return nil, fmt.Errorf("error parsing font: %v", err)
 	}
 
-	// สร้าง font.Face
+	// สร้าง font.Face ด้วย hinting ที่เหมาะสมสำหรับภาษาไทย
 	face := truetype.NewFace(f, &truetype.Options{
 		Size:    fontSize,
 		DPI:     dpi,
-		Hinting: font.HintingNone,
+		Hinting: font.HintingFull,
 	})
 	defer face.Close()
 
-	// สร้าง drawer
 	d := &font.Drawer{
-		Dst:  nil, // จะกำหนดหลังจากสร้างภาพ
+		Dst:  nil,
 		Src:  image.Black,
 		Face: face,
 	}
@@ -343,15 +440,10 @@ func convertToBitmap(content []byte) ([]byte, error) {
 	tempImg := image.NewRGBA(image.Rect(0, 0, width, 1000))
 	d.Dst = tempImg
 
-	// เก็บบรรทัดที่ถูกตัดคำ
 	var allLines []string
-
-	// อ่านข้อความบรรทัดต่อบรรทัด
 	scanner := bufio.NewScanner(bytes.NewReader(content))
 	for scanner.Scan() {
 		text := scanner.Text()
-
-		// ตัดคำตามความกว้าง
 		wrappedLines := segmentText(text, printableWidth, d)
 		allLines = append(allLines, wrappedLines...)
 	}
@@ -360,11 +452,9 @@ func convertToBitmap(content []byte) ([]byte, error) {
 	totalLines := len(allLines)
 	height := int(float64(totalLines)*fontSize*lineSpacing) + 100
 
-	// สร้างภาพใหม่พื้นขาว
+	// สร้างภาพใหม่
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 	draw.Draw(img, img.Bounds(), image.White, image.Point{}, draw.Src)
-
-	// กำหนดภาพให้กับ drawer
 	d.Dst = img
 
 	// วาดข้อความ
@@ -378,25 +468,36 @@ func convertToBitmap(content []byte) ([]byte, error) {
 		y += int(fontSize * lineSpacing)
 	}
 
-	// แปลงเป็น bitmap
 	var buf bytes.Buffer
-	buf.Write([]byte{0x1D, 0x76, 0x30, 0x00}) // Set bitmap mode
 
-	// คำนวณขนาด bitmap
+	// Initialize printer
+	buf.Write([]byte{0x1B, 0x40})       // Initialize
+	buf.Write([]byte{0x1D, 0x21, 0x00}) // Normal size
+	buf.Write([]byte{0x1B, 0x4D, 0x00}) // Font A
+	buf.Write([]byte{0x1B, 0x33, 60})   // Line spacing
+	buf.Write([]byte{0x1D, 0x7C, 0x08}) // Highest density
+
+	// Set bitmap mode
+	buf.Write([]byte{0x1D, 0x76, 0x30, 0x00})
+
+	// ขนาด bitmap
 	widthBytes := (width + 7) / 8
 	buf.WriteByte(byte(widthBytes & 0xFF))
 	buf.WriteByte(byte(widthBytes >> 8))
 	buf.WriteByte(byte(height & 0xFF))
 	buf.WriteByte(byte(height >> 8))
 
-	// แปลงภาพเป็น bitmap
+	// แปลงเป็น bitmap ด้วย threshold ที่ปรับแล้ว
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x += 8 {
 			var b byte
 			for bit := 0; bit < 8; bit++ {
 				if x+bit < width {
 					r, g, b_, _ := img.At(x+bit, y).RGBA()
-					if (r+g+b_)/3 < 0xCFFF {
+					// คำนวณค่าความสว่างแบบ weighted
+					brightness := (r*299 + g*587 + b_*114) / 1000
+					// ปรับ threshold ให้เหมาะสม
+					if brightness < 0x7FFF { // ลดลงจาก 0x9FFF
 						b |= 1 << (7 - bit)
 					}
 				}
@@ -405,9 +506,11 @@ func convertToBitmap(content []byte) ([]byte, error) {
 		}
 	}
 
+	// Feed and cut
+	buf.Write([]byte{0x1D, 0x56, 0x41, 0x03}) // Partial cut
+
 	return buf.Bytes(), nil
 }
-
 func segmentText(text string, maxWidth int, d *font.Drawer) []string {
 	var segments []string
 	currentSegment := ""

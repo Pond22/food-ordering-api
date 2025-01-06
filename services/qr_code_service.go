@@ -11,6 +11,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/skip2/go-qrcode"
+	"gorm.io/gorm"
 )
 
 // func generateQRCode(tableID string, url string) error {
@@ -47,6 +48,26 @@ func hasGroupID(groupID *string) bool {
 	return groupID != nil && *groupID != ""
 }
 
+func updateTableStatus(tx *gorm.DB, table models.Table, tableID int) error {
+	// ถ้าโต๊ะมี group_id ให้อัปเดตทุกโต๊ะในกลุ่ม
+	if table.GroupID != nil {
+		return tx.Model(&models.Table{}).
+			Where("group_id = ?", table.GroupID).
+			Updates(map[string]interface{}{
+				"status":     "occupied",
+				"updated_at": time.Now(),
+			}).Error
+	}
+
+	// ถ้าไม่มี group_id ให้อัปเดตเฉพาะโต๊ะนั้น
+	return tx.Model(&models.Table{}).
+		Where("id = ?", tableID).
+		Updates(map[string]interface{}{
+			"status":     "occupied",
+			"updated_at": time.Now(),
+		}).Error
+}
+
 // @Summary เข้าถึง dynamic link โต๊ะนั้นๆ
 // @Description เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ url ของแต่ละโต๊ะจะสามารถเข้าได้ผ่าน qr_code เท่านั้นจากฟังก์ชัน
 // @Produce json
@@ -73,6 +94,7 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 		})
 	}
 
+	actualTableID := num
 	// ถ้าโต๊ะอยู่ในกลุ่มและไม่ใช่ parent
 	if hasGroupID(table.GroupID) && table.ParentID != nil {
 		var parentTable models.Table
@@ -81,9 +103,42 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 				"error": "Parent table not found",
 			})
 		}
-		// ส่ง error แจ้งให้ใช้ parent table แทน
+
+		actualTableID = int(*table.ParentID)
+		// // ส่ง error แจ้งให้ใช้ parent table แทน
+		// return c.Status(400).JSON(fiber.Map{
+		// 	"error": fmt.Sprintf("This table is part of a group. Please use parent table (ID: %d) instead", *table.ParentID),
+		// })
+	}
+
+	if table.Status != "available" {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "โต๊ะต้องพร้อมใช้งาน",
+		})
+	}
+
+	var existingQR models.QRCode
+	result := db.DB.Where("table_id = ? AND is_active = ?", actualTableID, true).First(&existingQR)
+
+	if result.Error == nil {
 		return c.Status(400).JSON(fiber.Map{
-			"error": fmt.Sprintf("This table is part of a group. Please use parent table (ID: %d) instead", *table.ParentID),
+			"error": "table_id นี้มีคิวอาร์กำลังใช้งานอยู่",
+		})
+	}
+
+	tx := db.DB.Begin()
+
+	// ในฟังก์ชัน HandleQRCodeRequest
+	if err := updateTableStatus(tx, table, actualTableID); err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to update table status",
+		})
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to commit transaction",
 		})
 	}
 
@@ -99,7 +154,7 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 
 	// ถ้าเป็น parent table หรือโต๊ะเดี่ยว
 	qrCode := models.QRCode{
-		TableID:   num,
+		TableID:   actualTableID,
 		UUID:      UUID,
 		CreatedAt: time.Now(),
 		ExpiryAt:  expiryAt,
@@ -110,7 +165,7 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 	err = SaveQRCode(qrCode)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
-			"error": "Failed to save QR code",
+			"error": err,
 		})
 	}
 
