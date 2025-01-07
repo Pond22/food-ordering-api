@@ -1,5 +1,14 @@
 basePath: /
 definitions:
+  api_handlers.AssignCategoryRequest:
+    properties:
+      category_ids:
+        items:
+          type: integer
+        type: array
+    required:
+    - category_ids
+    type: object
   api_handlers.ChangePasswordRequest:
     properties:
       current_password:
@@ -11,11 +20,34 @@ definitions:
     - current_password
     - new_password
     type: object
-  api_handlers.DeleteCategoryOption:
+  api_handlers.CreateOrderRequest:
     properties:
-      force_delete:
-        description: true = ถ้าลบหมวดหมู่จะลบเมนูต่างๆ ที่เชื่อมอยู่ด้วย
-        type: boolean
+      items:
+        description: รายการอาหารที่สั่ง
+        items:
+          $ref: '#/definitions/api_handlers.orderItemRequest'
+        type: array
+      table_id:
+        description: ID ของโต๊ะ
+        type: integer
+      use_promo:
+        description: โปรโมชั่นที่ใช้ (ถ้ามี)
+        items:
+          $ref: '#/definitions/api_handlers.UsePromoRequest'
+        type: array
+      uuid:
+        description: UUID ของ QR Code
+        type: string
+    required:
+    - items
+    - table_id
+    - uuid
+    type: object
+  api_handlers.ErrorResponse:
+    properties:
+      error:
+        example: Invalid input format
+        type: string
     type: object
   api_handlers.LoginRequest:
     properties:
@@ -36,6 +68,40 @@ definitions:
       user:
         $ref: '#/definitions/api_handlers.UserProfile'
     type: object
+  api_handlers.MenuItemBasic:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      price:
+        type: integer
+    type: object
+  api_handlers.MenuItemResponseMin:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      price:
+        type: integer
+    type: object
+  api_handlers.OrderItemOptionRequest:
+    properties:
+      menu_option_id:
+        type: integer
+    required:
+    - menu_option_id
+    type: object
+  api_handlers.OrderItemOptionResponse:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      price:
+        type: number
+    type: object
   api_handlers.OrderItemRequest:
     properties:
       menu_item_id:
@@ -44,6 +110,27 @@ definitions:
         type: string
       quantity:
         type: integer
+    type: object
+  api_handlers.OrderItemResponse:
+    properties:
+      id:
+        type: integer
+      menu_item:
+        $ref: '#/definitions/api_handlers.MenuItemResponseMin'
+      menu_item_id:
+        type: integer
+      notes:
+        type: string
+      options:
+        items:
+          $ref: '#/definitions/api_handlers.OrderItemOptionResponse'
+        type: array
+      price:
+        type: number
+      quantity:
+        type: integer
+      status:
+        type: string
     type: object
   api_handlers.OrderRequest:
     properties:
@@ -56,6 +143,154 @@ definitions:
       uuid:
         type: string
     type: object
+  api_handlers.OrderResponse:
+    properties:
+      id:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/api_handlers.OrderItemResponse'
+        type: array
+      status:
+        type: string
+      table_id:
+        type: integer
+      total:
+        type: number
+      uuid:
+        type: string
+    type: object
+  api_handlers.PaymentDiscountRequest:
+    properties:
+      discount_type_id:
+        type: integer
+      reason:
+        type: string
+      value:
+        type: number
+    required:
+    - discount_type_id
+    - value
+    type: object
+  api_handlers.PaymentExtraChargeRequest:
+    properties:
+      amount:
+        type: number
+      charge_type_id:
+        type: integer
+      note:
+        type: string
+      quantity:
+        minimum: 1
+        type: integer
+    required:
+    - amount
+    - charge_type_id
+    - quantity
+    type: object
+  api_handlers.PaymentRequest:
+    properties:
+      discounts:
+        items:
+          $ref: '#/definitions/api_handlers.PaymentDiscountRequest'
+        type: array
+      extra_charges:
+        items:
+          $ref: '#/definitions/api_handlers.PaymentExtraChargeRequest'
+        type: array
+      order_id:
+        type: integer
+      payment_method:
+        type: string
+      service_charge:
+        type: number
+      staff_id:
+        description: อย่าลืมแก้ binding:"required"`
+        type: integer
+    required:
+    - order_id
+    - payment_method
+    type: object
+  api_handlers.PrinterResponse:
+    properties:
+      categories:
+        items:
+          $ref: '#/definitions/models.Category'
+        type: array
+      department:
+        type: string
+      id:
+        type: integer
+      ip_address:
+        type: string
+      name:
+        type: string
+      port:
+        type: integer
+      status:
+        type: string
+    type: object
+  api_handlers.PromotionItemResponse:
+    properties:
+      bundle_price:
+        type: number
+      discount_amount:
+        type: number
+      discount_percent:
+        type: number
+      id:
+        type: integer
+      menu_item:
+        $ref: '#/definitions/api_handlers.MenuItemBasic'
+      quantity:
+        type: integer
+    type: object
+  api_handlers.PromotionResponse:
+    properties:
+      description:
+        type: string
+      end_date:
+        type: string
+      id:
+        example: 1
+        type: integer
+      is_active:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/api_handlers.PromotionItemResponse'
+        type: array
+      name:
+        example: ลด 20% ทุกเมนูข้าว
+        type: string
+      nameCh:
+        type: string
+      nameEn:
+        type: string
+      start_date:
+        type: string
+      type:
+        example: single_discount
+        type: string
+    type: object
+  api_handlers.Req_merge:
+    properties:
+      table_ids:
+        items:
+          type: integer
+        type: array
+    type: object
+  api_handlers.ReservationRequest:
+    properties:
+      customer_name:
+        type: string
+      guest_count:
+        type: integer
+      phone_number:
+        type: string
+      reserved_for:
+        type: string
+    type: object
   api_handlers.ResetPasswordRequest:
     properties:
       new_password:
@@ -63,6 +298,40 @@ definitions:
         type: string
     required:
     - new_password
+    type: object
+  api_handlers.SuccessResponse:
+    properties:
+      message:
+        example: Status updated successfully
+        type: string
+    type: object
+  api_handlers.Table:
+    properties:
+      capacity:
+        type: integer
+      name:
+        type: string
+      status:
+        type: string
+    type: object
+  api_handlers.UpdateStatusRequest:
+    properties:
+      is_active:
+        example: false
+        type: boolean
+    type: object
+  api_handlers.UsePromoRequest:
+    properties:
+      menu_item_ids:
+        description: รายการอาหารที่ใช้โปรโมชั่น
+        items:
+          type: integer
+        type: array
+      promotion_id:
+        type: integer
+    required:
+    - menu_item_ids
+    - promotion_id
     type: object
   api_handlers.UserProfile:
     properties:
@@ -73,6 +342,143 @@ definitions:
       role:
         $ref: '#/definitions/models.UserRole'
       username:
+        type: string
+    type: object
+  api_handlers.createPromo_req:
+    properties:
+      description:
+        type: string
+      end_date:
+        type: string
+      items:
+        items:
+          properties:
+            menu_item_id:
+              type: integer
+            quantity:
+              minimum: 1
+              type: integer
+          required:
+          - menu_item_id
+          - quantity
+          type: object
+        type: array
+      name:
+        type: string
+      nameCh:
+        type: string
+      nameEn:
+        type: string
+      price:
+        type: number
+      start_date:
+        type: string
+    required:
+    - end_date
+    - items
+    - name
+    - price
+    - start_date
+    type: object
+  api_handlers.move_req:
+    properties:
+      from_table_id:
+        type: integer
+      to_table_id:
+        type: integer
+    type: object
+  api_handlers.opt_g:
+    properties:
+      MaxSelections:
+        type: integer
+      is_required:
+        type: boolean
+      name:
+        type: string
+      name_ch:
+        type: string
+      name_en:
+        type: string
+    required:
+    - name
+    - name_ch
+    - name_en
+    type: object
+  api_handlers.orderItemRequest:
+    properties:
+      menu_item_id:
+        type: integer
+      notes:
+        type: string
+      options:
+        items:
+          $ref: '#/definitions/api_handlers.OrderItemOptionRequest'
+        type: array
+      quantity:
+        minimum: 1
+        type: integer
+    required:
+    - menu_item_id
+    - quantity
+    type: object
+  api_handlers.updatePromo_req:
+    properties:
+      description:
+        type: string
+      end_date:
+        type: string
+      items:
+        items:
+          properties:
+            id:
+              description: สำหรับ item ที่มีอยู่แล้ว
+              type: integer
+            menu_item_id:
+              type: integer
+            quantity:
+              minimum: 1
+              type: integer
+          type: object
+        type: array
+      name:
+        type: string
+      nameCh:
+        type: string
+      nameEn:
+        type: string
+      price:
+        type: number
+      start_date:
+        type: string
+    type: object
+  api_handlers.updateStatusRequest:
+    properties:
+      status:
+        enum:
+        - pending
+        - preparing
+        - ready
+        - served
+        - cancelled
+        type: string
+    required:
+    - status
+    type: object
+  models.AdditionalChargeType:
+    properties:
+      createdAt:
+        type: string
+      defaultAmount:
+        description: ราคาเริ่มต้น
+        type: number
+      id:
+        type: integer
+      isActive:
+        type: boolean
+      name:
+        description: เช่น "แก้วแตก", "จานแตก"
+        type: string
+      updatedAt:
         type: string
     type: object
   models.Category:
@@ -120,6 +526,26 @@ definitions:
     - role
     - username
     type: object
+  models.DiscountType:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      isActive:
+        type: boolean
+      name:
+        description: เช่น "ส่วนลดพนักงาน", "ส่วนลดสมาชิก"
+        type: string
+      type:
+        description: percentage/amount
+        type: string
+      updatedAt:
+        type: string
+      value:
+        description: จำนวนหรือเปอร์เซ็นต์
+        type: number
+    type: object
   models.MenuItem:
     properties:
       category:
@@ -144,6 +570,9 @@ definitions:
         items:
           type: integer
         type: array
+      is_available:
+        description: พร้อมขายหรือไม่
+        type: boolean
       name:
         type: string
       nameCh:
@@ -281,14 +710,70 @@ definitions:
           $ref: '#/definitions/models.OrderItem'
         type: array
       status:
-        description: e.g., "pending", "cooking", "served", "completed"
+        description: '"completed", "uncompleted"'
         type: string
+      tableID:
+        type: integer
       total:
         type: number
       updatedAt:
         type: string
       uuid:
         type: string
+    type: object
+  models.OrderAdditionalCharge:
+    properties:
+      amount:
+        description: จำนวนเงินที่เก็บจริง
+        type: number
+      chargeType:
+        $ref: '#/definitions/models.AdditionalChargeType'
+      chargeTypeID:
+        type: integer
+      createdAt:
+        type: string
+      id:
+        type: integer
+      note:
+        description: บันทึกเพิ่มเติม
+        type: string
+      order:
+        $ref: '#/definitions/models.Order'
+      orderID:
+        type: integer
+      quantity:
+        type: integer
+      staff:
+        $ref: '#/definitions/models.Users'
+      staffID:
+        description: พนักงานที่บันทึก
+        type: integer
+    type: object
+  models.OrderDiscount:
+    properties:
+      createdAt:
+        type: string
+      discountType:
+        $ref: '#/definitions/models.DiscountType'
+      discountTypeID:
+        type: integer
+      id:
+        type: integer
+      order:
+        $ref: '#/definitions/models.Order'
+      orderID:
+        type: integer
+      reason:
+        description: เหตุผลที่ให้ส่วนลด (ถ้ามี)
+        type: string
+      staff:
+        $ref: '#/definitions/models.Users'
+      staffID:
+        description: พนักงานที่ให้ส่วนลด
+        type: integer
+      value:
+        description: จำนวนส่วนลดที่ใช้จริง
+        type: number
     type: object
   models.OrderItem:
     properties:
@@ -315,7 +800,11 @@ definitions:
         type: number
       quantity:
         type: integer
+      servedAt:
+        description: เวลาที่เสิร์ฟอาหาร
+        type: string
       status:
+        description: pending, served, cancelled
         type: string
       updatedAt:
         type: string
@@ -345,6 +834,66 @@ definitions:
         description: ค่าที่เลือก เช่น "เผ็ดมาก", "เพิ่มไข่ดาว"
         type: string
     type: object
+  models.PrintJob:
+    properties:
+      content:
+        items:
+          type: integer
+        type: array
+      createdAt:
+        type: string
+      id:
+        type: integer
+      order:
+        allOf:
+        - $ref: '#/definitions/models.Order'
+        description: 'Optional: เพิ่ม relation กับ Order ถ้าต้องการ'
+      orderID:
+        description: nullable, เพราะอาจเป็นการพิมพ์ทดสอบ
+        type: integer
+      printerIP:
+        type: string
+      status:
+        description: pending, processing, completed, failed
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  models.Printer:
+    properties:
+      categories:
+        description: หมวดหมู่ที่พิมพ์ได้
+        items:
+          $ref: '#/definitions/models.Category'
+        type: array
+      createdAt:
+        type: string
+      department:
+        description: แผนก/ฝ่ายที่ใช้งาน
+        type: string
+      description:
+        description: รายละเอียดเพิ่มเติม
+        type: string
+      id:
+        type: integer
+      ipaddress:
+        description: IP Address
+        type: string
+      lastSeen:
+        description: เวลาที่เห็นเครื่องพิมพ์ล่าสุด
+        type: string
+      name:
+        description: ชื่อเครื่องพิมพ์
+        type: string
+      port:
+        description: Port number
+        type: integer
+      status:
+        description: 'สถานะ: active, inactive, maintenance'
+        type: string
+      updatedAt:
+        type: string
+    type: object
   models.QRCode:
     properties:
       created_at:
@@ -365,6 +914,76 @@ definitions:
       uuid:
         type: string
     type: object
+  models.Receipt:
+    properties:
+      chargeTotal:
+        description: ยอดรวมค่าใช้จ่ายเพิ่ม
+        type: number
+      charges:
+        items:
+          $ref: '#/definitions/models.OrderAdditionalCharge'
+        type: array
+      createdAt:
+        type: string
+      discountTotal:
+        description: ยอดรวมส่วนลด
+        type: number
+      discounts:
+        items:
+          $ref: '#/definitions/models.OrderDiscount'
+        type: array
+      id:
+        type: integer
+      order:
+        $ref: '#/definitions/models.Order'
+      orderID:
+        type: integer
+      paymentMethod:
+        description: วิธีการชำระเงิน
+        type: string
+      serviceCharge:
+        description: ค่าบริการ (ถ้ามี)
+        type: number
+      staff:
+        $ref: '#/definitions/models.Users'
+      staffID:
+        description: พนักงานที่รับชำระ
+        type: integer
+      subTotal:
+        description: ยอดรวมก่อนส่วนลด/ค่าใช้จ่ายเพิ่ม
+        type: number
+      tableID:
+        type: integer
+      total:
+        description: ยอดสุทธิ
+        type: number
+      updatedAt:
+        type: string
+      uuid:
+        type: string
+    type: object
+  models.Table:
+    properties:
+      capacity:
+        description: default 2 ที่นั่ง
+        type: integer
+      createdAt:
+        type: string
+      groupID:
+        description: ID กลุ่มสำหรับโต๊ะที่รวมกัน
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      parentID:
+        type: integer
+      status:
+        description: available, reserved, occupied, unavailable
+        type: string
+      updatedAt:
+        type: string
+    type: object
   models.UserRole:
     enum:
     - staff
@@ -375,6 +994,23 @@ definitions:
     - RoleStaff
     - RoleManager
     - RoleChef
+  models.Users:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      password:
+        type: string
+      role:
+        $ref: '#/definitions/models.UserRole'
+      updatedAt:
+        type: string
+      username:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -530,12 +1166,6 @@ paths:
         name: id
         required: true
         type: integer
-      - description: ture ถ้ามีเมนูอยู่ในหมวดหมู่จะลบเมนูไปด้วย
-        in: body
-        name: order
-        required: true
-        schema:
-          $ref: '#/definitions/api_handlers.DeleteCategoryOption'
       produces:
       - application/json
       responses:
@@ -635,6 +1265,76 @@ paths:
       security:
       - BearerAuth: []
       summary: อัพเดตชื่อหมวดหมู่
+      tags:
+      - categories
+  /api/categories/get_delete_categories:
+    get:
+      description: ฟังก์ชันนี้ใช้สำหรับเรียกดูหมวดหมู่ที่ถูกลบรวมถึงอาหารในนั้นถ้าถูกลบพร้อมหมวดหมู่
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: สำเร็จ
+          schema:
+            items:
+              $ref: '#/definitions/models.Category'
+            type: array
+        "401":
+          description: ไม่ได้รับอนุญาต (Unauthorized)
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง (Forbidden)
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการเรียกดูข้อมูลหมวดหมู่ที่ถูกลบ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: เรียกดูหมวดหมู่ที่ถูกลบพร้อมแสดงรายการอาหารในนั้นถ้ามี
+      tags:
+      - categories
+  /api/categories/restore_categories/{id}:
+    post:
+      description: ฟังก์ชันนี้ใช้สำหรับลบหมวดหมู่และถ้ามีรายการอาหารจะถูกลบด้วย
+      parameters:
+      - description: ID ของหมวดหมู่
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ลบสำเร็จ
+          schema:
+            items:
+              $ref: '#/definitions/models.Category'
+            type: array
+        "401":
+          description: ไม่ได้รับอนุญาต (Unauthorized)
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง (Forbidden)
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการลบข้อมูลหมวดหมู่
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: กู้คืนมวดหมู่และรายการอาหารทั้งหมดในนั้น
       tags:
       - categories
   /api/member:
@@ -1089,6 +1789,50 @@ paths:
       summary: อัพเดทข้อมูลเมนูพื้นฐาน
       tags:
       - menu
+  /api/menu/{menu_id}/options/{option_id}:
+    put:
+      consumes:
+      - application/json
+      description: อัพเดทข้อมูลของ Option ผ่าน Menu ID และ Option ID
+      parameters:
+      - description: ID ของเมนู
+        in: path
+        name: menu_id
+        required: true
+        type: integer
+      - description: ID ของ Option ที่ต้องการอัพเดท
+        in: path
+        name: option_id
+        required: true
+        type: integer
+      - description: ข้อมูล Option ที่ต้องการอัพเดท
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.OptionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของ Option ที่อัพเดทแล้ว
+          schema:
+            $ref: '#/definitions/models.MenuOption'
+        "400":
+          description: ข้อมูลไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: ไม่พบเมนูหรือ option ที่ต้องการ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: อัพเดทข้อมูล Option โดยใช้ Menu ID
+      tags:
+      - menu
   /api/menu/deleted:
     get:
       description: ดูรายการเมนูทั้งหมดที่ถูก soft delete
@@ -1224,6 +1968,43 @@ paths:
       tags:
       - menu
   /api/menu/option-groups/{id}:
+    get:
+      description: ฟังก์ชันนี้ใช้สำหรับเรียกดู Option ตามไอดีอาหาร
+      parameters:
+      - description: ID ของอาหาร
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายการ option ทั้งหมด
+          schema:
+            items:
+              $ref: '#/definitions/models.OptionGroup'
+            type: array
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการดึงข้อมูลเมนู
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: เรียกดู Option ตามไอดีอาหาร
+      tags:
+      - menu
     put:
       consumes:
       - application/json
@@ -1239,14 +2020,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/models.OptionGroupRequest'
+          $ref: '#/definitions/api_handlers.opt_g'
       produces:
       - application/json
       responses:
         "200":
           description: รายละเอียดของ Option Group ที่อัพเดทแล้ว
           schema:
-            $ref: '#/definitions/models.OptionGroup'
+            $ref: '#/definitions/api_handlers.opt_g'
         "400":
           description: ข้อมูลไม่ถูกต้อง
           schema:
@@ -1555,6 +2336,1088 @@ paths:
       summary: กู้คืนเมนู
       tags:
       - menu-restore
+  /api/menu/status/{id}:
+    put:
+      consumes:
+      - application/json
+      description: อัปเดตสถานะอาหาร หมด-ไม่หมด เป็น Toggle เวลาเรียกจะเปลีียนไปสถานะตรงข้าม
+      parameters:
+      - description: ID ของเมนู
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: เปลี่ยนสถานะสำเร็จ
+          schema:
+            $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการอัปเดต
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: อัปเดตสถานะอาหาร หมด-ไม่หมด
+      tags:
+      - menu
+  /api/orders:
+    post:
+      consumes:
+      - application/json
+      description: สร้างออเดอร์ใหม่พร้อมรายการอาหารและโปรโมชั่น (ถ้ามี)
+      parameters:
+      - description: ข้อมูลออเดอร์
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Order'
+      summary: สร้างออเดอร์ใหม่
+      tags:
+      - Order_ใหม่
+  /api/orders/{id}:
+    get:
+      description: ดึงรายละเอียดของออเดอร์ตาม ID
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Order'
+      summary: ดึงรายละเอียดออเดอร์
+      tags:
+      - Order_ใหม่
+  /api/orders/{id}/cancel:
+    post:
+      consumes:
+      - application/json
+      description: ยกเลิกออเดอร์และรายการอาหารทั้งหมดในออเดอร์
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Order'
+      summary: ยกเลิกออเดอร์
+  /api/orders/active:
+    get:
+      description: ดึงรายการออเดอร์ที่ยังไม่เสร็จสิ้น (pending, preparing, ready)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api_handlers.OrderResponse'
+            type: array
+      summary: ดึงรายการออเดอร์ที่กำลังดำเนินการ
+      tags:
+      - Order_ใหม่
+  /api/orders/items/serve/{id}:
+    post:
+      consumes:
+      - application/json
+      description: ยืนยันการเสิร์ฟอาหารสำหรับรายการอาหารในออเดอร์
+      parameters:
+      - description: OrderItem ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.OrderItem'
+      summary: ยืนยันการเสิร์ฟอาหาร
+      tags:
+      - Order_ใหม่
+  /api/orders/status/{id}:
+    put:
+      consumes:
+      - application/json
+      description: อัพเดทสถานะของออเดอร์ (pending, preparing, ready, served, cancelled)
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: สถานะใหม่
+        in: body
+        name: status
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.updateStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Order'
+      summary: อัพเดทสถานะออเดอร์
+      tags:
+      - Order_ใหม่
+  /api/orders/table/{table_id}:
+    get:
+      description: ดึงรายการออเดอร์ทั้งหมดของโต๊ะที่ระบุ
+      parameters:
+      - description: Table ID
+        in: path
+        name: table_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Order'
+            type: array
+      summary: ดึงรายการออเดอร์ตามโต๊ะ
+  /api/payment/charge-types:
+    get:
+      description: ดึงรายการประเภทค่าใช้จ่ายเพิ่มเติมที่เปิดใช้งาน
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.AdditionalChargeType'
+            type: array
+      summary: ดึงประเภทค่าใช้จ่ายเพิ่มเติมที่ใช้งานได้
+      tags:
+      - Payment
+    post:
+      consumes:
+      - application/json
+      description: สร้างประเภทค่าใช้จ่ายเพิ่มเติมใหม่ (สำหรับผู้จัดการ)
+      parameters:
+      - description: ข้อมูลประเภทค่าใช้จ่าย
+        in: body
+        name: charge
+        required: true
+        schema:
+          $ref: '#/definitions/models.AdditionalChargeType'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.AdditionalChargeType'
+      summary: สร้างประเภทค่าใช้จ่ายเพิ่มเติมใหม่
+      tags:
+      - Payment
+  /api/payment/discount-types:
+    get:
+      description: ดึงรายการประเภทส่วนลดที่เปิดใช้งาน
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.DiscountType'
+            type: array
+      summary: ดึงประเภทส่วนลดที่ใช้งานได้
+      tags:
+      - Payment
+    post:
+      consumes:
+      - application/json
+      description: สร้างประเภทส่วนลดใหม่ (สำหรับผู้จัดการ)
+      parameters:
+      - description: ข้อมูลประเภทส่วนลด
+        in: body
+        name: discount
+        required: true
+        schema:
+          $ref: '#/definitions/models.DiscountType'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.DiscountType'
+      summary: สร้างประเภทส่วนลดใหม่
+      tags:
+      - Payment
+  /api/payment/process:
+    post:
+      consumes:
+      - application/json
+      description: ชำระเงินสำหรับออเดอร์ พร้อมส่วนลดและค่าใช้จ่ายเพิ่มเติม
+      parameters:
+      - description: ข้อมูลการชำระเงิน
+        in: body
+        name: payment
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.PaymentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Receipt'
+        "400":
+          description: ข้อมูลไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: ไม่พบออเดอร์
+          schema:
+            additionalProperties: true
+            type: object
+      summary: ชำระเงิน
+      tags:
+      - Payment
+  /api/payment/receipt/{id}:
+    get:
+      description: ดึงข้อมูลใบเสร็จตาม ID
+      parameters:
+      - description: Receipt ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Receipt'
+      summary: ดึงใบเสร็จ
+      tags:
+      - Payment
+  /api/printers:
+    get:
+      description: ดึงรายการเครื่องพิมพ์ทั้งหมดพร้อมหมวดหมู่
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api_handlers.PrinterResponse'
+            type: array
+      summary: ดึงข้อมูลเครื่องพิมพ์ทั้งหมด
+      tags:
+      - Printer
+  /api/printers/categories/{id}:
+    get:
+      description: ดึงรายการหมวดหมู่ที่เครื่องพิมพ์สามารถพิมพ์ได้
+      parameters:
+      - description: Printer ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Category'
+            type: array
+      summary: ดึงรายการหมวดหมู่ของเครื่องพิมพ์
+      tags:
+      - Printer
+    post:
+      consumes:
+      - application/json
+      description: กำหนดหมวดหมู่ที่เครื่องพิมพ์สามารถพิมพ์ได้
+      parameters:
+      - description: Printer ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: รายการ ID ของหมวดหมู่
+        in: body
+        name: categories
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.AssignCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Printer'
+      summary: กำหนดหมวดหมู่ให้เครื่องพิมพ์
+      tags:
+      - Printer
+  /api/printers/pending-jobs:
+    get:
+      description: ดึงรายการงานพิมพ์ที่ยังไม่ได้พิมพ์สำหรับ IP ที่ระบุ
+      parameters:
+      - description: Printer IP Address
+        in: query
+        name: printer_ip
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.PrintJob'
+            type: array
+      summary: รับงานพิมพ์ที่รอดำเนินการ
+      tags:
+      - Printer
+  /api/printers/status/{id}:
+    put:
+      consumes:
+      - application/json
+      description: อัพเดทสถานะของงานพิมพ์ (completed/failed)
+      parameters:
+      - description: Print Job ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New Status
+        in: body
+        name: status
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.PrintJob'
+      summary: อัพเดทสถานะงานพิมพ์
+      tags:
+      - Printer
+  /api/promotions:
+    get:
+      consumes:
+      - application/json
+      description: ดึงรายการโปรโมชั่นทั้งหมดที่กำลังใช้งานอยู่ (IsActive=true) และอยู่ในช่วงวันที่ที่กำหนด
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายการโปรโมชั่นที่กำลังใช้งาน
+          schema:
+            items:
+              $ref: '#/definitions/api_handlers.PromotionResponse'
+            type: array
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "500":
+          description: เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: ดึงรายการโปรโมชั่นที่กำลังใช้งาน
+      tags:
+      - promotions
+    post:
+      consumes:
+      - application/json
+      description: สร้างโปรโมชั่นใหม่พร้อมรายการสินค้าที่ร่วมรายการ สามารถเป็นได้ทั้งแบบส่วนลดและแบบบันเดิล
+      parameters:
+      - description: ข้อมูลโปรโมชั่น
+        in: body
+        name: promotion
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.createPromo_req'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของโปรโมชั่นที่สร้างสำเร็จ
+          schema:
+            $ref: '#/definitions/api_handlers.PromotionResponse'
+        "400":
+          description: ข้อมูลไม่ถูกต้อง
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "500":
+          description: เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: สร้างโปรโมชั่นใหม่
+      tags:
+      - promotions
+  /api/promotions/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: ลบโปรโมชั่นแบบ Soft Delete โดยการตั้งค่า DeletedAt
+      parameters:
+      - description: ID ของโปรโมชั่น
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ลบโปรโมชั่นสำเร็จ
+          schema:
+            $ref: '#/definitions/api_handlers.SuccessResponse'
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "404":
+          description: ไม่พบโปรโมชั่นที่ระบุ
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "500":
+          description: เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: ลบโปรโมชั่น (Soft Delete)
+      tags:
+      - promotions
+    get:
+      consumes:
+      - application/json
+      description: ดึงข้อมูลรายละเอียดของโปรโมชั่นตาม ID ที่ระบุ
+      parameters:
+      - description: ID ของโปรโมชั่น
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของโปรโมชั่น
+          schema:
+            $ref: '#/definitions/api_handlers.PromotionResponse'
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "404":
+          description: ไม่พบโปรโมชั่นที่ระบุ
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "500":
+          description: เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: ดึงข้อมูลโปรโมชั่นตาม ID
+      tags:
+      - promotions
+    put:
+      consumes:
+      - application/json
+      description: อัพเดตข้อมูลโปรโมชั่นและรายการสินค้าที่ร่วมรายการ
+      parameters:
+      - description: ID ของโปรโมชั่น
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ข้อมูลโปรโมชั่นที่ต้องการอัพเดต
+        in: body
+        name: promotion
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.updatePromo_req'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของโปรโมชั่นที่อัพเดตสำเร็จ
+          schema:
+            $ref: '#/definitions/api_handlers.PromotionResponse'
+        "400":
+          description: ข้อมูลไม่ถูกต้อง
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "404":
+          description: ไม่พบโปรโมชั่นที่ระบุ
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "500":
+          description: เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: อัพเดตข้อมูลโปรโมชั่น
+      tags:
+      - promotions
+  /api/promotions/status/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: เปิดหรือปิดการใช้งานโปรโมชั่น โดยการอัพเดทค่า IsActive
+      parameters:
+      - description: ID ของโปรโมชั่น
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: สถานะใหม่ของโปรโมชั่น
+        in: body
+        name: status
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.UpdateStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: อัพเดทสถานะสำเร็จ
+          schema:
+            $ref: '#/definitions/api_handlers.SuccessResponse'
+        "400":
+          description: ข้อมูลไม่ถูกต้อง
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "404":
+          description: ไม่พบโปรโมชั่นที่ระบุ
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "500":
+          description: เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: อัพเดทสถานะการใช้งานโปรโมชั่น
+      tags:
+      - promotions
+  /api/qr/{id}:
+    get:
+      description: เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ
+        url ของแต่ละโต๊ะจะสามารถเข้าได้ผ่าน qr_code เท่านั้นจากฟังก์ชัน
+      parameters:
+      - description: ID โต๊ะ
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของตาราง qr_code
+          schema:
+            $ref: '#/definitions/models.QRCode'
+        "400":
+          description: เกิดข้อผิดพลาดจาก action ที่ไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+      summary: เข้าถึง dynamic link โต๊ะนั้นๆ
+      tags:
+      - Qr_code
+  /api/table:
+    post:
+      consumes:
+      - application/json
+      description: สร้างโต๊ะใหม่
+      parameters:
+      - description: ข้อมูลโต๊ะ
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.Table'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของโต๊ะ
+          schema:
+            $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: ชื่อโต๊ะซ้ำกับที่มีอยู่แล้ว
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการสร้างโต๊ะ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: สร้างโต๊ะใหม่
+      tags:
+      - Table
+  /api/table/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: เป็นการ softdelete โต๊ะโดยโต๊ะต้องอยุ่ในสถานะพร้อมให้บริการ หรือ
+        ไม่พร้อมให้บริการ
+      parameters:
+      - description: ID โต๊ะ
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ลบโต๊ะสำเร็จ
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: ชื่อโต๊ะซ้ำกับที่มีอยู่แล้ว
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการสร้างโต๊ะ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ลบโต๊ะ
+      tags:
+      - Table
+    put:
+      consumes:
+      - application/json
+      description: แก้ไขข้อมูลโต๊ะ โดยโต๊ะต้องไม่อยู่ในระหว่างการให้บริการ
+      parameters:
+      - description: ID โต๊ะ
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ข้อมูลโต๊ะที่ต้องการแก้ไข
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.Table'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของโต๊ะที่แก้ไขแล้ว
+          schema:
+            $ref: '#/definitions/models.Table'
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: ไม่พบโต๊ะที่ต้องการแก้ไข
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: ชื่อโต๊ะซ้ำกับที่มีอยู่แล้ว
+          schema:
+            additionalProperties: true
+            type: object
+        "422":
+          description: ไม่สามารถแก้ไขโต๊ะที่กำลังใช้งานอยู่
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: แก้ไขข้อมูลโต๊ะ
+      tags:
+      - Table
+  /api/table/mergeTable:
+    post:
+      consumes:
+      - application/json
+      description: รวมโต๊ะ
+      parameters:
+      - description: ข้อมูลโต๊ะ
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.Req_merge'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของโต๊ะ
+          schema:
+            $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการรวมโต๊ะ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: รวมโต๊ะ
+      tags:
+      - Table
+  /api/table/moveTable:
+    post:
+      consumes:
+      - application/json
+      description: ย้ายโต๊ะโดยจะย้ายได้ต่อเมื่อโต๊ะอยู่ในสถานะ occupied หรือกำลังใช้งานอยู่เท่านั้นเป็นการย้ายโต๊ะที่ลูกค้่่ากำลังใช้งานไปอีกโต๊ะนึง
+      parameters:
+      - description: ID ของโต๊ะที่จะย้าย ID ของโต๊ะเป้าหมายที่จะย้ายไป
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.move_req'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของโต๊ะ
+          schema:
+            $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการย้ายโต๊ะ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ย้ายโต๊ะ
+      tags:
+      - Table
+  /api/table/reservedTable/{id}:
+    post:
+      consumes:
+      - application/json
+      description: จองโต๊ะโดยโต๊ะต้องอยู่ในถานะพร้อมให้บริการถึงจองได้
+      parameters:
+      - description: ข้อมูลการจองโต๊ะ
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.ReservationRequest'
+      - description: ID ของกลุ่มโต๊ะนั้นๆ
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: เค
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการจองโต๊ะ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: จองโต๊ะ
+      tags:
+      - Table
+  /api/table/setstatus/{id}:
+    put:
+      consumes:
+      - application/json
+      description: สลับสถานะระหว่างพร้อมใช้งาน (available) และไม่พร้อมใช้งาน (unavailable)
+        โดยโต๊ะต้องไม่อยู่ในระหว่างการให้บริการ
+      parameters:
+      - description: ID โต๊ะ
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: สลับสถานะสำเร็จ
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: ไม่พบโต๊ะ
+          schema:
+            additionalProperties: true
+            type: object
+        "422":
+          description: ไม่สามารถสลับสถานะได้
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: สลับสถานะพร้อมใช้งาน/ไม่พร้อมใช้งานของโต๊ะ
+      tags:
+      - Table
+  /api/table/splitTable/{id}:
+    post:
+      consumes:
+      - application/json
+      description: แยกโต๊ะหลังจากที่รวมแล้ว
+      parameters:
+      - description: ID ของกลุ่มโต๊ะนั้นๆ
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของโต๊ะ
+          schema:
+            $ref: '#/definitions/models.MenuItem'
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการแยกโต๊ะ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: แยกโต๊ะ
+      tags:
+      - Table
+  /api/table/unreservedTable/{id}:
+    post:
+      consumes:
+      - application/json
+      description: ยกเลืกจองโต๊ะโดยโต๊ะต้องอยู่ในถานะพร้อมให้บริการถึงยกเลิกจองได้
+      parameters:
+      - description: ID ของกลุ่มโต๊ะนั้นๆ
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: เค
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการยกเลืกจองโต๊ะ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ยกเลืกจองโต๊ะ
+      tags:
+      - Table
   /order:
     get:
       description: เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ
@@ -1611,31 +3474,6 @@ paths:
       summary: สั่งอาหาร......
       tags:
       - orders
-  /qr_code/{table}:
-    get:
-      description: เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ
-        url ของแต่ละโต๊ะจะสามารถเข้าได้ผ่าน qr_code เท่านั้นจากฟังก์ชัน
-      parameters:
-      - description: เลขโต๊ะ
-        in: path
-        name: table
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: รายละเอียดของตาราง qr_code
-          schema:
-            $ref: '#/definitions/models.QRCode'
-        "400":
-          description: เกิดข้อผิดพลาดจาก action ที่ไม่ถูกต้อง
-          schema:
-            additionalProperties: true
-            type: object
-      summary: เข้าถึง dynamic link โต๊ะนั้นๆ
-      tags:
-      - tables
 schemes:
 - http
 securityDefinitions:

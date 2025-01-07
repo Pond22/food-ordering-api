@@ -1,4 +1,4 @@
-package qr_service
+package service
 
 import (
 	"fmt"
@@ -11,6 +11,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/skip2/go-qrcode"
+	"gorm.io/gorm"
 )
 
 // func generateQRCode(tableID string, url string) error {
@@ -27,7 +28,7 @@ import (
 // 	return nil
 // }
 
-func generateQRCodeAsBytes(url string) ([]byte, error) {
+func GenerateQRCodeAsBytes(url string) ([]byte, error) {
 	qrCode, err := qrcode.Encode(url, qrcode.Medium, 256) // ขนาด 256x256
 	if err != nil {
 		return nil, err
@@ -36,55 +37,124 @@ func generateQRCodeAsBytes(url string) ([]byte, error) {
 }
 
 func SaveQRCode(qrCode models.QRCode) error {
-	// ใช้ GORM บันทึกข้อมูล QRCode
-	result := db.DB.Create(&qrCode) // `db` คือตัวแปรที่เชื่อมต่อ GORM
+	result := db.DB.Create(&qrCode)
 	if result.Error != nil {
 		return result.Error
 	}
 	return nil
 }
 
-//qr handler
+func hasGroupID(groupID *string) bool {
+	return groupID != nil && *groupID != ""
+}
+
+func updateTableStatus(tx *gorm.DB, table models.Table, tableID int) error {
+	// ถ้าโต๊ะมี group_id ให้อัปเดตทุกโต๊ะในกลุ่ม
+	if table.GroupID != nil {
+		return tx.Model(&models.Table{}).
+			Where("group_id = ?", table.GroupID).
+			Updates(map[string]interface{}{
+				"status":     "occupied",
+				"updated_at": time.Now(),
+			}).Error
+	}
+
+	// ถ้าไม่มี group_id ให้อัปเดตเฉพาะโต๊ะนั้น
+	return tx.Model(&models.Table{}).
+		Where("id = ?", tableID).
+		Updates(map[string]interface{}{
+			"status":     "occupied",
+			"updated_at": time.Now(),
+		}).Error
+}
 
 // @Summary เข้าถึง dynamic link โต๊ะนั้นๆ
 // @Description เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ url ของแต่ละโต๊ะจะสามารถเข้าได้ผ่าน qr_code เท่านั้นจากฟังก์ชัน
 // @Produce json
-// @Param table path string true "เลขโต๊ะ"
+// @Param id path integer true "ID โต๊ะ"
 // @Success 200 {object} models.QRCode "รายละเอียดของตาราง qr_code"
 // @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจาก action ที่ไม่ถูกต้อง"
-// @Router /qr_code/{table} [get]
-// @Tags tables
+// @Router /api/qr/{id} [get]
+// @Tags Qr_code
 func HandleQRCodeRequest(c *fiber.Ctx) error {
-	// สร้าง tableID ใหม่ด้วย UUID
 	UUID := uuid.New().String()
-	tableID := c.Params("table")
+	tableID := c.Params("id")
 	num, err := strconv.Atoi(tableID)
 	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"error": fmt.Sprintf("Invalid ID: %s. ID must be a number.", tableID),
 		})
 	}
-	expiryAt := time.Now().Add(2 * time.Hour)
-	// สร้าง URL ที่จะใช้ใน QR Code
-	url := fmt.Sprintf("http://localhost:8080/order?table=%v&uuid=%v", tableID, UUID)
 
-	fmt.Println("tableID:", tableID)
-	fmt.Println("Generated UUID:", UUID)
-	// สร้าง QR Code สำหรับ tableID ใหม่
-	// err := generateQRCode(tableID, url)
-	// if err != nil {
-	// 	return c.Status(500).SendString(err.Error())
-	// }
-
-	// ใช้ฟังก์ชันที่ส่งคืนข้อมูล []byte ของภาพ
-	imageData, err := generateQRCodeAsBytes(url)
-	if err != nil {
-		return c.Status(500).SendString("Failed to generate QR Code")
+	// ตรวจสอบว่าโต๊ะมีอยู่จริง
+	var table models.Table
+	if err := db.DB.First(&table, num).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{
+			"error": "Table not found",
+		})
 	}
 
+	actualTableID := num
+	// ถ้าโต๊ะอยู่ในกลุ่มและไม่ใช่ parent
+	if hasGroupID(table.GroupID) && table.ParentID != nil {
+		var parentTable models.Table
+		if err := db.DB.First(&parentTable, table.ParentID).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{
+				"error": "Parent table not found",
+			})
+		}
+
+		actualTableID = int(*table.ParentID)
+		// // ส่ง error แจ้งให้ใช้ parent table แทน
+		// return c.Status(400).JSON(fiber.Map{
+		// 	"error": fmt.Sprintf("This table is part of a group. Please use parent table (ID: %d) instead", *table.ParentID),
+		// })
+	}
+
+	if table.Status != "available" {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "โต๊ะต้องพร้อมใช้งาน",
+		})
+	}
+
+	var existingQR models.QRCode
+	result := db.DB.Where("table_id = ? AND is_active = ?", actualTableID, true).First(&existingQR)
+
+	if result.Error == nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "table_id นี้มีคิวอาร์กำลังใช้งานอยู่",
+		})
+	}
+
+	tx := db.DB.Begin()
+
+	// ในฟังก์ชัน HandleQRCodeRequest
+	if err := updateTableStatus(tx, table, actualTableID); err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to update table status",
+		})
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to commit transaction",
+		})
+	}
+
+	expiryAt := time.Now().Add(2 * time.Hour)
+	url := fmt.Sprintf("http://localhost:8080/order?table=%v&uuid=%v", tableID, UUID)
+
+	imageData, err := GenerateQRCodeAsBytes(url)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to generate QR Code",
+		})
+	}
+
+	// ถ้าเป็น parent table หรือโต๊ะเดี่ยว
 	qrCode := models.QRCode{
-		// ID:        tableID,
-		TableID:   num,
+		TableID:   actualTableID,
 		UUID:      UUID,
 		CreatedAt: time.Now(),
 		ExpiryAt:  expiryAt,
@@ -94,38 +164,15 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 
 	err = SaveQRCode(qrCode)
 	if err != nil {
-		return c.Status(500).SendString("qr_code โต๊ะนี้มีอยู่ในระบบแล้ว")
+		return c.Status(500).JSON(fiber.Map{
+			"error": err,
+		})
 	}
 
-	// ส่งข้อมูลกลับไปยังผู้ใช้
-	// return c.SendFile(fmt.Sprintf("qr_code_%s.png", tableID))
 	c.Set("Content-Type", "image/png")
 	c.Set("Content-Disposition", "inline")
 	return c.Send(imageData)
-	// return c.JSON(fiber.Map{
-	// 	"message": "QR Code generated successfully",
-	// 	"qr_url":  url,
-	// 	"table":   tableID,
-	// })
 }
-
-// func HandleQRCodeRequest(c *fiber.Ctx) error {
-// 	tableID := c.Query("action")
-// 	// url := fmt.Sprintf("https://example.com/order/%s", tableID)
-// 	url := fmt.Sprintf("http://localhost:8080/order?table=%v", tableID)
-// 	fmt.Println("Received tableID:", tableID)
-// 	err := generateQRCode(tableID, url)
-// 	if err != nil {
-// 		return c.Status(500).SendString(err.Error())
-// 	}
-
-// 	// return c.SendFile(fmt.Sprintf("qr_code_%s.png", tableID))
-// 	return c.JSON(fiber.Map{
-// 		"message": "QR Code generated successfully",
-// 		"qr_url":  url,
-// 		"table":   tableID,
-// 	})
-// }
 
 // table_service
 // query หรือ path
@@ -157,4 +204,3 @@ func Table(c *fiber.Ctx) error {
 		"uuid":    uuid,
 	})
 }
-	

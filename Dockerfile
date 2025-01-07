@@ -22,6 +22,10 @@ WORKDIR /app
 
 # Copy the binary from builder
 COPY --from=builder /app/main .
+# Copy font file
+COPY --from=builder /app/THSarabunNew.ttf .
+
+COPY dict/lexitron.txt /app/dict/lexitron.txt
 
 # Command to run the application
 CMD ["./main"]
