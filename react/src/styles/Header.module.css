@@ -2,24 +2,42 @@
     /* display: flex; */
     justify-content: space-between;
     align-items: center;
-    padding: 10px 20px;
-    background-color: #ff5733;
-    color: white;
+    padding: 5px;
+    background-color: #231F20;
+    color: #E6C65C;
+    /* color: #ef4040; */
+    font-family: Cursive;
+    width: 100%;
+    
   }
   
   .logo {
     font-size: 24px;
     font-weight: bold;
     padding-bottom: 10px;
+    /* background-image:image/images (1).jpg ; */
+    
   }
-  
+  .nav{
+    top: 0;
+    display: flex;
+    overflow-x: auto; /* ทำให้สามารถเลื่อนแนวนอนได้ */
+    white-space: nowrap; /* ไม่ให้ลิงก์เมนูขึ้นบรรทัดใหม่ */
+    position:fixed
+    
+  }
   .nav a {
-    margin-top: 10px;
-    margin-left: 20px;
+    /* margin-top: 10px; */
+    margin-right: 10px;
     color: black;
     background-color: whitesmoke;
     padding: 3px;
-    border-radius: 15%;
+    border-radius: 30px;
     text-decoration: none;
+    z-index: 0;
+    
   }
-  
+  .nav a.active {
+    background-color: #007bff;
+    color: white;
+  }
