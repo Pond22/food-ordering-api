@@ -13,6 +13,13 @@ func SetupRoutes(app *fiber.App) {
 	// API Group
 	api := app.Group("/api")
 
+	pos := api.Group("/pos")
+	{
+		pos.Post("/sessions/start", api_handlers.StartPOSSession)
+		pos.Post("sessions/:id/end", api_handlers.EndPOSSession)
+		pos.Get("/sessions/:id/validate", api_handlers.ValidatePOSSession)
+	}
+
 	// Auth Routes
 	auth := api.Group("/auth")
 	{

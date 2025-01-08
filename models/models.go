@@ -61,9 +61,9 @@ type MenuItem struct {
 	Name          string        `gorm:"not null"`
 	NameEn        string        `gorm:"not null"`
 	NameCh        string        `gorm:"not null"`
-	Description   string        `gorm:"type:varchar(10000)"`
-	DescriptionEn string        `gorm:"type:varchar(10000)"`
-	DescriptionCh string        `gorm:"type:varchar(10000)"`
+	Description   string        `gorm:"type:varchar(255)"`
+	DescriptionEn string        `gorm:"type:varchar(255)"`
+	DescriptionCh string        `gorm:"type:varchar(255)"`
 	Image         []byte        `gorm:"type:bytea"`            // ฟิลด์ Image เป็น type bytea
 	CategoryID    uint          `gorm:"not null"`              // foreign key ที่เชื่อมกับ Category
 	Category      Category      `gorm:"foreignKey:CategoryID"` // ลิงก์ไปยังตาราง Category
@@ -124,6 +124,20 @@ type Table struct {
 	DeletedAt gorm.DeletedAt `json:"-" swaggerignore:"true"`
 }
 
+type TableReservation struct {
+	ID           uint      `gorm:"primaryKey"`
+	TableID      uint      `gorm:"not null"`                   // Foreign key to Table
+	Table        Table     `gorm:"foreignKey:TableID"`         // Relation to Table
+	CustomerName string    `gorm:"type:varchar(100);not null"` // ชื่อลูกค้าที่จอง
+	PhoneNumber  string    `gorm:"type:varchar(20);not null"`  // เบอร์โทรศัพท์
+	GuestCount   int       `gorm:"not null"`                   // จำนวนลูกค้า
+	ReservedFor  time.Time `gorm:"not null"`                   // เวลาที่ลูกค้าจะมาใช้บริการ
+	Status       string    `gorm:"not null;default:'active'"`  // active, cancelled, completed
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	DeletedAt    gorm.DeletedAt `json:"-" swaggerignore:"true"`
+}
+
 // TableHistory - เก็บประวัติการย้าย/รวมโต๊ะ
 // type TableHistory struct {
 // 	ID          uint   `gorm:"primaryKey"`
@@ -139,7 +153,7 @@ type Table struct {
 
 type QRCode struct {
 	ID        uint      `gorm:"primaryKey"`
-	TableID   int       `gorm:"not null;unique" json:"table_id"` // One-to-One กับ Table
+	TableID   int       `gorm:"not null" json:"table_id"` // One-to-One กับ Table
 	UUID      string    `gorm:"not null;uniqueIndex"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	Qr_Image  []byte    `gorm:"type:bytea"`
@@ -200,26 +214,40 @@ type Users struct {
 	UpdatedAt time.Time
 }
 
-// FE-5 รายงานและวิเคราะห์
-type DailySales struct {
-	ID            uint      `gorm:"primaryKey"`
-	Date          time.Time `gorm:"not null;unique"`
-	TotalSales    float64   `gorm:"not null"`
-	OrderCount    int       `gorm:"not null"`
-	CustomerCount int       `gorm:"not null"`
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+type POSSession struct { //เอาไว้เวลาพนักงานสแกนเพื่อเข้าทำงานที่เครื่องคอมหลักหรือ POS เคาท์เตอร์
+	ID         uint      `gorm:"primaryKey"`
+	StaffID    uint      `gorm:"not null"`           // เชื่อมกับตาราง Users
+	Staff      Users     `gorm:"foreignKey:StaffID"` // Relation กับ Users
+	StartTime  time.Time `gorm:"not null"`
+	EndTime    *time.Time
+	LoginToken string `gorm:"unique"`   // Token สำหรับ QR Login
+	Status     string `gorm:"not null"` // active, ended
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
-// FE-5 รายงานและวิเคราะห์
-type MenuItemStats struct {
-	ID           uint      `gorm:"primaryKey"`
-	MenuItemID   uint      `gorm:"not null"` // Foreign key to MenuItem
-	OrderCount   int       `gorm:"not null"`
-	TotalRevenue float64   `gorm:"not null"`
-	Date         time.Time `gorm:"not null"`
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+// SalesAnalysis - ตารางสำหรับวิเคราะห์การขายและ Association
+type SalesAnalysis struct {
+	ID   uint      `gorm:"primaryKey"`
+	Date time.Time `gorm:"not null"`
+
+	// ข้อมูลการขาย
+	MenuItemID   uint     `gorm:"not null"`
+	MenuItem     MenuItem `gorm:"foreignKey:MenuItemID"`
+	OrderCount   int      `gorm:"not null"`
+	TotalRevenue float64  `gorm:"not null"`
+
+	// ข้อมูล Association
+	RelatedItemID uint     `gorm:"not null"` // เมนูที่ถูกสั่งร่วม
+	RelatedItem   MenuItem `gorm:"foreignKey:RelatedItemID"`
+	JointCount    int      `gorm:"not null"` // จำนวนครั้งที่ถูกสั่งร่วมกัน
+
+	// ข้อมูลเพิ่มเติมสำหรับวิเคราะห์
+	TimeSegment string `gorm:"not null"` // ช่วงเวลา (เช้า, กลางวัน, เย็น)
+	DayType     string `gorm:"not null"` // วันธรรมดา/วันหยุด
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // /-----------------------------------------------------
