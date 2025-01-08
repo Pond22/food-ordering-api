@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
-import styles from "../styles/TableDetail.module.css";
+import React, { useState, useEffect } from 'react'
+import axios from 'axios'
+import styles from '../styles/TableDetail.module.css'
+import { X, CalendarDays, Edit, Trash2, Plus } from 'lucide-react'
 
 // Helper component for displaying table info
 const TableInfo = ({ label, value }) => (
@@ -8,7 +9,7 @@ const TableInfo = ({ label, value }) => (
     <span>{label}:</span>
     <span>{value}</span>
   </div>
-);
+)
 
 const TableManager = () => {
   const [tables, setTables] = useState([])
@@ -23,6 +24,7 @@ const TableManager = () => {
   const [primaryTable, setPrimaryTable] = useState(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [tableToDelete, setTableToDelete] = useState(null)
+  const [showSplitPopup, setShowSplitPopup] = useState(false) // สำหรับแสดง Popup การแยกโต๊ะ
 
   // Reservation Dialog States
   const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false)
@@ -30,6 +32,7 @@ const TableManager = () => {
   const [customerCount, setCustomerCount] = useState(0)
   const [reservationTime, setReservationTime] = useState('')
   const [selectedTable, setSelectedTable] = useState(null)
+  const [selectedGroupId, setSelectedGroupId] = useState(null)
 
   // Fetch tables from API and sort by ID
   useEffect(() => {
@@ -185,21 +188,6 @@ const TableManager = () => {
     }
   }
 
-  // const handleClearTable = (tableId) => {
-  //   const updatedTables = tables.map((table) =>
-  //     table.id === tableId
-  //       ? {
-  //           ...table,
-  //           status: "ว่าง",
-  //           customerName: null,
-  //           customerCount: null,
-  //           time: null,
-  //         }
-  //       : table
-  //   );
-  //   setTables(updatedTables);
-  // };
-
   // Create a new table
   const createTable = async () => {
     const isConflict = await checkTableNameConflict()
@@ -325,29 +313,14 @@ const TableManager = () => {
     }
   }
 
-  // const handleMergeTables = async () => {
-  //   try {
-  //     if (!primaryTable || selectedTables.length === 0) {
-  //       alert("กรุณาเลือกโต๊ะหลักและโต๊ะที่ต้องการรวม");
-  //       return;
-  //     }
-
-  //     const response = await axios.post("http://localhost:8080/api/table/mergeTable", {
-  //       primary_table: primaryTable.ID, // Send ID of primary table
-  //       selected_table_ids: selectedTables.map((table) => table.ID), // Send IDs of selected tables
-  //     });
-
-  //     if (response.status === 200) {
-  //       alert("รวมโต๊ะสำเร็จ");
-  //       // Optionally, update tables state to reflect the merged status
-  //     } else {
-  //       alert("ไม่สามารถรวมโต๊ะได้");
-  //     }
-  //   } catch (error) {
-  //     console.error("เกิดข้อผิดพลาดในการรวมโต๊ะ:", error);
-  //     alert("เกิดข้อผิดพลาดในการรวมโต๊ะ");
-  //   }
-  // };
+  const handleOpenPopupSpilt = (groupId) => {
+    setSelectedGroupId(groupId)
+    setShowSplitPopup(true)
+  }
+  const handleClosePopupSpilt = () => {
+    setShowSplitPopup(false)
+    setSelectedGroupId(null) // Reset selectedGroupId when closing popup
+  }
 
   const handleSplitTable = async (groupId) => {
     try {
@@ -371,6 +344,8 @@ const TableManager = () => {
               : table
           )
         )
+        // ปิด Popup หลังจากแยกโต๊ะสำเร็จ
+        handleClosePopupSpilt()
       } else {
         alert('ไม่สามารถแยกโต๊ะได้')
       }
@@ -425,27 +400,41 @@ const TableManager = () => {
       <div className={tableStyles}>
         {status === 'available' && (
           <>
-            <button
-              className="bg-blue-500 text-white px-4 py-2 rounded mb-2"
-              onClick={() => handleTableAction('reserve', table)}
-            >
-              จอง
-            </button>
-            <button
-              className="bg-green-500 text-white px-4 py-2 rounded"
-              onClick={() => handleToggleTable(table, true)} // เปิดโต๊ะ
-            >
-              เปิดโต๊ะ
-            </button>
-            <button
-              className="bg-red-500 text-white px-4 py-2 rounded"
-              onClick={() => {
-                setTableToDelete(table)
-                setIsDeleteDialogOpen(true) // เปิด dialog ลบโต๊ะ
-              }}
-            >
-              ลบโต๊ะ
-            </button>
+            <div className="flex">
+              <div className="relative group">
+                <button
+                  className="bg-white text-black p-2 border rounded-full hover:bg-gray-100"
+                  onClick={() => handleTableAction('reserve', table)}
+                >
+                  <CalendarDays></CalendarDays>
+                </button>
+                <div className="absolute left-1/2 -translate-x-1/2 w-auto bottom-full mb-2 hidden group-hover:block bg-gray-400 text-white text-sm py-1 px-2 rounded-md shadow-lg">
+                  จอง
+                </div>
+              </div>
+
+              <div className="relative group">
+                <button
+                  className="bg-white border text-black p-2 rounded-full hover:bg-gray-100"
+                  onClick={() => handleToggleTable(table, true)} // เปิดโต๊ะ
+                >
+                  <Plus></Plus>
+                </button>
+                <div className="absolute left-1/2 -translate-x-1/2 w-16 bottom-full mb-2 hidden group-hover:block bg-gray-400 text-white text-sm py-1 px-2 rounded-md shadow-lg">
+                  เปิดโต๊ะ
+                </div>
+              </div>
+
+              <button
+                className={styles.trash}
+                onClick={() => {
+                  setTableToDelete(table)
+                  setIsDeleteDialogOpen(true) // เปิด dialog ลบโต๊ะ
+                }}
+              >
+                <Trash2 className="size-6"></Trash2>
+              </button>
+            </div>
           </>
         )}
         {status === 'reserved' && (
@@ -469,7 +458,7 @@ const TableManager = () => {
         {table.GroupID && (
           <button
             className="bg-gray-500 text-white px-4 py-2 rounded"
-            onClick={() => handleSplitTable(table.GroupID)}
+            onClick={() => handleOpenPopupSpilt(table.GroupID)}
           >
             แยกโต๊ะ
           </button>
@@ -478,7 +467,23 @@ const TableManager = () => {
     )
   }
   return (
-    <div className="h-screen overflow-auto p-4 lg:ml-60">
+    <div className="h-screen overflow-auto px-4 py-2 lg:ml-60 ">
+      <div className="py-5  bg-gray-800 p-4 mb-2 rounded">
+        <h1 className="text-white">จัดการโต๊ะและชำระเงิน</h1>
+      </div>
+      <button
+        onClick={() => setIsDialogOpen(true)}
+        className={styles.btnAction}
+      >
+        สร้างโต๊ะใหม่
+      </button>
+
+      <button
+        onClick={() => setIsMergeDialogOpen(true)}
+        className={styles.btnAction}
+      >
+        รวมกลุ่มโต๊ะ
+      </button>
       {/* Render tables */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {tables
@@ -486,8 +491,18 @@ const TableManager = () => {
           .map((table) => (
             <div
               key={table.ID}
-              className={`border p-4 rounded-lg shadow-lg ${
+              className={`border p-4 rounded-lg shadow-lg hover:bg-gray-100${
                 table.GroupID ? 'border-orange-500 bg-orange-100' : ''
+              } 
+              ${
+                table.Status === 'unavailable'
+                  ? 'bg-red-200 border-orange-500'
+                  : ''
+              }
+              ${
+                table.Status === 'reserved'
+                  ? 'bg-yellow-100 border-orange-500'
+                  : ''
               }`}
             >
               <div className="flex justify-between">
@@ -502,20 +517,6 @@ const TableManager = () => {
             </div>
           ))}
       </div>
-
-      <button
-        onClick={() => setIsDialogOpen(true)}
-        className="bg-blue-500 text-white px-4 py-2 rounded mt-4"
-      >
-        สร้างโต๊ะใหม่
-      </button>
-
-      <button
-        onClick={() => setIsMergeDialogOpen(true)}
-        className="bg-blue-500 text-white px-4 py-2 rounded"
-      >
-        รวมกลุ่มโต๊ะ
-      </button>
 
       {/* Reservation Dialog */}
       {isReservationDialogOpen && (
@@ -623,6 +624,7 @@ const TableManager = () => {
         <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center">
           <div className="bg-white p-6 rounded-lg shadow-lg w-96">
             <h3 className="text-xl mb-4">สร้างโต๊ะใหม่</h3>
+            <label>ชื่อโต๊ะ</label>
             <input
               type="text"
               value={newTableName}
@@ -630,14 +632,16 @@ const TableManager = () => {
               className="border p-2 mb-4 w-full"
               placeholder="ชื่อโต๊ะ"
             />
+            <label>จำนวนที่นั้ง</label>
             <input
               type="number"
               value={newTableCapacity}
               onChange={(e) => setNewTableCapacity(e.target.value)}
               className="border p-2 mb-4 w-full"
               placeholder="ความจุ"
+              onWheel={(e) => e.preventDefault()} // ป้องกันการเลื่อนเมาส์
             />
-            <select
+            {/* <select
               value={newTableStatus}
               onChange={(e) => setNewTableStatus(e.target.value)}
               className="border p-2 mb-4 w-full"
@@ -645,22 +649,19 @@ const TableManager = () => {
               <option value="ว่าง">ว่าง</option>
               <option value="จอง">จอง</option>
               <option value="ไม่ว่าง">ไม่ว่าง</option>
-            </select>
+            </select> */}
             {isNameConflict && (
               <div className="text-red-500 text-sm mb-4">{message}</div>
             )}
-            <div className="flex justify-between">
-              <button
-                onClick={createTable}
-                className="bg-blue-500 text-white px-4 py-2 rounded"
-              >
-                สร้างโต๊ะ
-              </button>
+            <div className="flex justify-end">
               <button
                 onClick={() => setIsDialogOpen(false)}
                 className="bg-red-500 text-white px-4 py-2 rounded"
               >
                 ยกเลิก
+              </button>
+              <button onClick={createTable} className={styles.btnAction}>
+                สร้างโต๊ะ
               </button>
             </div>
           </div>
@@ -690,8 +691,31 @@ const TableManager = () => {
           </div>
         </div>
       )}
+
+      {showSplitPopup && selectedGroupId && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center">
+          <div className="bg-white p-6 rounded-md shadow-lg w-96">
+            <h2 className="text-xl font-semibold mb-4">ยืนยันการแยกโต๊ะ</h2>
+            <p>คุณต้องการแยกกลุ่มโต๊ะนี้ใช่หรือไม่?</p>
+            <div className="flex justify-between mt-4">
+              <button
+                onClick={handleClosePopupSpilt}
+                className="px-4 py-2 border border-gray-300 rounded bg-gray-100 text-gray-700"
+              >
+                ปิด
+              </button>
+              <button
+                onClick={() => handleSplitTable(selectedGroupId)}
+                className="px-4 py-2 border border-green-500 rounded bg-green-500 text-white"
+              >
+                แยกโต๊ะ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
-};
+}
 
-export default TableManager;
+export default TableManager

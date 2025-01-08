@@ -1,47 +1,25 @@
-/* .detailContainer {
-    position: fixed;
-    top: 0;
-    right: 0;
-    width: 300px;
-    height: 100vh;
-    background: #f4f4f4;
-    padding: 20px;
-    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
-  }
-  
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  
-  .numPad {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin: 20px 0;
-  }
-  
-  button {
-    padding: 10px;
-    font-size: 16px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-  }
-  
-  button.confirmButton {
-    background: #28a745;
-    color: white;
-  }
-  
-  button.closeTableButton {
-    background: #dc3545;
-    color: white;
-  }
-  
-  button.viewOrdersButton {
-    background: #007bff;
-    color: white;
-  }
-   */
+.btnAction{
+  background-color: #3b82f6;
+  color: white;
+  border-radius: 0.25rem;
+  padding: 0.5rem;
+  margin-left: 0.25rem;
+}
+.btnAction:hover{
+  background-color: #2563eb;
+}
+
+.btnCancel{
+  background-color: #f43f5e;
+  color: white;
+  border-radius: 0.25rem;
+  padding: 0.5rem;
+  margin-left: 0.25rem;
+}
+
+.btnCancel:hover{
+  background-color: #e11d48;
+}
+.trash{
+  color: #e11d48;
+}
