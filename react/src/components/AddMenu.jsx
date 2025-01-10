@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import axios from 'axios'
 import MenuRestore from './MenuRestore'
+import Promotions from './Promotions'
 
 const API_BASE_URL = 'http://127.0.0.1:8080/api/menu' // กำหนด URL ของ API
 
@@ -979,66 +980,8 @@ const MenuManagement = () => {
         />
 
         {/* ตารางแสดง promotion */}
-        {activeTab === 'promotion' && (
-          <table className="w-full bg-white  rounded-lg border border-gray-300 shadow-lg">
-            <thead>
-              <tr className="bg-blue-500 text-left  text-white">
-                <th className="border-b px-4 py-2">Group ID</th>
-                <th className="border-b px-4 py-2">Group Name</th>
-                <th className="border-b px-4 py-2">Max Selections</th>
-                <th className="border-b px-4 py-2">Required</th>
-                <th className="border-b px-4 py-2">Option ID</th>
-                <th className="border-b px-4 py-2 w-5/12">Option Name</th>
-                <th className="border-b px-4 py-2">Price (THB)</th>
-                <th className="border-b px-4 py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {menuOptions.length > 0 ? (
-                menuOptions.map((group) =>
-                  group.Options.map((option) => (
-                    <tr key={option.ID}>
-                      <td className="border-b px-4 py-2">{group.ID}</td>
-                      <td className="border-b px-4 py-2">
-                        ไทย: {group.Name}
-                        <br />
-                        อังกฤษ: {group.NameEn}
-                        <br />
-                        จีน: {group.NameCh}
-                      </td>
-                      <td className="border-b px-4 py-2">
-                        {group.MaxSelections}
-                      </td>
-                      <td className="border-b px-4 py-2">
-                        {group.IsRequired ? 'Yes' : 'No'}
-                      </td>
-                      <td className="border-b px-4 py-2">{option.ID}</td>
-                      <td className="border-b w-5/12 px-4 py-2 text-xs">
-                        ไทย: {option.Name}
-                        <br />
-                        อังกฤษ: {option.NameEn}
-                        <br />
-                        จีน: {option.NameCh}
-                      </td>
-                      <td className="border-b px-4 py-2">{option.Price}</td>
-                      <td className="border-b px-4 py-2">
-                        <button onClick={() => handleEditClick(option)}>
-                          <Edit />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )
-              ) : (
-                <tr>
-                  <td colSpan="7" className="text-center p-4">
-                    ไม่พบตัวเลือก
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        )}
+        {activeTab === 'promotion' && <Promotions></Promotions>}
+
         {/* สิ้นสุดตารางแสดง options */}
 
         {activeTab === 'restore' && <MenuRestore></MenuRestore>}

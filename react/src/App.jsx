@@ -9,6 +9,7 @@ import TableManager from "./components/TableManager";
 import UserManagement from "./components/UserManagement";
 import DashBoard from "./components/DashBoard";
 import AddMenu from "./components/AddMenu";
+import Printer from "./components/Printer";
 import ErrorBoundary from "./ErrorBoundary";  // import Error Boundary
 import styles from "./styles/App.module.css";
 
@@ -87,35 +88,56 @@ const App = () => {
           {isLoggedIn && (
             <aside
               ref={sidebarRef}
-              className={`${styles.sidebar} ${isSidebarOpen ? styles.open : ""}`}
+              className={`${styles.sidebar} ${
+                isSidebarOpen ? styles.open : ''
+              }`}
               style={{
-                transition: "transform 0.3s ease, opacity 0.3s ease",
-                transform: isSidebarOpen ? "translateX(0)" : "translateX(-100%)",
+                transition: 'transform 0.3s ease, opacity 0.3s ease',
+                transform: isSidebarOpen
+                  ? 'translateX(0)'
+                  : 'translateX(-100%)',
                 opacity: isSidebarOpen ? 1 : 0,
               }}
             >
               <div className={styles.logo}>LOGO</div>
               <nav className={styles.navMenu}>
-                <Link to="/menu" className={styles.navLink}>เมนูอาหาร</Link>
-                <Link to="/dashboard" className={styles.navLink}>เดชบอร์ด</Link>
-                <Link to="/tables" className={styles.navLink}>จัดการโต๊ะ</Link>
-                <Link to="/user" className={styles.navLink}>จัดการผู้ใช้</Link>
-                 {/* Dropdown Menu */}
-              <div className="dropdown">
-                <div className="flex">
-                <button
-                  className="dropdown-toggle nav-link"
-                  onClick={toggleDropdown}
-                >
-                  จัดการอาหาร
-                </button>{isDropdownOpen ? <ChevronUp /> : <ChevronDown />}</div>
-                {isDropdownOpen && (
-                  <div className="dropdown-menu">
-                    <Link to="/addMenu" className={styles.navLink}>จัดการเมนูอาหาร</Link>
-                    <Link to="/addCategory" className={styles.navLink}>จัดการหมวดหมู่</Link>
+                <Link to="/menu" className={styles.navLink}>
+                  เมนูอาหาร
+                </Link>
+                <Link to="/dashboard" className={styles.navLink}>
+                  เดชบอร์ด
+                </Link>
+                <Link to="/tables" className={styles.navLink}>
+                  จัดการโต๊ะ
+                </Link>
+                <Link to="/printer" className={styles.navLink}>
+                  เครื่องพิมพ์
+                </Link>
+                <Link to="/user" className={styles.navLink}>
+                  จัดการผู้ใช้
+                </Link>
+                {/* Dropdown Menu */}
+                <div className="dropdown">
+                  <div className="flex">
+                    <button
+                      className="dropdown-toggle nav-link"
+                      onClick={toggleDropdown}
+                    >
+                      จัดการอาหาร
+                    </button>
+                    {isDropdownOpen ? <ChevronUp /> : <ChevronDown />}
                   </div>
-                )}
-              </div>
+                  {isDropdownOpen && (
+                    <div className="dropdown-menu">
+                      <Link to="/addMenu" className={styles.navLink}>
+                        จัดการเมนูอาหาร
+                      </Link>
+                      <Link to="/addCategory" className={styles.navLink}>
+                        จัดการหมวดหมู่
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </nav>
 
               {user && (
@@ -125,7 +147,9 @@ const App = () => {
                 </div>
               )}
 
-              <button className={styles.logoutButton} onClick={handleLogout}>LOGOUT</button>
+              <button className={styles.logoutButton} onClick={handleLogout}>
+                LOGOUT
+              </button>
             </aside>
           )}
 
@@ -140,13 +164,27 @@ const App = () => {
               {/* เส้นทางเข้าสู่ระบบ */}
               <Route
                 path="/login"
-                element={!isLoggedIn ? <Login /> : <Navigate to={user?.role === 'manager' ? '/dashboard' : '/tables'} />}
+                element={
+                  !isLoggedIn ? (
+                    <Login />
+                  ) : (
+                    <Navigate
+                      to={user?.role === 'manager' ? '/dashboard' : '/tables'}
+                    />
+                  )
+                }
               />
 
               {/* Dashboard - อนุญาตเฉพาะ Manager */}
               <Route
                 path="/dashboard"
-                element={isLoggedIn && user?.role === 'manager' ? <DashBoard /> : <Navigate to="/login" />}
+                element={
+                  isLoggedIn && user?.role === 'manager' ? (
+                    <DashBoard />
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                }
               />
 
               {/* Menu - อนุญาตทุกคนที่ล็อกอิน */}
@@ -158,32 +196,64 @@ const App = () => {
               {/* Tables - อนุญาต */}
               <Route
                 path="/tables"
-                element={isLoggedIn ? <TableManager /> : <Navigate to="/login" />}
+                element={
+                  isLoggedIn ? <TableManager /> : <Navigate to="/login" />
+                }
+              />
+
+              {/* Dashboard - อนุญาตเฉพาะ Manager */}
+              <Route
+                path="/printer"
+                element={
+                  isLoggedIn && user?.role === 'manager' ? (
+                    <Printer />
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                }
               />
 
               {/* User Management - อนุญาตเฉพาะ Manager */}
               <Route
                 path="/user"
-                element={isLoggedIn && user?.role === 'manager' ? <UserManagement /> : <Navigate to="/login" />}
+                element={
+                  isLoggedIn && user?.role === 'manager' ? (
+                    <UserManagement />
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                }
               />
-              
+
               {/* Add Menu - อนุญาตเฉพาะ Manager */}
               <Route
                 path="/addMenu"
-                element={isLoggedIn && user?.role === 'manager' ? <AddMenu /> : <Navigate to="/login" />}
+                element={
+                  isLoggedIn && user?.role === 'manager' ? (
+                    <AddMenu />
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                }
               />
 
               {/* Add Category - อนุญาตเฉพาะ Manager */}
               <Route
                 path="/addCategory"
-                element={isLoggedIn && user?.role === 'manager' ? <AddCategory /> : <Navigate to="/login" />}
+                element={
+                  isLoggedIn && user?.role === 'manager' ? (
+                    <AddCategory />
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                }
               />
             </Routes>
           </main>
         </div>
       </Router>
     </ErrorBoundary>
-  );
+  )
 };
 
 export default App;
