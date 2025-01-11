@@ -42,8 +42,8 @@ type createPromo_req struct {
 	NameEn      string    `json:"nameEn"`
 	NameCh      string    `json:"nameCh"`
 	Description string    `json:"description"`
-	StartDate   time.Time `json:"start_date" binding:"required"`
-	EndDate     time.Time `json:"end_date" binding:"required"`
+	StartDate   time.Time `json:"start_date" form:"2006-01-02 15:04:05Z07:00"`
+	EndDate     time.Time `json:"end_date" form:"2006-01-02 15:04:05Z07:00"`
 	Price       float64   `json:"price" binding:"required"`
 	Items       []struct {
 		MenuItemID uint `json:"menu_item_id" binding:"required"`
@@ -94,7 +94,7 @@ type SuccessResponse struct {
 func CreatePromotion(c *fiber.Ctx) error {
 	var req createPromo_req
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+		return c.Status(400).JSON(fiber.Map{"error": err})
 	}
 
 	tx := db.DB.Begin()

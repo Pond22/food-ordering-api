@@ -7,19 +7,21 @@ import (
 )
 
 type Promotion struct {
-	ID          uint   `gorm:"primaryKey"`
-	Name        string `gorm:"not null"`
-	NameEn      string
-	NameCh      string
-	Description string
-	StartDate   time.Time       `gorm:"not null"`
-	EndDate     time.Time       `gorm:"not null"`
-	IsActive    bool            `gorm:"not null;default:true"`
-	Price       float64         `gorm:"not null"` // เพิ่มฟิลด์ราคา
-	Items       []PromotionItem `gorm:"foreignKey:PromotionID"`
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	DeletedAt   *time.Time `gorm:"index"`
+	ID            uint   `gorm:"primaryKey"`
+	Name          string `gorm:"not null"`
+	NameEn        string
+	NameCh        string
+	Description   string
+	DescriptionEn string
+	DescriptionCh string
+	StartDate     time.Time       `gorm:"not null"`
+	EndDate       time.Time       `gorm:"not null"`
+	IsActive      bool            `gorm:"not null;default:true"`
+	Price         float64         `gorm:"not null"` // เพิ่มฟิลด์ราคา
+	Items         []PromotionItem `gorm:"foreignKey:PromotionID"`
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	DeletedAt     *time.Time `gorm:"index"`
 }
 
 type PromotionItem struct {

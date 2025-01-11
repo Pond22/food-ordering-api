@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef } from "react";
 import { BrowserRouter as Router, Routes, Route, Link, Navigate } from "react-router-dom";
 import { ChevronDown, ChevronUp, Search, Filter, X, User, Edit, Trash2 } from 'lucide-react';
 import Header from "./components/Header";
-import Login from "./components/Login";
+// import Login from "./components/Login";
 import AddCategory from "./components/AddCategory";
 import MenuList from "./components/MenuList";
 import TableManager from "./components/TableManager";
 import UserManagement from "./components/UserManagement";
 import DashBoard from "./components/DashBoard";
 import AddMenu from "./components/AddMenu";
-import ErrorBoundary from "./ErrorBoundary";  // import Error Boundary
+// import ErrorBoundary from "./ErrorBoundary";  // import Error Boundary
 import styles from "./styles/App.module.css";
 
 const App = () => {
@@ -138,10 +138,10 @@ const App = () => {
           <main className={styles.mainContent}>
             <Routes>
               {/* เส้นทางเข้าสู่ระบบ */}
-              <Route
+              {/* <Route
                 path="/login"
                 element={!isLoggedIn ? <Login /> : <Navigate to={user?.role === 'manager' ? '/dashboard' : '/tables'} />}
-              />
+              /> */}
 
               {/* Dashboard - อนุญาตเฉพาะ Manager */}
               <Route
