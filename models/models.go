@@ -61,9 +61,9 @@ type MenuItem struct {
 	Name          string        `gorm:"not null"`
 	NameEn        string        `gorm:"not null"`
 	NameCh        string        `gorm:"not null"`
-	Description   string        `gorm:"type:varchar(10000)"`
-	DescriptionEn string        `gorm:"type:varchar(10000)"`
-	DescriptionCh string        `gorm:"type:varchar(10000)"`
+	Description   string        `gorm:"type:varchar(255)"`
+	DescriptionEn string        `gorm:"type:varchar(255)"`
+	DescriptionCh string        `gorm:"type:varchar(255)"`
 	Image         []byte        `gorm:"type:bytea"`            // ฟิลด์ Image เป็น type bytea
 	CategoryID    uint          `gorm:"not null"`              // foreign key ที่เชื่อมกับ Category
 	Category      Category      `gorm:"foreignKey:CategoryID"` // ลิงก์ไปยังตาราง Category
