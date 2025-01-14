@@ -168,6 +168,10 @@ func GetActivePromotions(c *fiber.Ctx) error {
 	now := time.Now()
 
 	if err := db.DB.Preload("Items").
+		Preload("Items.MenuItem").
+		Preload("Items.MenuItem.Category").
+		Preload("Items.MenuItem.OptionGroups").
+		Preload("Items.MenuItem.OptionGroups.Options").
 		Where("is_active = ? AND start_date <= ? AND end_date >= ?", true, now, now).Find(&promotions).Error; err != nil {
 		// Where("is_active = ? AND start_date <= ? AND end_date >= ?", true, now, now).
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch promotions"})
@@ -371,8 +375,13 @@ func DeletePromotion(c *fiber.Ctx) error {
 func GetPromotionByID(c *fiber.Ctx) error {
 	promoID := c.Params("id")
 
+	fmt.Println(promoID)
 	var promotion models.Promotion
-	if err := db.DB.Preload("Items.MenuItem").First(&promotion, promoID).Error; err != nil {
+	if err := db.DB.Preload("Items.MenuItem").
+		Preload("Items.MenuItem.Category").
+		Preload("Items.MenuItem.OptionGroups").
+		Preload("Items.MenuItem.OptionGroups.Options").
+		Where("id = ?", promoID).First(&promotion).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Promotion not found"})
 	}
 

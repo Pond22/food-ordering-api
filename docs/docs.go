@@ -971,6 +971,55 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/menu/ActiveMenu": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ฟังก์ชันนี้ใช้สำหรับเรียกรายการเมนูทั้งหมดที่มีอยู่ในระบบ",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "เรียกรายการเมนูที่พร้อมใช้งาน",
+                "responses": {
+                    "200": {
+                        "description": "รายการเมนูทั้งหมด",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.MenuItem"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการดึงข้อมูลเมนู",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/menu/deleted": {
             "get": {
                 "security": [
@@ -4244,11 +4293,9 @@ const docTemplate = `{
         "api_handlers.createPromo_req": {
             "type": "object",
             "required": [
-                "end_date",
                 "items",
                 "name",
-                "price",
-                "start_date"
+                "price"
             ],
             "properties": {
                 "description": {

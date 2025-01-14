@@ -1,85 +1,104 @@
-import React, { useState, useEffect, useRef } from "react";
-import { BrowserRouter as Router, Routes, Route, Link, Navigate } from "react-router-dom";
-import { ChevronDown, ChevronUp, Search, Filter, X, User, Edit, Trash2 } from 'lucide-react';
-import Header from "./components/Header";
-// import Login from "./components/Login";
-import AddCategory from "./components/AddCategory";
-import MenuList from "./components/MenuList";
-import TableManager from "./components/TableManager";
-import UserManagement from "./components/UserManagement";
-import DashBoard from "./components/DashBoard";
-import AddMenu from "./components/AddMenu";
-import Printer from "./components/Printer";
-import ErrorBoundary from "./ErrorBoundary";  // import Error Boundary
-import styles from "./styles/App.module.css";
+import React, { useState, useEffect, useRef } from 'react'
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Link,
+  Navigate,
+} from 'react-router-dom'
+import {
+  ChevronDown,
+  ChevronUp,
+  Search,
+  Filter,
+  X,
+  User,
+  Edit,
+  Trash2,
+} from 'lucide-react'
+import Header from './components/Header'
+import Login from './components/Login'
+import AddCategory from './components/AddCategory'
+import MenuList from './components/MenuList'
+import TableManager from './components/TableManager'
+import UserManagement from './components/UserManagement'
+import DashBoard from './components/DashBoard'
+import AddMenu from './components/AddMenu'
+import Printer from './components/Printer'
+import ErrorBoundary from './ErrorBoundary' // import Error Boundary
+import styles from './styles/App.module.css'
 
 const App = () => {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false); // ควบคุมสถานะของ Dropdown
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false) // ควบคุมสถานะของ Dropdown
 
   const toggleDropdown = () => {
-    setIsDropdownOpen((prev) => !prev);
-  };
+    setIsDropdownOpen((prev) => !prev)
+  }
 
   // ตรวจสอบว่า token มีอยู่ใน localStorage หรือไม่
-  const isLoggedIn = !!localStorage.getItem("token");
+  const isLoggedIn = !!localStorage.getItem('token')
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const sidebarRef = useRef();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const sidebarRef = useRef()
 
   // ดึงข้อมูล user จาก localStorage
-  let user = null;
+  let user = null
   try {
-    const storedUser = localStorage.getItem("user");
+    const storedUser = localStorage.getItem('user')
     if (storedUser) {
-      user = JSON.parse(storedUser);
+      user = JSON.parse(storedUser)
     }
   } catch (error) {
-    console.error("Error parsing user data:", error);
+    console.error('Error parsing user data:', error)
   }
 
   const toggleSidebar = () => {
-    setIsSidebarOpen((prevState) => !prevState);
-  };
+    setIsSidebarOpen((prevState) => !prevState)
+  }
 
   const handleResize = () => {
     if (window.innerWidth > 900) {
-      setIsSidebarOpen(true);
+      setIsSidebarOpen(true)
     } else {
-      setIsSidebarOpen(false);
+      setIsSidebarOpen(false)
     }
-  };
+  }
 
   useEffect(() => {
-    window.addEventListener("resize", handleResize);
-    handleResize();
+    window.addEventListener('resize', handleResize)
+    handleResize()
 
     return () => {
-      window.removeEventListener("resize", handleResize);
-    };
-  }, []);
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (window.innerWidth < 1024 && sidebarRef.current && !sidebarRef.current.contains(event.target)) {
-        setIsSidebarOpen(false);
+      if (
+        window.innerWidth < 1024 &&
+        sidebarRef.current &&
+        !sidebarRef.current.contains(event.target)
+      ) {
+        setIsSidebarOpen(false)
       }
-    };
+    }
 
     if (window.innerWidth < 1024) {
-      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside)
     }
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isSidebarOpen]);
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isSidebarOpen])
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-     // ใช้ Navigate เพื่อเปลี่ยนเส้นทางไปยังหน้าล็อกอิน
-  window.location.href = '/login';
-  };
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    // ใช้ Navigate เพื่อเปลี่ยนเส้นทางไปยังหน้าล็อกอิน
+    window.location.href = '/login'
+  }
 
   return (
     <ErrorBoundary>
@@ -162,7 +181,7 @@ const App = () => {
           <main className={styles.mainContent}>
             <Routes>
               {/* เส้นทางเข้าสู่ระบบ */}
-              {/* <Route
+              <Route
                 path="/login"
                 element={
                   !isLoggedIn ? (
@@ -254,7 +273,6 @@ const App = () => {
       </Router>
     </ErrorBoundary>
   )
-};
+}
 
-export default App;
-
+export default App

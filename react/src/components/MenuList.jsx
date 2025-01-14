@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import MenuItem from './MenuItem';
 import styles from '../styles/MenuList.module.css';
+import { ShoppingCart } from 'lucide-react'
 
 const MenuList = () => {
   const [menuItems, setMenuItems] = useState([]);  // State สำหรับเก็บข้อมูลเมนู
@@ -17,7 +18,7 @@ const MenuList = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/menu?action=getAll');
+        const response = await fetch('http://localhost:8080/api/menu/ActiveMenu');
         const data = await response.json();
         setMenuItems(data);
 
@@ -80,7 +81,9 @@ const MenuList = () => {
           </div>
           <div className={styles.cartIcon}>
             <button className={styles.cartButton} onClick={handleCartToggle}>
-              🛒 {getCartItemCount() > 0 && (
+              {/* 🛒  */}
+              <ShoppingCart />
+              {getCartItemCount() > 0 && (
                 <span className={styles.cartBadge}>{getCartItemCount()}</span>
               )}
             </button>

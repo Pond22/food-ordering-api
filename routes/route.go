@@ -45,6 +45,7 @@ func SetupRoutes(app *fiber.App) {
 	{
 		// เมนูพื้นฐาน
 		menu.Post("/", api_handlers.CreateMenuItemHandler)
+		menu.Get("/ActiveMenu", api_handlers.GetActiveMenu)
 		menu.Get("/", api_handlers.GetMenu)
 		menu.Put("/:id", api_handlers.UpdateMenuItem)
 		menu.Put("/image/:id", api_handlers.UpdateMenuImage)
@@ -77,7 +78,7 @@ func SetupRoutes(app *fiber.App) {
 		promotion.Patch("/status/:id ", api_handlers.UpdatePromotionStatus)
 		promotion.Put("/:id ", api_handlers.UpdatePromotion)
 		promotion.Delete("/:id ", api_handlers.DeletePromotion)
-		promotion.Get("/:id ", api_handlers.GetPromotionByID)
+		promotion.Get("/:id", api_handlers.GetPromotionByID)
 	}
 
 	// Category Management Routes - ต้องการการยืนยันตัวตน และต้องเป็น manager

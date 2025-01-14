@@ -374,11 +374,9 @@ definitions:
       start_date:
         type: string
     required:
-    - end_date
     - items
     - name
     - price
-    - start_date
     type: object
   api_handlers.move_req:
     properties:
@@ -1831,6 +1829,38 @@ paths:
       security:
       - BearerAuth: []
       summary: อัพเดทข้อมูล Option โดยใช้ Menu ID
+      tags:
+      - menu
+  /api/menu/ActiveMenu:
+    get:
+      description: ฟังก์ชันนี้ใช้สำหรับเรียกรายการเมนูทั้งหมดที่มีอยู่ในระบบ
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายการเมนูทั้งหมด
+          schema:
+            items:
+              $ref: '#/definitions/models.MenuItem'
+            type: array
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการดึงข้อมูลเมนู
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: เรียกรายการเมนูที่พร้อมใช้งาน
       tags:
       - menu
   /api/menu/deleted:
