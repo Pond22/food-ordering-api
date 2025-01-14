@@ -171,6 +171,8 @@ type Order struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Items     []OrderItem
+	ReceiptID *uint
+	Receipt   Receipt `gorm:"foreignKey:ReceiptID"`
 }
 
 // FE-4 การจัดการออเดอร์
@@ -272,52 +274,49 @@ type AdditionalChargeType struct {
 	UpdatedAt     time.Time
 }
 
-// OrderDiscount - เก็บส่วนลดที่ใช้ในแต่ละ Order
-type OrderDiscount struct {
+type ReceiptDiscount struct {
 	ID             uint         `gorm:"primaryKey"`
-	OrderID        uint         `gorm:"not null"`
-	Order          Order        `gorm:"foreignKey:OrderID"`
+	ReceiptID      uint         `gorm:"not null"` // เปลี่ยนจาก OrderID
+	Receipt        Receipt      `gorm:"foreignKey:ReceiptID"`
 	DiscountTypeID uint         `gorm:"not null"`
 	DiscountType   DiscountType `gorm:"foreignKey:DiscountTypeID"`
-	Value          float64      `gorm:"not null"` // จำนวนส่วนลดที่ใช้จริง
-	StaffID        uint         `gorm:"not null"` // พนักงานที่ให้ส่วนลด
+	Value          float64      `gorm:"not null"`
+	StaffID        uint         `gorm:"not null"`
 	Staff          Users        `gorm:"foreignKey:StaffID"`
-	Reason         string       // เหตุผลที่ให้ส่วนลด (ถ้ามี)
+	Reason         string
 	CreatedAt      time.Time
 }
 
-// OrderAdditionalCharge - เก็บค่าใช้จ่ายเพิ่มเติมในแต่ละ Order
-type OrderAdditionalCharge struct {
+type ReceiptCharge struct {
 	ID           uint                 `gorm:"primaryKey"`
-	OrderID      uint                 `gorm:"not null"`
-	Order        Order                `gorm:"foreignKey:OrderID"`
+	ReceiptID    uint                 `gorm:"not null"` // เปลี่ยนจาก OrderID
+	Receipt      Receipt              `gorm:"foreignKey:ReceiptID"`
 	ChargeTypeID uint                 `gorm:"not null"`
 	ChargeType   AdditionalChargeType `gorm:"foreignKey:ChargeTypeID"`
-	Amount       float64              `gorm:"not null"` // จำนวนเงินที่เก็บจริง
+	Amount       float64              `gorm:"not null"`
 	Quantity     int                  `gorm:"not null;default:1"`
-	StaffID      uint                 `gorm:"not null"` // พนักงานที่บันทึก
+	StaffID      uint                 `gorm:"not null"`
 	Staff        Users                `gorm:"foreignKey:StaffID"`
-	Note         string               // บันทึกเพิ่มเติม
+	Note         string
 	CreatedAt    time.Time
 }
 
 // ใบเสร็จ
 type Receipt struct {
-	ID            uint                    `gorm:"primaryKey"`
-	OrderID       uint                    `gorm:"not null"`
-	Order         Order                   `gorm:"foreignKey:OrderID"`
-	UUID          string                  `gorm:"not null;index"`
-	TableID       int                     `gorm:"not null"`
-	SubTotal      float64                 `gorm:"not null"` // ยอดรวมก่อนส่วนลด/ค่าใช้จ่ายเพิ่ม
-	DiscountTotal float64                 `gorm:"not null"` // ยอดรวมส่วนลด
-	ChargeTotal   float64                 `gorm:"not null"` // ยอดรวมค่าใช้จ่ายเพิ่ม
-	ServiceCharge float64                 `gorm:"not null"` // ค่าบริการ (ถ้ามี)
-	Total         float64                 `gorm:"not null"` // ยอดสุทธิ
-	PaymentMethod string                  `gorm:"not null"` // วิธีการชำระเงิน
-	StaffID       uint                    `gorm:"not null"` // พนักงานที่รับชำระ
-	Staff         Users                   `gorm:"foreignKey:StaffID"`
-	Discounts     []OrderDiscount         `gorm:"foreignKey:OrderID"`
-	Charges       []OrderAdditionalCharge `gorm:"foreignKey:OrderID"`
+	ID            uint    `gorm:"primaryKey"`
+	UUID          string  `gorm:"not null;index"`
+	TableID       int     `gorm:"not null"`
+	Orders        []Order `gorm:"foreignKey:ReceiptID"`
+	SubTotal      float64 // ยอดรวมทุก orders
+	DiscountTotal float64 // ส่วนลดรวม (ไม่ต้องกระจาย)
+	ChargeTotal   float64 // ค่าใช้จ่ายเพิ่มเติมรวม
+	ServiceCharge float64
+	Total         float64
+	PaymentMethod string
+	StaffID       uint
+	Staff         Users             `gorm:"foreignKey:StaffID"`
+	Discounts     []ReceiptDiscount // เปลี่ยนจาก OrderDiscount เพราะมันไม่ตอบโจทย์ T T
+	Charges       []ReceiptCharge   // เปลี่ยนจาก OrderAdditionalCharge
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }

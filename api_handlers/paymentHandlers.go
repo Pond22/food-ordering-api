@@ -7,16 +7,17 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
-// Request structs
 type PaymentRequest struct {
-	OrderID       uint                        `json:"order_id" binding:"required"`
+	UUID          string                      `json:"uuid" binding:"required"`     // UUID ของ QR Code
+	TableID       uint                        `json:"table_id" binding:"required"` // ID ของโต๊ะ
 	PaymentMethod string                      `json:"payment_method" binding:"required"`
 	ServiceCharge float64                     `json:"service_charge"`
 	Discounts     []PaymentDiscountRequest    `json:"discounts,omitempty"`
 	ExtraCharges  []PaymentExtraChargeRequest `json:"extra_charges,omitempty"`
-	StaffID       uint                        `json:"staff_id,omitempty"` //อย่าลืมแก้ binding:"required"`
+	StaffID       uint                        `json:"staff_id,omitempty"`
 }
 
 type PaymentDiscountRequest struct {
@@ -45,36 +46,75 @@ type PaymentExtraChargeRequest struct {
 func ProcessPayment(c *fiber.Ctx) error {
 	var req PaymentRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request format",
 		})
 	}
 
 	tx := db.DB.Begin()
 
-	// 1. ตรวจสอบและดึงข้อมูลออเดอร์
-	var order models.Order
-	if err := tx.Preload("Items.MenuItem").
-		Preload("Items.Options").
-		First(&order, req.OrderID).Error; err != nil {
+	// 1. ตรวจสอบ QR Code
+	var qrCode models.QRCode
+	if err := tx.Where("uuid = ? AND table_id = ? AND is_active = ? AND expiry_at > ?",
+		req.UUID, req.TableID, true, time.Now()).First(&qrCode).Error; err != nil {
 		tx.Rollback()
-		return c.Status(http.StatusNotFound).JSON(fiber.Map{
-			"error": "Order not found",
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "Invalid or expired QR code",
 		})
 	}
 
-	// 2. คำนวณยอดรวมก่อนส่วนลด
-	var subTotal float64 = order.Total
+	// 2. ดึงทุก orders ที่ยังไม่ได้ชำระเงิน
+	var orders []models.Order
+	if err := tx.Preload("Items.MenuItem").
+		Preload("Items.Options.MenuOption").
+		Where("uuid = ? AND table_id = ? AND status != ? AND status != ? AND receipt_id IS NULL",
+			req.UUID, req.TableID, "completed", "cancelled").
+		Find(&orders).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "No active orders found",
+		})
+	}
 
-	// 3. คำนวณส่วนลดทั้งหมด
-	var totalDiscount float64 = 0
-	var discounts []models.OrderDiscount
+	if len(orders) == 0 {
+		tx.Rollback()
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "No active orders found for this table",
+		})
+	}
 
+	// 3. คำนวณยอดรวมทั้งหมด
+	var subTotal float64
+	for _, order := range orders {
+		subTotal += order.Total
+	}
+
+	// 4. สร้างใบเสร็จ
+	receipt := models.Receipt{
+		UUID:          req.UUID,
+		TableID:       int(req.TableID),
+		SubTotal:      subTotal,
+		ServiceCharge: req.ServiceCharge,
+		PaymentMethod: req.PaymentMethod,
+		StaffID:       req.StaffID,
+		CreatedAt:     time.Now(),
+	}
+
+	// 5. บันทึกใบเสร็จ
+	if err := tx.Create(&receipt).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to create receipt",
+		})
+	}
+
+	// 6. คำนวณและบันทึกส่วนลด
+	var totalDiscount float64
 	for _, discount := range req.Discounts {
 		var discountType models.DiscountType
 		if err := tx.First(&discountType, discount.DiscountTypeID).Error; err != nil {
 			tx.Rollback()
-			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Invalid discount type",
 			})
 		}
@@ -86,30 +126,33 @@ func ProcessPayment(c *fiber.Ctx) error {
 		} else {
 			discountAmount = discount.Value
 		}
-
 		totalDiscount += discountAmount
 
-		// สร้างรายการส่วนลด
-		orderDiscount := models.OrderDiscount{
-			OrderID:        order.ID,
+		// บันทึกส่วนลดในใบเสร็จ
+		receiptDiscount := models.ReceiptDiscount{
+			ReceiptID:      receipt.ID,
 			DiscountTypeID: discount.DiscountTypeID,
 			Value:          discountAmount,
 			StaffID:        req.StaffID,
 			Reason:         discount.Reason,
 			CreatedAt:      time.Now(),
 		}
-		discounts = append(discounts, orderDiscount)
+
+		if err := tx.Create(&receiptDiscount).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to save discount",
+			})
+		}
 	}
 
-	// 4. คำนวณค่าใช้จ่ายเพิ่มเติม
-	var totalExtraCharge float64 = 0
-	var extraCharges []models.OrderAdditionalCharge
-
+	// 7. คำนวณและบันทึกค่าใช้จ่ายเพิ่มเติม
+	var totalExtraCharge float64
 	for _, charge := range req.ExtraCharges {
 		var chargeType models.AdditionalChargeType
 		if err := tx.First(&chargeType, charge.ChargeTypeID).Error; err != nil {
 			tx.Rollback()
-			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Invalid charge type",
 			})
 		}
@@ -117,9 +160,9 @@ func ProcessPayment(c *fiber.Ctx) error {
 		chargeAmount := charge.Amount * float64(charge.Quantity)
 		totalExtraCharge += chargeAmount
 
-		// สร้างรายการค่าใช้จ่ายเพิ่มเติม
-		orderCharge := models.OrderAdditionalCharge{
-			OrderID:      order.ID,
+		// บันทึกค่าใช้จ่ายเพิ่มเติมในใบเสร็จ
+		receiptCharge := models.ReceiptCharge{
+			ReceiptID:    receipt.ID,
 			ChargeTypeID: charge.ChargeTypeID,
 			Amount:       charge.Amount,
 			Quantity:     charge.Quantity,
@@ -127,72 +170,59 @@ func ProcessPayment(c *fiber.Ctx) error {
 			Note:         charge.Note,
 			CreatedAt:    time.Now(),
 		}
-		extraCharges = append(extraCharges, orderCharge)
-	}
 
-	// 5. สร้างใบเสร็จ
-	receipt := models.Receipt{
-		OrderID:       order.ID,
-		UUID:          order.UUID,
-		TableID:       order.TableID,
-		SubTotal:      subTotal,
-		DiscountTotal: totalDiscount,
-		ChargeTotal:   totalExtraCharge,
-		ServiceCharge: req.ServiceCharge,
-		Total:         subTotal - totalDiscount + totalExtraCharge + req.ServiceCharge,
-		PaymentMethod: req.PaymentMethod,
-		StaffID:       req.StaffID,
-		CreatedAt:     time.Now(),
-	}
-
-	// 6. บันทึกข้อมูลทั้งหมด
-	if err := tx.Create(&receipt).Error; err != nil {
-		tx.Rollback()
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to create receipt",
-		})
-	}
-
-	for _, discount := range discounts {
-		if err := tx.Create(&discount).Error; err != nil {
+		if err := tx.Create(&receiptCharge).Error; err != nil {
 			tx.Rollback()
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to save discounts",
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to save extra charge",
 			})
 		}
 	}
 
-	for _, charge := range extraCharges {
-		if err := tx.Create(&charge).Error; err != nil {
+	// 8. อัพเดทยอดรวมในใบเสร็จ
+	receipt.DiscountTotal = totalDiscount
+	receipt.ChargeTotal = totalExtraCharge
+	receipt.Total = subTotal - totalDiscount + totalExtraCharge + req.ServiceCharge
+
+	if err := tx.Save(&receipt).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update receipt total",
+		})
+	}
+
+	// 9. อัพเดท Orders เพื่อเชื่อมกับใบเสร็จและเปลี่ยนสถานะ
+	for _, order := range orders {
+		if err := tx.Model(&order).Updates(map[string]interface{}{
+			"receipt_id": receipt.ID,
+			"status":     "completed",
+		}).Error; err != nil {
 			tx.Rollback()
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to save extra charges",
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to update order",
 			})
 		}
 	}
 
-	// 7. อัพเดทสถานะออเดอร์เป็นชำระเงินแล้ว
-	if err := tx.Model(&order).Update("status", "completed").Error; err != nil {
-		tx.Rollback()
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to update order status",
-		})
-	}
-
+	// 10. Commit transaction
 	if err := tx.Commit().Error; err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to commit transaction",
 		})
 	}
 
-	// ดึงข้อมูลใบเสร็จที่สมบูรณ์
+	// 11. ดึงข้อมูลใบเสร็จที่สมบูรณ์
 	var completeReceipt models.Receipt
 	if err := db.DB.Preload("Staff").
-		Preload("Order.Items.MenuItem").
+		Preload("Orders", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at ASC")
+		}).
+		Preload("Orders.Items.MenuItem").
+		Preload("Orders.Items.Options.MenuOption").
 		Preload("Discounts.DiscountType").
 		Preload("Charges.ChargeType").
 		First(&completeReceipt, receipt.ID).Error; err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to load complete receipt",
 		})
 	}
