@@ -209,7 +209,8 @@ const App = () => {
               {/* Menu - อนุญาตทุกคนที่ล็อกอิน */}
               <Route
                 path="/menu"
-                element={isLoggedIn ? <MenuList /> : <Navigate to="/login" />}
+                // element={isLoggedIn ? <MenuList /> : <Navigate to="/login" />}
+                element={<MenuList />}
               />
 
               {/* Tables - อนุญาต */}

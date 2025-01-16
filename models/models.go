@@ -307,9 +307,9 @@ type Receipt struct {
 	UUID          string  `gorm:"not null;index"`
 	TableID       int     `gorm:"not null"`
 	Orders        []Order `gorm:"foreignKey:ReceiptID"`
-	SubTotal      float64 // ยอดรวมทุก orders
-	DiscountTotal float64 // ส่วนลดรวม (ไม่ต้องกระจาย)
-	ChargeTotal   float64 // ค่าใช้จ่ายเพิ่มเติมรวม
+	SubTotal      float64 // ยอดรวมทุก order
+	DiscountTotal float64
+	ChargeTotal   float64
 	ServiceCharge float64
 	Total         float64
 	PaymentMethod string
