@@ -20,6 +20,40 @@ definitions:
     - current_password
     - new_password
     type: object
+  api_handlers.CreateChargeTypeRequest:
+    properties:
+      defaultAmount:
+        minimum: 0
+        type: number
+      isActive:
+        description: optional, จะใช้ค่า default จาก model ถ้าไม่ได้ส่งมา
+        type: boolean
+      name:
+        type: string
+    required:
+    - defaultAmount
+    - name
+    type: object
+  api_handlers.CreateDiscountTypeRequest:
+    properties:
+      isActive:
+        type: boolean
+      name:
+        type: string
+      type:
+        description: รับได้แค่ percentage หรือ amount
+        enum:
+        - percentage
+        - amount
+        type: string
+      value:
+        description: ถ้าเป็น percentage ต้อง 0-100
+        type: number
+    required:
+    - name
+    - type
+    - value
+    type: object
   api_handlers.CreateOrderRequest:
     properties:
       items:
@@ -198,18 +232,22 @@ definitions:
         items:
           $ref: '#/definitions/api_handlers.PaymentExtraChargeRequest'
         type: array
-      order_id:
-        type: integer
       payment_method:
         type: string
       service_charge:
         type: number
       staff_id:
-        description: อย่าลืมแก้ binding:"required"`
         type: integer
+      table_id:
+        description: ID ของโต๊ะ
+        type: integer
+      uuid:
+        description: UUID ของ QR Code
+        type: string
     required:
-    - order_id
     - payment_method
+    - table_id
+    - uuid
     type: object
   api_handlers.PrinterResponse:
     properties:
@@ -313,6 +351,28 @@ definitions:
         type: string
       status:
         type: string
+    type: object
+  api_handlers.UpdateChargeTypeRequest:
+    properties:
+      default_amount:
+        type: number
+      is_active:
+        type: boolean
+      name:
+        type: string
+    type: object
+  api_handlers.UpdateDiscountTypeRequest:
+    properties:
+      is_active:
+        type: boolean
+      name:
+        type: string
+      type:
+        description: percentage/amount
+        type: string
+      value:
+        description: pointer เพื่อให้รู้ว่ามีการส่งค่ามาจริงๆ
+        type: number
     type: object
   api_handlers.UpdateStatusRequest:
     properties:
@@ -418,6 +478,15 @@ definitions:
     required:
     - menu_item_id
     - quantity
+    type: object
+  api_handlers.updateCat:
+    properties:
+      name:
+        type: string
+      nameCh:
+        type: string
+      nameEn:
+        type: string
     type: object
   api_handlers.updatePromo_req:
     properties:
@@ -707,6 +776,10 @@ definitions:
         items:
           $ref: '#/definitions/models.OrderItem'
         type: array
+      receipt:
+        $ref: '#/definitions/models.Receipt'
+      receiptID:
+        type: integer
       status:
         description: '"completed", "uncompleted"'
         type: string
@@ -718,60 +791,6 @@ definitions:
         type: string
       uuid:
         type: string
-    type: object
-  models.OrderAdditionalCharge:
-    properties:
-      amount:
-        description: จำนวนเงินที่เก็บจริง
-        type: number
-      chargeType:
-        $ref: '#/definitions/models.AdditionalChargeType'
-      chargeTypeID:
-        type: integer
-      createdAt:
-        type: string
-      id:
-        type: integer
-      note:
-        description: บันทึกเพิ่มเติม
-        type: string
-      order:
-        $ref: '#/definitions/models.Order'
-      orderID:
-        type: integer
-      quantity:
-        type: integer
-      staff:
-        $ref: '#/definitions/models.Users'
-      staffID:
-        description: พนักงานที่บันทึก
-        type: integer
-    type: object
-  models.OrderDiscount:
-    properties:
-      createdAt:
-        type: string
-      discountType:
-        $ref: '#/definitions/models.DiscountType'
-      discountTypeID:
-        type: integer
-      id:
-        type: integer
-      order:
-        $ref: '#/definitions/models.Order'
-      orderID:
-        type: integer
-      reason:
-        description: เหตุผลที่ให้ส่วนลด (ถ้ามี)
-        type: string
-      staff:
-        $ref: '#/definitions/models.Users'
-      staffID:
-        description: พนักงานที่ให้ส่วนลด
-        type: integer
-      value:
-        description: จำนวนส่วนลดที่ใช้จริง
-        type: number
     type: object
   models.OrderItem:
     properties:
@@ -915,50 +934,96 @@ definitions:
   models.Receipt:
     properties:
       chargeTotal:
-        description: ยอดรวมค่าใช้จ่ายเพิ่ม
         type: number
       charges:
+        description: เปลี่ยนจาก OrderAdditionalCharge
         items:
-          $ref: '#/definitions/models.OrderAdditionalCharge'
+          $ref: '#/definitions/models.ReceiptCharge'
         type: array
       createdAt:
         type: string
       discountTotal:
-        description: ยอดรวมส่วนลด
         type: number
       discounts:
+        description: เปลี่ยนจาก OrderDiscount เพราะมันไม่ตอบโจทย์ T T
         items:
-          $ref: '#/definitions/models.OrderDiscount'
+          $ref: '#/definitions/models.ReceiptDiscount'
         type: array
       id:
         type: integer
-      order:
-        $ref: '#/definitions/models.Order'
-      orderID:
-        type: integer
+      orders:
+        items:
+          $ref: '#/definitions/models.Order'
+        type: array
       paymentMethod:
-        description: วิธีการชำระเงิน
         type: string
       serviceCharge:
-        description: ค่าบริการ (ถ้ามี)
         type: number
       staff:
         $ref: '#/definitions/models.Users'
       staffID:
-        description: พนักงานที่รับชำระ
         type: integer
       subTotal:
-        description: ยอดรวมก่อนส่วนลด/ค่าใช้จ่ายเพิ่ม
+        description: ยอดรวมทุก order
         type: number
       tableID:
         type: integer
       total:
-        description: ยอดสุทธิ
         type: number
       updatedAt:
         type: string
       uuid:
         type: string
+    type: object
+  models.ReceiptCharge:
+    properties:
+      amount:
+        type: number
+      chargeType:
+        $ref: '#/definitions/models.AdditionalChargeType'
+      chargeTypeID:
+        type: integer
+      createdAt:
+        type: string
+      id:
+        type: integer
+      note:
+        type: string
+      quantity:
+        type: integer
+      receipt:
+        $ref: '#/definitions/models.Receipt'
+      receiptID:
+        description: เปลี่ยนจาก OrderID
+        type: integer
+      staff:
+        $ref: '#/definitions/models.Users'
+      staffID:
+        type: integer
+    type: object
+  models.ReceiptDiscount:
+    properties:
+      createdAt:
+        type: string
+      discountType:
+        $ref: '#/definitions/models.DiscountType'
+      discountTypeID:
+        type: integer
+      id:
+        type: integer
+      reason:
+        type: string
+      receipt:
+        $ref: '#/definitions/models.Receipt'
+      receiptID:
+        description: เปลี่ยนจาก OrderID
+        type: integer
+      staff:
+        $ref: '#/definitions/models.Users'
+      staffID:
+        type: integer
+      value:
+        type: number
     type: object
   models.Table:
     properties:
@@ -1222,7 +1287,7 @@ paths:
         name: category
         required: true
         schema:
-          $ref: '#/definitions/models.Category'
+          $ref: '#/definitions/api_handlers.updateCat'
       produces:
       - application/json
       responses:
@@ -2553,6 +2618,154 @@ paths:
       summary: ดึงรายการออเดอร์ตามโต๊ะ
   /api/payment/charge-types:
     get:
+      description: ดึงรายการประเภทค่าใช้จ่ายเพิ่มเติมทั้งหมด ทั้งที่เปิดและปิดใช้งาน
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายการประเภทค่าใช้จ่ายทั้งหมด
+          schema:
+            items:
+              $ref: '#/definitions/models.AdditionalChargeType'
+            type: array
+        "500":
+          description: มีข้อผิดพลาดในการดึงข้อมูล
+          schema:
+            additionalProperties: true
+            type: object
+      summary: ดึงประเภทค่าใช้จ่ายเพิ่มเติมทั้งหมด
+      tags:
+      - Payment Types
+    post:
+      consumes:
+      - application/json
+      description: สร้างประเภทค่าใช้จ่ายเพิ่มเติมใหม่ (สำหรับผู้จัดการ)
+      parameters:
+      - description: ข้อมูลประเภทค่าใช้จ่าย
+        in: body
+        name: chargeType
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.CreateChargeTypeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: ประเภทค่าใช้จ่ายที่สร้างสำเร็จ
+          schema:
+            $ref: '#/definitions/models.AdditionalChargeType'
+        "400":
+          description: ข้อมูลไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: ชื่อประเภทค่าใช้จ่ายซ้ำ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: สร้างประเภทค่าใช้จ่ายเพิ่มเติมใหม่
+      tags:
+      - Payment Types
+  /api/payment/charge-types/{id}:
+    delete:
+      description: ลบประเภทค่าใช้จ่ายเพิ่มเติมตาม ID (Soft Delete)
+      parameters:
+      - description: Charge Type ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ลบสำเร็จ
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: ไม่พบประเภทค่าใช้จ่าย
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ลบประเภทค่าใช้จ่ายเพิ่มเติม
+      tags:
+      - Payment Types
+    get:
+      description: ดึงข้อมูลรายละเอียดของประเภทค่าใช้จ่ายตาม ID
+      parameters:
+      - description: Charge Type ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ข้อมูลประเภทค่าใช้จ่าย
+          schema:
+            $ref: '#/definitions/models.AdditionalChargeType'
+        "404":
+          description: ไม่พบประเภทค่าใช้จ่าย
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ดึงข้อมูลประเภทค่าใช้จ่ายตาม ID
+      tags:
+      - Payment Types
+    put:
+      consumes:
+      - application/json
+      description: อัพเดตข้อมูลประเภทค่าใช้จ่ายตาม ID
+      parameters:
+      - description: Charge Type ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ข้อมูลที่ต้องการอัพเดต
+        in: body
+        name: chargeType
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.UpdateChargeTypeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ประเภทค่าใช้จ่ายที่อัพเดตแล้ว
+          schema:
+            $ref: '#/definitions/models.AdditionalChargeType'
+        "400":
+          description: ข้อมูลไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: ไม่พบประเภทค่าใช้จ่าย
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: ชื่อประเภทค่าใช้จ่ายซ้ำ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: อัพเดตข้อมูลประเภทค่าใช้จ่าย
+      tags:
+      - Payment Types
+  /api/payment/charge-types/Active:
+    get:
       description: ดึงรายการประเภทค่าใช้จ่ายเพิ่มเติมที่เปิดใช้งาน
       produces:
       - application/json
@@ -2566,28 +2779,156 @@ paths:
       summary: ดึงประเภทค่าใช้จ่ายเพิ่มเติมที่ใช้งานได้
       tags:
       - Payment
-    post:
-      consumes:
-      - application/json
-      description: สร้างประเภทค่าใช้จ่ายเพิ่มเติมใหม่ (สำหรับผู้จัดการ)
-      parameters:
-      - description: ข้อมูลประเภทค่าใช้จ่าย
-        in: body
-        name: charge
-        required: true
-        schema:
-          $ref: '#/definitions/models.AdditionalChargeType'
+  /api/payment/discount-types:
+    get:
+      description: ดึงรายการประเภทส่วนลดทั้งหมด ทั้งที่เปิดและปิดใช้งาน
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: รายการประเภทส่วนลดทั้งหมด
           schema:
-            $ref: '#/definitions/models.AdditionalChargeType'
-      summary: สร้างประเภทค่าใช้จ่ายเพิ่มเติมใหม่
+            items:
+              $ref: '#/definitions/models.DiscountType'
+            type: array
+        "500":
+          description: มีข้อผิดพลาดในการดึงข้อมูล
+          schema:
+            additionalProperties: true
+            type: object
+      summary: ดึงประเภทส่วนลดทั้งหมด
       tags:
-      - Payment
-  /api/payment/discount-types:
+      - Payment Types
+    post:
+      consumes:
+      - application/json
+      description: สร้างประเภทส่วนลดใหม่ (สำหรับผู้จัดการ) ฟิลด์ Type รับได้แค่ percentage
+        หรือ amount โดย percentage คือส่วนลดเป็นเปอร์เซ็น amount เป็นจำนวนเงินตรงๆ
+      parameters:
+      - description: ข้อมูลประเภทส่วนลด
+        in: body
+        name: discountType
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.CreateDiscountTypeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: ประเภทส่วนลดที่สร้างสำเร็จ
+          schema:
+            $ref: '#/definitions/models.DiscountType'
+        "400":
+          description: ข้อมูลไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: ชื่อประเภทส่วนลดซ้ำ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: สร้างประเภทส่วนลดใหม่
+      tags:
+      - Payment Types
+  /api/payment/discount-types/{id}:
+    delete:
+      description: ลบประเภทส่วนลดตาม ID (Soft Delete)
+      parameters:
+      - description: Discount Type ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ลบสำเร็จ
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: ไม่พบประเภทส่วนลด
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ลบประเภทส่วนลด
+      tags:
+      - Payment Types
+    get:
+      description: ดึงข้อมูลรายละเอียดของประเภทส่วนลดตาม ID
+      parameters:
+      - description: Discount Type ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ข้อมูลประเภทส่วนลด
+          schema:
+            $ref: '#/definitions/models.DiscountType'
+        "404":
+          description: ไม่พบประเภทส่วนลด
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ดึงข้อมูลประเภทส่วนลดตาม ID
+      tags:
+      - Payment Types
+    put:
+      consumes:
+      - application/json
+      description: อัพเดตข้อมูลประเภทส่วนลดตาม ID
+      parameters:
+      - description: Discount Type ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: ข้อมูลที่ต้องการอัพเดต
+        in: body
+        name: discountType
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.UpdateDiscountTypeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ประเภทส่วนลดที่อัพเดตแล้ว
+          schema:
+            $ref: '#/definitions/models.DiscountType'
+        "400":
+          description: ข้อมูลไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: ไม่พบประเภทส่วนลด
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: ชื่อประเภทส่วนลดซ้ำ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: อัพเดตข้อมูลประเภทส่วนลด
+      tags:
+      - Payment Types
+  /api/payment/discount-types/Active:
     get:
       description: ดึงรายการประเภทส่วนลดที่เปิดใช้งาน
       produces:
@@ -2600,27 +2941,6 @@ paths:
               $ref: '#/definitions/models.DiscountType'
             type: array
       summary: ดึงประเภทส่วนลดที่ใช้งานได้
-      tags:
-      - Payment
-    post:
-      consumes:
-      - application/json
-      description: สร้างประเภทส่วนลดใหม่ (สำหรับผู้จัดการ)
-      parameters:
-      - description: ข้อมูลประเภทส่วนลด
-        in: body
-        name: discount
-        required: true
-        schema:
-          $ref: '#/definitions/models.DiscountType'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.DiscountType'
-      summary: สร้างประเภทส่วนลดใหม่
       tags:
       - Payment
   /api/payment/process:
@@ -2788,22 +3108,20 @@ paths:
     get:
       consumes:
       - application/json
-      description: ดึงรายการโปรโมชั่นทั้งหมดที่กำลังใช้งานอยู่ (IsActive=true) และอยู่ในช่วงวันที่ที่กำหนด
+      description: ดึงข้อมูลรายละเอียดของโปรโมชั่นทั้งหมด
       produces:
       - application/json
       responses:
         "200":
-          description: รายการโปรโมชั่นที่กำลังใช้งาน
+          description: รายละเอียดของโปรโมชั่น
           schema:
-            items:
-              $ref: '#/definitions/api_handlers.PromotionResponse'
-            type: array
+            $ref: '#/definitions/api_handlers.PromotionResponse'
         "401":
           description: ไม่ได้รับอนุญาต
           schema:
             $ref: '#/definitions/api_handlers.ErrorResponse'
-        "403":
-          description: ไม่มีสิทธิ์เข้าถึง
+        "404":
+          description: ไม่พบโปรโมชั่นที่ระบุ
           schema:
             $ref: '#/definitions/api_handlers.ErrorResponse'
         "500":
@@ -2812,7 +3130,7 @@ paths:
             $ref: '#/definitions/api_handlers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: ดึงรายการโปรโมชั่นที่กำลังใช้งาน
+      summary: ดึงข้อมูลโปรโมชั่นAll
       tags:
       - promotions
     post:
@@ -2965,6 +3283,37 @@ paths:
       security:
       - BearerAuth: []
       summary: อัพเดตข้อมูลโปรโมชั่น
+      tags:
+      - promotions
+  /api/promotions/Active:
+    get:
+      consumes:
+      - application/json
+      description: ดึงรายการโปรโมชั่นทั้งหมดที่กำลังใช้งานอยู่ (IsActive=true) และอยู่ในช่วงวันที่ที่กำหนด
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายการโปรโมชั่นที่กำลังใช้งาน
+          schema:
+            items:
+              $ref: '#/definitions/api_handlers.PromotionResponse'
+            type: array
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "500":
+          description: เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: ดึงรายการโปรโมชั่นที่กำลังใช้งาน
       tags:
       - promotions
   /api/promotions/status/{id}:

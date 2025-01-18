@@ -119,13 +119,19 @@ func Delete_categoryHandler(c *fiber.Ctx) error {
 	})
 }
 
+type updateCat struct {
+	Name   string `json:"name,omitempty"`
+	NameEn string `json:"nameEn,omitempty"`
+	NameCh string `json:"nameCh,omitempty"`
+}
+
 // @Summary อัพเดตชื่อหมวดหมู่
 // @Description ฟังก์ชันนี้ใช้สำหรับแก้ไขชื่อของหมวดหมู่ที่มีอยู่แล้ว โดยระบุ ID และชื่อใหม่
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param id path integer true "ID ของหมวดหมู่"
-// @Param category body models.Category true "ข้อมูลหมวดหมู่ที่ต้องการอัพเดต"
+// @Param category body updateCat true "ข้อมูลหมวดหมู่ที่ต้องการอัพเดต"
 // @Success 200 {object} models.Category "รายละเอียดของหมวดหมู่ที่อัพเดตแล้ว"
 // @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง"
 // @Failure 404 {object} map[string]interface{} "ไม่พบหมวดหมู่ที่ต้องการแก้ไข"
@@ -145,19 +151,17 @@ func UpdateCategoryHandler(c *fiber.Ctx) error {
 	}
 
 	// รับข้อมูลใหม่จาก request body
-	var updatedCategory models.Category
+	var updatedCategory updateCat
 	if err := c.BodyParser(&updatedCategory); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{
 			"error": "Invalid input",
 		})
 	}
 
-	fmt.Print(id, updatedCategory.Name)
-
-	// ตรวจสอบว่ามีชื่อที่จะอัพเดตหรือไม่
-	if updatedCategory.Name == "" {
+	// ตรวจสอบว่ามีการส่งข้อมูลที่จะอัปเดตมาอย่างน้อย 1 ฟิลด์
+	if updatedCategory.Name == "" && updatedCategory.NameEn == "" && updatedCategory.NameCh == "" {
 		return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{
-			"error": "Category name is required",
+			"error": "At least one field (name, nameEn, or nameCh) is required for update",
 		})
 	}
 
@@ -169,16 +173,38 @@ func UpdateCategoryHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	// ตรวจสอบว่าชื่อใหม่ซ้ำกับที่มีอยู่หรือไม่ (ยกเว้นตัวมันเอง)
-	var duplicateCheck models.Category
-	if err := db.DB.Where("name = ? AND id != ?", updatedCategory.Name, id).First(&duplicateCheck).Error; err == nil {
-		return c.Status(http.StatusConflict).JSON(map[string]interface{}{
-			"error": "Category name already exists",
-		})
+	// ตรวจสอบความซ้ำซ้อนของชื่อแต่ละภาษา
+	if updatedCategory.Name != "" {
+		var duplicateCheck models.Category
+		if err := db.DB.Where("name = ? AND id != ?", updatedCategory.Name, id).First(&duplicateCheck).Error; err == nil {
+			return c.Status(http.StatusConflict).JSON(map[string]interface{}{
+				"error": "Category name (Thai) already exists",
+			})
+		}
+		existingCategory.Name = updatedCategory.Name
 	}
 
-	// อัพเดตชื่อหมวดหมู่
-	existingCategory.Name = updatedCategory.Name
+	if updatedCategory.NameEn != "" {
+		var duplicateCheck models.Category
+		if err := db.DB.Where("name_en = ? AND id != ?", updatedCategory.NameEn, id).First(&duplicateCheck).Error; err == nil {
+			return c.Status(http.StatusConflict).JSON(map[string]interface{}{
+				"error": "Category name (English) already exists",
+			})
+		}
+		existingCategory.NameEn = updatedCategory.NameEn
+	}
+
+	if updatedCategory.NameCh != "" {
+		var duplicateCheck models.Category
+		if err := db.DB.Where("name_ch = ? AND id != ?", updatedCategory.NameCh, id).First(&duplicateCheck).Error; err == nil {
+			return c.Status(http.StatusConflict).JSON(map[string]interface{}{
+				"error": "Category name (Chinese) already exists",
+			})
+		}
+		existingCategory.NameCh = updatedCategory.NameCh
+	}
+
+	// อัปเดตข้อมูลในฐานข้อมูล
 	if err := db.DB.Save(&existingCategory).Error; err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(map[string]interface{}{
 			"error": fmt.Sprintf("Error updating category: %v", err),

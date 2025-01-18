@@ -162,7 +162,7 @@ func CreatePromotion(c *fiber.Ctx) error {
 // @Failure 401 {object} ErrorResponse "ไม่ได้รับอนุญาต"
 // @Failure 403 {object} ErrorResponse "ไม่มีสิทธิ์เข้าถึง"
 // @Failure 500 {object} ErrorResponse "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์"
-// @Router /api/promotions [get]
+// @Router /api/promotions/Active [get]
 func GetActivePromotions(c *fiber.Ctx) error {
 	var promotions []models.Promotion
 	now := time.Now()
@@ -382,6 +382,30 @@ func GetPromotionByID(c *fiber.Ctx) error {
 		Preload("Items.MenuItem.OptionGroups").
 		Preload("Items.MenuItem.OptionGroups.Options").
 		Where("id = ?", promoID).First(&promotion).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Promotion not found"})
+	}
+
+	return c.JSON(promotion)
+}
+
+// @Summary ดึงข้อมูลโปรโมชั่นAll
+// @Description ดึงข้อมูลรายละเอียดของโปรโมชั่นทั้งหมด
+// @Tags promotions
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} PromotionResponse "รายละเอียดของโปรโมชั่น"
+// @Failure 401 {object} ErrorResponse "ไม่ได้รับอนุญาต"
+// @Failure 404 {object} ErrorResponse "ไม่พบโปรโมชั่นที่ระบุ"
+// @Failure 500 {object} ErrorResponse "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์"
+// @Router /api/promotions [get]
+func GetAllPromotion(c *fiber.Ctx) error {
+	var promotion models.Promotion
+	if err := db.DB.Preload("Items.MenuItem").
+		Preload("Items.MenuItem.Category").
+		Preload("Items.MenuItem.OptionGroups").
+		Preload("Items.MenuItem.OptionGroups.Options").
+		Find(&promotion).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Promotion not found"})
 	}
 

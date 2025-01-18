@@ -357,7 +357,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.Category"
+                            "$ref": "#/definitions/api_handlers.updateCat"
                         }
                     }
                 ],
@@ -2327,6 +2327,87 @@ const docTemplate = `{
         },
         "/api/payment/charge-types": {
             "get": {
+                "description": "ดึงรายการประเภทค่าใช้จ่ายเพิ่มเติมทั้งหมด ทั้งที่เปิดและปิดใช้งาน",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment Types"
+                ],
+                "summary": "ดึงประเภทค่าใช้จ่ายเพิ่มเติมทั้งหมด",
+                "responses": {
+                    "200": {
+                        "description": "รายการประเภทค่าใช้จ่ายทั้งหมด",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.AdditionalChargeType"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "มีข้อผิดพลาดในการดึงข้อมูล",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "สร้างประเภทค่าใช้จ่ายเพิ่มเติมใหม่ (สำหรับผู้จัดการ)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment Types"
+                ],
+                "summary": "สร้างประเภทค่าใช้จ่ายเพิ่มเติมใหม่",
+                "parameters": [
+                    {
+                        "description": "ข้อมูลประเภทค่าใช้จ่าย",
+                        "name": "chargeType",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.CreateChargeTypeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "ประเภทค่าใช้จ่ายที่สร้างสำเร็จ",
+                        "schema": {
+                            "$ref": "#/definitions/models.AdditionalChargeType"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "ชื่อประเภทค่าใช้จ่ายซ้ำ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/payment/charge-types/Active": {
+            "get": {
                 "description": "ดึงรายการประเภทค่าใช้จ่ายเพิ่มเติมที่เปิดใช้งาน",
                 "produces": [
                     "application/json"
@@ -2346,9 +2427,55 @@ const docTemplate = `{
                         }
                     }
                 }
+            }
+        },
+        "/api/payment/charge-types/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ดึงข้อมูลรายละเอียดของประเภทค่าใช้จ่ายตาม ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment Types"
+                ],
+                "summary": "ดึงข้อมูลประเภทค่าใช้จ่ายตาม ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Charge Type ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ข้อมูลประเภทค่าใช้จ่าย",
+                        "schema": {
+                            "$ref": "#/definitions/models.AdditionalChargeType"
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบประเภทค่าใช้จ่าย",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
             },
-            "post": {
-                "description": "สร้างประเภทค่าใช้จ่ายเพิ่มเติมใหม่ (สำหรับผู้จัดการ)",
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "อัพเดตข้อมูลประเภทค่าใช้จ่ายตาม ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -2356,31 +2483,180 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Payment"
+                    "Payment Types"
                 ],
-                "summary": "สร้างประเภทค่าใช้จ่ายเพิ่มเติมใหม่",
+                "summary": "อัพเดตข้อมูลประเภทค่าใช้จ่าย",
                 "parameters": [
                     {
-                        "description": "ข้อมูลประเภทค่าใช้จ่าย",
-                        "name": "charge",
+                        "type": "integer",
+                        "description": "Charge Type ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "ข้อมูลที่ต้องการอัพเดต",
+                        "name": "chargeType",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.AdditionalChargeType"
+                            "$ref": "#/definitions/api_handlers.UpdateChargeTypeRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "ประเภทค่าใช้จ่ายที่อัพเดตแล้ว",
                         "schema": {
                             "$ref": "#/definitions/models.AdditionalChargeType"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบประเภทค่าใช้จ่าย",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "ชื่อประเภทค่าใช้จ่ายซ้ำ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ลบประเภทค่าใช้จ่ายเพิ่มเติมตาม ID (Soft Delete)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment Types"
+                ],
+                "summary": "ลบประเภทค่าใช้จ่ายเพิ่มเติม",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Charge Type ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ลบสำเร็จ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบประเภทค่าใช้จ่าย",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
             }
         },
         "/api/payment/discount-types": {
+            "get": {
+                "description": "ดึงรายการประเภทส่วนลดทั้งหมด ทั้งที่เปิดและปิดใช้งาน",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment Types"
+                ],
+                "summary": "ดึงประเภทส่วนลดทั้งหมด",
+                "responses": {
+                    "200": {
+                        "description": "รายการประเภทส่วนลดทั้งหมด",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.DiscountType"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "มีข้อผิดพลาดในการดึงข้อมูล",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "สร้างประเภทส่วนลดใหม่ (สำหรับผู้จัดการ) ฟิลด์ Type รับได้แค่ percentage หรือ amount โดย percentage คือส่วนลดเป็นเปอร์เซ็น amount เป็นจำนวนเงินตรงๆ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment Types"
+                ],
+                "summary": "สร้างประเภทส่วนลดใหม่",
+                "parameters": [
+                    {
+                        "description": "ข้อมูลประเภทส่วนลด",
+                        "name": "discountType",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.CreateDiscountTypeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "ประเภทส่วนลดที่สร้างสำเร็จ",
+                        "schema": {
+                            "$ref": "#/definitions/models.DiscountType"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "ชื่อประเภทส่วนลดซ้ำ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/payment/discount-types/Active": {
             "get": {
                 "description": "ดึงรายการประเภทส่วนลดที่เปิดใช้งาน",
                 "produces": [
@@ -2401,9 +2677,55 @@ const docTemplate = `{
                         }
                     }
                 }
+            }
+        },
+        "/api/payment/discount-types/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ดึงข้อมูลรายละเอียดของประเภทส่วนลดตาม ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment Types"
+                ],
+                "summary": "ดึงข้อมูลประเภทส่วนลดตาม ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Discount Type ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ข้อมูลประเภทส่วนลด",
+                        "schema": {
+                            "$ref": "#/definitions/models.DiscountType"
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบประเภทส่วนลด",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
             },
-            "post": {
-                "description": "สร้างประเภทส่วนลดใหม่ (สำหรับผู้จัดการ)",
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "อัพเดตข้อมูลประเภทส่วนลดตาม ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -2411,25 +2733,93 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Payment"
+                    "Payment Types"
                 ],
-                "summary": "สร้างประเภทส่วนลดใหม่",
+                "summary": "อัพเดตข้อมูลประเภทส่วนลด",
                 "parameters": [
                     {
-                        "description": "ข้อมูลประเภทส่วนลด",
-                        "name": "discount",
+                        "type": "integer",
+                        "description": "Discount Type ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "ข้อมูลที่ต้องการอัพเดต",
+                        "name": "discountType",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.DiscountType"
+                            "$ref": "#/definitions/api_handlers.UpdateDiscountTypeRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "ประเภทส่วนลดที่อัพเดตแล้ว",
                         "schema": {
                             "$ref": "#/definitions/models.DiscountType"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบประเภทส่วนลด",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "ชื่อประเภทส่วนลดซ้ำ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ลบประเภทส่วนลดตาม ID (Soft Delete)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment Types"
+                ],
+                "summary": "ลบประเภทส่วนลด",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Discount Type ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ลบสำเร็จ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบประเภทส่วนลด",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -2686,7 +3076,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "ดึงรายการโปรโมชั่นทั้งหมดที่กำลังใช้งานอยู่ (IsActive=true) และอยู่ในช่วงวันที่ที่กำหนด",
+                "description": "ดึงข้อมูลรายละเอียดของโปรโมชั่นทั้งหมด",
                 "consumes": [
                     "application/json"
                 ],
@@ -2696,15 +3086,12 @@ const docTemplate = `{
                 "tags": [
                     "promotions"
                 ],
-                "summary": "ดึงรายการโปรโมชั่นที่กำลังใช้งาน",
+                "summary": "ดึงข้อมูลโปรโมชั่นAll",
                 "responses": {
                     "200": {
-                        "description": "รายการโปรโมชั่นที่กำลังใช้งาน",
+                        "description": "รายละเอียดของโปรโมชั่น",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/api_handlers.PromotionResponse"
-                            }
+                            "$ref": "#/definitions/api_handlers.PromotionResponse"
                         }
                     },
                     "401": {
@@ -2713,8 +3100,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/api_handlers.ErrorResponse"
                         }
                     },
-                    "403": {
-                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                    "404": {
+                        "description": "ไม่พบโปรโมชั่นที่ระบุ",
                         "schema": {
                             "$ref": "#/definitions/api_handlers.ErrorResponse"
                         }
@@ -2766,6 +3153,55 @@ const docTemplate = `{
                         "description": "ข้อมูลไม่ถูกต้อง",
                         "schema": {
                             "$ref": "#/definitions/api_handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/promotions/Active": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ดึงรายการโปรโมชั่นทั้งหมดที่กำลังใช้งานอยู่ (IsActive=true) และอยู่ในช่วงวันที่ที่กำหนด",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "promotions"
+                ],
+                "summary": "ดึงรายการโปรโมชั่นที่กำลังใช้งาน",
+                "responses": {
+                    "200": {
+                        "description": "รายการโปรโมชั่นที่กำลังใช้งาน",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api_handlers.PromotionResponse"
+                            }
                         }
                     },
                     "401": {
@@ -3802,6 +4238,54 @@ const docTemplate = `{
                 }
             }
         },
+        "api_handlers.CreateChargeTypeRequest": {
+            "type": "object",
+            "required": [
+                "defaultAmount",
+                "name"
+            ],
+            "properties": {
+                "defaultAmount": {
+                    "type": "number",
+                    "minimum": 0
+                },
+                "isActive": {
+                    "description": "optional, จะใช้ค่า default จาก model ถ้าไม่ได้ส่งมา",
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "api_handlers.CreateDiscountTypeRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "type",
+                "value"
+            ],
+            "properties": {
+                "isActive": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "รับได้แค่ percentage หรือ amount",
+                    "type": "string",
+                    "enum": [
+                        "percentage",
+                        "amount"
+                    ]
+                },
+                "value": {
+                    "description": "ถ้าเป็น percentage ต้อง 0-100",
+                    "type": "number"
+                }
+            }
+        },
         "api_handlers.CreateOrderRequest": {
             "type": "object",
             "required": [
@@ -4058,8 +4542,9 @@ const docTemplate = `{
         "api_handlers.PaymentRequest": {
             "type": "object",
             "required": [
-                "order_id",
-                "payment_method"
+                "payment_method",
+                "table_id",
+                "uuid"
             ],
             "properties": {
                 "discounts": {
@@ -4074,9 +4559,6 @@ const docTemplate = `{
                         "$ref": "#/definitions/api_handlers.PaymentExtraChargeRequest"
                     }
                 },
-                "order_id": {
-                    "type": "integer"
-                },
                 "payment_method": {
                     "type": "string"
                 },
@@ -4084,8 +4566,15 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "staff_id": {
-                    "description": "อย่าลืมแก้ binding:\"required\"` + "`" + `",
                     "type": "integer"
+                },
+                "table_id": {
+                    "description": "ID ของโต๊ะ",
+                    "type": "integer"
+                },
+                "uuid": {
+                    "description": "UUID ของ QR Code",
+                    "type": "string"
                 }
             }
         },
@@ -4245,6 +4734,39 @@ const docTemplate = `{
                 }
             }
         },
+        "api_handlers.UpdateChargeTypeRequest": {
+            "type": "object",
+            "properties": {
+                "default_amount": {
+                    "type": "number"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "api_handlers.UpdateDiscountTypeRequest": {
+            "type": "object",
+            "properties": {
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "percentage/amount",
+                    "type": "string"
+                },
+                "value": {
+                    "description": "pointer เพื่อให้รู้ว่ามีการส่งค่ามาจริงๆ",
+                    "type": "number"
+                }
+            }
+        },
         "api_handlers.UpdateStatusRequest": {
             "type": "object",
             "properties": {
@@ -4398,6 +4920,20 @@ const docTemplate = `{
                 "quantity": {
                     "type": "integer",
                     "minimum": 1
+                }
+            }
+        },
+        "api_handlers.updateCat": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "nameCh": {
+                    "type": "string"
+                },
+                "nameEn": {
+                    "type": "string"
                 }
             }
         },
@@ -4828,6 +5364,12 @@ const docTemplate = `{
                         "$ref": "#/definitions/models.OrderItem"
                     }
                 },
+                "receipt": {
+                    "$ref": "#/definitions/models.Receipt"
+                },
+                "receiptID": {
+                    "type": "integer"
+                },
                 "status": {
                     "description": "\"completed\", \"uncompleted\"",
                     "type": "string"
@@ -4843,85 +5385,6 @@ const docTemplate = `{
                 },
                 "uuid": {
                     "type": "string"
-                }
-            }
-        },
-        "models.OrderAdditionalCharge": {
-            "type": "object",
-            "properties": {
-                "amount": {
-                    "description": "จำนวนเงินที่เก็บจริง",
-                    "type": "number"
-                },
-                "chargeType": {
-                    "$ref": "#/definitions/models.AdditionalChargeType"
-                },
-                "chargeTypeID": {
-                    "type": "integer"
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "note": {
-                    "description": "บันทึกเพิ่มเติม",
-                    "type": "string"
-                },
-                "order": {
-                    "$ref": "#/definitions/models.Order"
-                },
-                "orderID": {
-                    "type": "integer"
-                },
-                "quantity": {
-                    "type": "integer"
-                },
-                "staff": {
-                    "$ref": "#/definitions/models.Users"
-                },
-                "staffID": {
-                    "description": "พนักงานที่บันทึก",
-                    "type": "integer"
-                }
-            }
-        },
-        "models.OrderDiscount": {
-            "type": "object",
-            "properties": {
-                "createdAt": {
-                    "type": "string"
-                },
-                "discountType": {
-                    "$ref": "#/definitions/models.DiscountType"
-                },
-                "discountTypeID": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "order": {
-                    "$ref": "#/definitions/models.Order"
-                },
-                "orderID": {
-                    "type": "integer"
-                },
-                "reason": {
-                    "description": "เหตุผลที่ให้ส่วนลด (ถ้ามี)",
-                    "type": "string"
-                },
-                "staff": {
-                    "$ref": "#/definitions/models.Users"
-                },
-                "staffID": {
-                    "description": "พนักงานที่ให้ส่วนลด",
-                    "type": "integer"
-                },
-                "value": {
-                    "description": "จำนวนส่วนลดที่ใช้จริง",
-                    "type": "number"
                 }
             }
         },
@@ -5133,61 +5596,57 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "chargeTotal": {
-                    "description": "ยอดรวมค่าใช้จ่ายเพิ่ม",
                     "type": "number"
                 },
                 "charges": {
+                    "description": "เปลี่ยนจาก OrderAdditionalCharge",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.OrderAdditionalCharge"
+                        "$ref": "#/definitions/models.ReceiptCharge"
                     }
                 },
                 "createdAt": {
                     "type": "string"
                 },
                 "discountTotal": {
-                    "description": "ยอดรวมส่วนลด",
                     "type": "number"
                 },
                 "discounts": {
+                    "description": "เปลี่ยนจาก OrderDiscount เพราะมันไม่ตอบโจทย์ T T",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.OrderDiscount"
+                        "$ref": "#/definitions/models.ReceiptDiscount"
                     }
                 },
                 "id": {
                     "type": "integer"
                 },
-                "order": {
-                    "$ref": "#/definitions/models.Order"
-                },
-                "orderID": {
-                    "type": "integer"
+                "orders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Order"
+                    }
                 },
                 "paymentMethod": {
-                    "description": "วิธีการชำระเงิน",
                     "type": "string"
                 },
                 "serviceCharge": {
-                    "description": "ค่าบริการ (ถ้ามี)",
                     "type": "number"
                 },
                 "staff": {
                     "$ref": "#/definitions/models.Users"
                 },
                 "staffID": {
-                    "description": "พนักงานที่รับชำระ",
                     "type": "integer"
                 },
                 "subTotal": {
-                    "description": "ยอดรวมก่อนส่วนลด/ค่าใช้จ่ายเพิ่ม",
+                    "description": "ยอดรวมทุก order",
                     "type": "number"
                 },
                 "tableID": {
                     "type": "integer"
                 },
                 "total": {
-                    "description": "ยอดสุทธิ",
                     "type": "number"
                 },
                 "updatedAt": {
@@ -5195,6 +5654,81 @@ const docTemplate = `{
                 },
                 "uuid": {
                     "type": "string"
+                }
+            }
+        },
+        "models.ReceiptCharge": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "chargeType": {
+                    "$ref": "#/definitions/models.AdditionalChargeType"
+                },
+                "chargeTypeID": {
+                    "type": "integer"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "receipt": {
+                    "$ref": "#/definitions/models.Receipt"
+                },
+                "receiptID": {
+                    "description": "เปลี่ยนจาก OrderID",
+                    "type": "integer"
+                },
+                "staff": {
+                    "$ref": "#/definitions/models.Users"
+                },
+                "staffID": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.ReceiptDiscount": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "discountType": {
+                    "$ref": "#/definitions/models.DiscountType"
+                },
+                "discountTypeID": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "receipt": {
+                    "$ref": "#/definitions/models.Receipt"
+                },
+                "receiptID": {
+                    "description": "เปลี่ยนจาก OrderID",
+                    "type": "integer"
+                },
+                "staff": {
+                    "$ref": "#/definitions/models.Users"
+                },
+                "staffID": {
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "number"
                 }
             }
         },
