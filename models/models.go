@@ -262,6 +262,7 @@ type DiscountType struct {
 	IsActive  bool    `gorm:"not null;default:true"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `json:"-" swaggerignore:"true"`
 }
 
 // AdditionalChargeType - ประเภทค่าใช้จ่ายเพิ่มเติม
@@ -272,6 +273,7 @@ type AdditionalChargeType struct {
 	IsActive      bool    `gorm:"not null;default:true"`
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+	DeletedAt     gorm.DeletedAt `json:"-" swaggerignore:"true"`
 }
 
 type ReceiptDiscount struct {
@@ -324,8 +326,11 @@ type Receipt struct {
 type Printer struct {
 	ID          uint       `gorm:"primaryKey"`
 	Name        string     `gorm:"not null"`                  // ชื่อเครื่องพิมพ์
+	Type        string     `gorm:"not null"`                  // 'network' หรือ 'usb'
 	IPAddress   string     `gorm:"unique;not null"`           // IP Address
 	Port        int        `gorm:"not null"`                  // Port number
+	VendorID    string     `gorm:"index"`                     // สำหรับ USB printer
+	ProductID   string     `gorm:"index"`                     // สำหรับ USB printer
 	Department  string     `gorm:"not null"`                  // แผนก/ฝ่ายที่ใช้งาน
 	Description string     `gorm:"type:text"`                 // รายละเอียดเพิ่มเติม
 	Status      string     `gorm:"not null;default:'active'"` // สถานะ: active, inactive, maintenance
@@ -336,16 +341,29 @@ type Printer struct {
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
+// type PrintJob struct {
+// 	ID        uint   `gorm:"primaryKey"`
+// 	PrinterIP string `gorm:"not null"`
+// 	OrderID   *uint  // nullable, เพราะอาจเป็นการพิมพ์ทดสอบ
+// 	Content   []byte `gorm:"type:bytea"`
+// 	Status    string `gorm:"not null;default:'pending'"` // pending, processing, completed, failed
+// 	CreatedAt time.Time
+// 	UpdatedAt time.Time
+// 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+//		// Optional: เพิ่ม relation กับ Order ถ้าต้องการ
+//		Order *Order `gorm:"foreignKey:OrderID"`
+//	}
 type PrintJob struct {
-	ID        uint   `gorm:"primaryKey"`
-	PrinterIP string `gorm:"not null"`
-	OrderID   *uint  // nullable, เพราะอาจเป็นการพิมพ์ทดสอบ
-	Content   []byte `gorm:"type:bytea"`
-	Status    string `gorm:"not null;default:'pending'"` // pending, processing, completed, failed
+	ID        uint    `gorm:"primaryKey"`
+	PrinterID uint    `gorm:"not null;index"`
+	Printer   Printer `gorm:"foreignKey:PrinterID"`
+	OrderID   *uint   // nullable
+	Content   []byte  `gorm:"type:bytea"`
+	Status    string  `gorm:"not null;default:'pending'"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
-	// Optional: เพิ่ม relation กับ Order ถ้าต้องการ
 	Order *Order `gorm:"foreignKey:OrderID"`
 }

@@ -2998,7 +2998,7 @@ const docTemplate = `{
         },
         "/api/printers/pending-jobs": {
             "get": {
-                "description": "ดึงรายการงานพิมพ์ที่ยังไม่ได้พิมพ์สำหรับ IP ที่ระบุ",
+                "description": "ดึงรายการงานพิมพ์ที่ยังไม่ได้พิมพ์สำหรับเครื่องพิมพ์ที่ระบุ (รองรับทั้ง IP และ USB)",
                 "produces": [
                     "application/json"
                 ],
@@ -3009,10 +3009,21 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Printer IP Address",
+                        "description": "Printer IP Address (สำหรับเครื่องพิมพ์เครือข่าย)",
                         "name": "printer_ip",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Vendor ID (สำหรับเครื่องพิมพ์ USB)",
+                        "name": "vendor_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Product ID (สำหรับเครื่องพิมพ์ USB)",
+                        "name": "product_id",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -4596,13 +4607,25 @@ const docTemplate = `{
                 "ip_address": {
                     "type": "string"
                 },
+                "last_seen": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
                 "port": {
                     "type": "integer"
                 },
+                "product_id": {
+                    "type": "string"
+                },
                 "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "vendor_id": {
                     "type": "string"
                 }
             }
@@ -5490,22 +5513,19 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "order": {
-                    "description": "Optional: เพิ่ม relation กับ Order ถ้าต้องการ",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.Order"
-                        }
-                    ]
+                    "$ref": "#/definitions/models.Order"
                 },
                 "orderID": {
-                    "description": "nullable, เพราะอาจเป็นการพิมพ์ทดสอบ",
+                    "description": "nullable",
                     "type": "integer"
                 },
-                "printerIP": {
-                    "type": "string"
+                "printer": {
+                    "$ref": "#/definitions/models.Printer"
+                },
+                "printerID": {
+                    "type": "integer"
                 },
                 "status": {
-                    "description": "pending, processing, completed, failed",
                     "type": "string"
                 },
                 "updatedAt": {
@@ -5553,11 +5573,23 @@ const docTemplate = `{
                     "description": "Port number",
                     "type": "integer"
                 },
+                "productID": {
+                    "description": "สำหรับ USB printer",
+                    "type": "string"
+                },
                 "status": {
                     "description": "สถานะ: active, inactive, maintenance",
                     "type": "string"
                 },
+                "type": {
+                    "description": "'network' หรือ 'usb'",
+                    "type": "string"
+                },
                 "updatedAt": {
+                    "type": "string"
+                },
+                "vendorID": {
+                    "description": "สำหรับ USB printer",
                     "type": "string"
                 }
             }

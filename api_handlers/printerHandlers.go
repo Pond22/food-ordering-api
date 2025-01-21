@@ -3,12 +3,13 @@ package api_handlers
 import (
 	"bufio"
 	"bytes"
-	"encoding/base64"
+	"errors"
 	"fmt"
 	"food-ordering-api/db"
 	"food-ordering-api/models"
 	"image"
 	"image/draw"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
+	"gorm.io/gorm"
 )
 
 // Request structs
@@ -39,10 +41,14 @@ type AssignCategoryRequest struct {
 type PrinterResponse struct {
 	ID         uint              `json:"id"`
 	Name       string            `json:"name"`
+	Type       string            `json:"type"`
 	IPAddress  string            `json:"ip_address"`
 	Port       int               `json:"port"`
+	VendorID   string            `json:"vendor_id,omitempty"`
+	ProductID  string            `json:"product_id,omitempty"`
 	Department string            `json:"department"`
 	Status     string            `json:"status"`
+	LastSeen   time.Time         `json:"last_seen"`
 	Categories []models.Category `json:"categories"`
 }
 
@@ -145,52 +151,60 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 	printerID := c.Params("id")
 	var req AssignCategoryRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request format",
 		})
 	}
 
 	tx := db.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
 	var printer models.Printer
 	if err := tx.First(&printer, printerID).Error; err != nil {
 		tx.Rollback()
-		return c.Status(http.StatusNotFound).JSON(fiber.Map{
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Printer not found",
 		})
 	}
 
+	// ตรวจสอบและดึงหมวดหมู่ที่ระบุ
 	var categories []models.Category
 	if err := tx.Find(&categories, req.CategoryIDs).Error; err != nil {
 		tx.Rollback()
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid category IDs",
 		})
 	}
 
 	if len(categories) != len(req.CategoryIDs) {
 		tx.Rollback()
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Some categories not found",
 		})
 	}
 
+	// อัพเดทความสัมพันธ์
 	if err := tx.Model(&printer).Association("Categories").Replace(&categories); err != nil {
 		tx.Rollback()
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to update printer categories",
 		})
 	}
 
+	// โหลดข้อมูลที่อัพเดทแล้ว
 	if err := tx.Preload("Categories").First(&printer, printerID).Error; err != nil {
 		tx.Rollback()
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch updated printer data",
 		})
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to commit transaction",
 		})
 	}
@@ -205,17 +219,10 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 // @Success 200 {array} models.Category
 // @Router /api/printers/categories/{id} [get]
 // @Tags Printer
-func GetPrinterCategoriesById(c *fiber.Ctx) error {
-	printerID := c.Params("id")
-
-	var printer models.Printer
-	if err := db.DB.Preload("Categories").First(&printer, printerID).Error; err != nil {
-		return c.Status(http.StatusNotFound).JSON(fiber.Map{
-			"error": "Printer not found",
-		})
-	}
-
-	return c.JSON(printer.Categories)
+func getPrinterCategories(printer *models.Printer) ([]models.Category, error) {
+	var categories []models.Category
+	err := db.DB.Model(printer).Association("Categories").Find(&categories)
+	return categories, err
 }
 
 // @Summary ดึงข้อมูลเครื่องพิมพ์ทั้งหมด
@@ -341,24 +348,53 @@ func preparePrintContent(job models.PrintJob) ([]byte, error) {
 	return content.Bytes(), nil
 }
 
+type PrintJobResponse struct {
+	ID        uint            `json:"id"`
+	PrinterID uint            `json:"printer_id"`
+	OrderID   *uint           `json:"order_id,omitempty"`
+	Content   []byte          `json:"content"`
+	Status    string          `json:"status"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	Order     *models.Order   `json:"order,omitempty"`
+	Printer   PrinterResponse `json:"printer"`
+}
+
 // @Summary รับงานพิมพ์ที่รอดำเนินการ
-// @Description ดึงรายการงานพิมพ์ที่ยังไม่ได้พิมพ์สำหรับ IP ที่ระบุ
+// @Description ดึงรายการงานพิมพ์ที่ยังไม่ได้พิมพ์สำหรับเครื่องพิมพ์ที่ระบุ (รองรับทั้ง IP และ USB)
 // @Produce json
-// @Param printer_ip query string true "Printer IP Address"
+// @Param printer_ip query string false "Printer IP Address (สำหรับเครื่องพิมพ์เครือข่าย)"
+// @Param vendor_id query string false "Vendor ID (สำหรับเครื่องพิมพ์ USB)"
+// @Param product_id query string false "Product ID (สำหรับเครื่องพิมพ์ USB)"
 // @Success 200 {array} models.PrintJob
 // @Router /api/printers/pending-jobs [get]
 // @Tags Printer
 func GetPendingPrintJobs(c *fiber.Ctx) error {
+	// ตรวจสอบ params
 	printerIP := c.Query("printer_ip")
-	if printerIP == "" {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"error": "Printer IP is required",
+	vendorID := c.Query("vendor_id")
+	productID := c.Query("product_id")
+
+	// ค้นหาเครื่องพิมพ์
+	var printer models.Printer
+	var err error
+
+	if printerIP != "" {
+		err = db.DB.Where("ip_address = ?", printerIP).First(&printer).Error
+	} else {
+		err = db.DB.Where("type = ? AND vendor_id = ? AND product_id = ?",
+			"usb", vendorID, productID).First(&printer).Error
+	}
+
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Printer not found",
 		})
 	}
 
-	s := "pending"
+	// ดึงงานพิมพ์ด้วย printer_id
 	var jobs []models.PrintJob
-	if err := db.DB.Where("printer_ip = ? AND status = ?", printerIP, s).
+	err = db.DB.Where("printer_id = ? AND status = ?", printer.ID, "pending").
 		Preload("Order").
 		Preload("Order.Items", "status = ?", "pending").
 		Preload("Order.Items.MenuItem").
@@ -366,39 +402,74 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 		Preload("Order.Items.Options.MenuOption").
 		Preload("Order.Items.Options.MenuOption.OptionGroup").
 		Order("created_at ASC").
-		Find(&jobs).Error; err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+		Find(&jobs).Error
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch print jobs",
 		})
 	}
 
-	var processedJobs []fiber.Map
+	// เตรียม response
+	var responses []PrintJobResponse
 	for _, job := range jobs {
+		// เตรียมเนื้อหาสำหรับพิมพ์
 		preparedContent, err := preparePrintContent(job)
 		if err != nil {
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-				"error": fmt.Sprintf("Failed to prepare content for job %d: %v", job.ID, err),
-			})
+			log.Printf("Failed to prepare content for job %d: %v", job.ID, err)
+			continue
 		}
 
+		// แปลงเป็น bitmap
 		bitmapImage, err := convertToBitmap(preparedContent)
 		if err != nil {
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-				"error": fmt.Sprintf("Failed to convert job %d to bitmap: %v", job.ID, err),
-			})
+			log.Printf("Failed to convert job %d to bitmap: %v", job.ID, err)
+			continue
 		}
 
-		processedJobs = append(processedJobs, fiber.Map{
-			"ID":        job.ID,
-			"PrinterIP": job.PrinterIP,
-			"OrderID":   job.OrderID,
-			"Content":   base64.StdEncoding.EncodeToString(bitmapImage),
-			"Status":    job.Status,
-			"CreatedAt": job.CreatedAt,
-		})
+		// สร้าง response
+		response := PrintJobResponse{
+			ID:        job.ID,
+			PrinterID: printer.ID,
+			OrderID:   job.OrderID,
+			Content:   bitmapImage,
+			Status:    job.Status,
+			CreatedAt: job.CreatedAt,
+			UpdatedAt: job.UpdatedAt,
+			Order:     job.Order,
+			Printer: PrinterResponse{
+				ID:         printer.ID,
+				Name:       printer.Name,
+				IPAddress:  printer.IPAddress,
+				Port:       printer.Port,
+				Department: printer.Department,
+				Status:     printer.Status,
+				Categories: printer.Categories,
+			},
+		}
+
+		responses = append(responses, response)
 	}
 
-	return c.JSON(processedJobs)
+	return c.JSON(responses)
+}
+
+func findAppropiatePrinter(menuItem models.MenuItem) (*models.Printer, error) {
+	// หาเครื่องพิมพ์ที่รองรับหมวดหมู่นี้
+	var printer models.Printer
+	err := db.DB.Joins("JOIN printer_categories ON printers.id = printer_categories.printer_id").
+		Where("printer_categories.category_id = ?", menuItem.CategoryID).
+		First(&printer).Error
+
+	if err != nil {
+		// ถ้าไม่พบเครื่องพิมพ์ที่รองรับหมวดหมู่นี้ ใช้เครื่องพิมพ์ main
+		err = db.DB.Where("name = ?", "main").First(&printer).Error
+		if err != nil {
+			return nil, errors.New("no printer available for this category")
+		}
+	}
+
+	return &printer, nil
 }
 
 // ฟังก์ชันแปลงเนื้อหาเป็น bitmap
@@ -594,4 +665,118 @@ func UpdatePrintJobStatus(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(job)
+}
+
+func findPrinterByIdentifier(printerID string) (*models.Printer, error) {
+	var printer models.Printer
+	var err error
+
+	if strings.HasPrefix(printerID, "USB_") {
+		// สำหรับเครื่องพิมพ์ USB
+		parts := strings.Split(printerID[4:], "_")
+		if len(parts) != 2 {
+			return nil, errors.New("invalid USB printer ID format")
+		}
+		vendorID, productID := parts[0], parts[1]
+
+		err = db.DB.Where(
+			"type = ? AND vendor_id = ? AND product_id = ?",
+			"usb", vendorID, productID,
+		).First(&printer).Error
+	} else {
+		// สำหรับเครื่องพิมพ์เครือข่าย
+		err = db.DB.Where(
+			"type = ? AND ip_address = ?",
+			"network", printerID,
+		).First(&printer).Error
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	return &printer, nil
+}
+
+func getPendingJobs(printer *models.Printer, categories []models.Category) ([]models.PrintJob, error) {
+	categoryIDs := make(map[uint]bool)
+	for _, cat := range categories {
+		categoryIDs[cat.ID] = true
+	}
+
+	var jobs []models.PrintJob
+	err := db.DB.Where("printer_id = ? AND status = ?", printer.ID, "pending").
+		Preload("Order").
+		Preload("Order.Items", func(db *gorm.DB) *gorm.DB {
+			return db.Where("status = ?", "pending")
+		}).
+		Preload("Order.Items.MenuItem").
+		Preload("Order.Items.MenuItem.Category").
+		Preload("Order.Items.Options").
+		Preload("Order.Items.Options.MenuOption").
+		Preload("Order.Items.Options.MenuOption.OptionGroup").
+		Find(&jobs).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	// กรองงานตามหมวดหมู่
+	var filteredJobs []models.PrintJob
+	for _, job := range jobs {
+		if shouldPrintJob(job, categoryIDs, printer.Name) {
+			filteredJobs = append(filteredJobs, job)
+		}
+	}
+
+	return filteredJobs, nil
+}
+
+func shouldPrintJob(job models.PrintJob, categoryIDs map[uint]bool, printerName string) bool {
+	if job.Order == nil {
+		return true // สำหรับงานพิมพ์ทั่วไป
+	}
+
+	for _, item := range job.Order.Items {
+		if item.MenuItem.CategoryID > 0 && categoryIDs[item.MenuItem.CategoryID] {
+			return true
+		}
+	}
+
+	// ใช้ main printer เป็น fallback
+	if printerName == "main" {
+		var mainPrinter models.Printer
+		if db.DB.Where("name = ?", "main").First(&mainPrinter).Error == nil {
+			return true
+		}
+	}
+
+	return false
+}
+
+// CategoryResponse สำหรับ swagger
+type CategoryResponse struct {
+	ID        uint      `json:"id" example:"1"`
+	Name      string    `json:"name" example:"ครัวร้อน"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// @Summary ดึงรายการหมวดหมู่ของเครื่องพิมพ์
+// @Description ดึงรายการหมวดหมู่ที่เครื่องพิมพ์สามารถพิมพ์ได้
+// @Produce json
+// @Param id path int true "Printer ID"
+// @Success 200 {array} models.Category
+// @Router /api/printers/categories/{id} [get]
+// @Tags Printer
+func GetPrinterCategoriesById(c *fiber.Ctx) error {
+	printerID := c.Params("id")
+
+	var printer models.Printer
+	if err := db.DB.Preload("Categories").First(&printer, printerID).Error; err != nil {
+		return c.Status(http.StatusNotFound).JSON(fiber.Map{
+			"error": "Printer not found",
+		})
+	}
+
+	return c.JSON(printer.Categories)
 }

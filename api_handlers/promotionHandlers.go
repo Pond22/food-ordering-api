@@ -400,7 +400,7 @@ func GetPromotionByID(c *fiber.Ctx) error {
 // @Failure 500 {object} ErrorResponse "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์"
 // @Router /api/promotions [get]
 func GetAllPromotion(c *fiber.Ctx) error {
-	var promotion models.Promotion
+	var promotion []models.Promotion
 	if err := db.DB.Preload("Items.MenuItem").
 		Preload("Items.MenuItem.Category").
 		Preload("Items.MenuItem.OptionGroups").
