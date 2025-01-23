@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Link,
   Navigate,
-} from 'react-router-dom'
+} from "react-router-dom";
 import {
   ChevronDown,
   ChevronUp,
@@ -15,63 +15,65 @@ import {
   User,
   Edit,
   Trash2,
-} from 'lucide-react'
-import Header from './components/Header'
-import Login from './components/Login'
-import AddCategory from './components/AddCategory'
-import MenuList from './components/MenuList'
-import TableManager from './components/TableManager'
-import UserManagement from './components/UserManagement'
-import DashBoard from './components/DashBoard'
-import AddMenu from './components/AddMenu'
-import Printer from './components/Printer'
-import ErrorBoundary from './ErrorBoundary' // import Error Boundary
-import styles from './styles/App.module.css'
+} from "lucide-react";
+import Header from "./components/Header";
+import Login from "./components/Login";
+import AddCategory from "./components/AddCategory";
+import MenuList from "./components/MenuList";
+import TableManager from "./components/TableManager";
+import UserManagement from "./components/UserManagement";
+import DashBoard from "./components/DashBoard";
+import AddMenu from "./components/AddMenu";
+import Printer from "./components/Printer";
+import ErrorBoundary from "./ErrorBoundary"; // import Error Boundary
+import styles from "./styles/App.module.css";
+
+import Menu from "./pages/Menu";
 
 const App = () => {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false) // ควบคุมสถานะของ Dropdown
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false); // ควบคุมสถานะของ Dropdown
 
   const toggleDropdown = () => {
-    setIsDropdownOpen((prev) => !prev)
-  }
+    setIsDropdownOpen((prev) => !prev);
+  };
 
   // ตรวจสอบว่า token มีอยู่ใน localStorage หรือไม่
-  const isLoggedIn = !!localStorage.getItem('token')
+  const isLoggedIn = !!localStorage.getItem("token");
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const sidebarRef = useRef()
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const sidebarRef = useRef();
 
   // ดึงข้อมูล user จาก localStorage
-  let user = null
+  let user = null;
   try {
-    const storedUser = localStorage.getItem('user')
+    const storedUser = localStorage.getItem("user");
     if (storedUser) {
-      user = JSON.parse(storedUser)
+      user = JSON.parse(storedUser);
     }
   } catch (error) {
-    console.error('Error parsing user data:', error)
+    console.error("Error parsing user data:", error);
   }
 
   const toggleSidebar = () => {
-    setIsSidebarOpen((prevState) => !prevState)
-  }
+    setIsSidebarOpen((prevState) => !prevState);
+  };
 
   const handleResize = () => {
     if (window.innerWidth > 900) {
-      setIsSidebarOpen(true)
+      setIsSidebarOpen(true);
     } else {
-      setIsSidebarOpen(false)
+      setIsSidebarOpen(false);
     }
-  }
+  };
 
   useEffect(() => {
-    window.addEventListener('resize', handleResize)
-    handleResize()
+    window.addEventListener("resize", handleResize);
+    handleResize();
 
     return () => {
-      window.removeEventListener('resize', handleResize)
-    }
-  }, [])
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -80,103 +82,105 @@ const App = () => {
         sidebarRef.current &&
         !sidebarRef.current.contains(event.target)
       ) {
-        setIsSidebarOpen(false)
+        setIsSidebarOpen(false);
       }
-    }
+    };
 
     if (window.innerWidth < 1024) {
-      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [isSidebarOpen])
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isSidebarOpen]);
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
     // ใช้ Navigate เพื่อเปลี่ยนเส้นทางไปยังหน้าล็อกอิน
-    window.location.href = '/login'
-  }
+    window.location.href = "/login";
+  };
 
   return (
     <ErrorBoundary>
       <Router>
         <div className={styles.appLayout}>
           {isLoggedIn && (
-            <aside
-              ref={sidebarRef}
-              className={`${styles.sidebar} ${
-                isSidebarOpen ? styles.open : ''
-              }`}
-              style={{
-                transition: 'transform 0.3s ease, opacity 0.3s ease',
-                transform: isSidebarOpen
-                  ? 'translateX(0)'
-                  : 'translateX(-100%)',
-                opacity: isSidebarOpen ? 1 : 0,
-              }}
-            >
-              <div className={styles.logo}>LOGO</div>
-              <nav className={styles.navMenu}>
-                <Link to="/menu" className={styles.navLink}>
-                  เมนูอาหาร
-                </Link>
-                <Link to="/dashboard" className={styles.navLink}>
-                  เดชบอร์ด
-                </Link>
-                <Link to="/tables" className={styles.navLink}>
-                  จัดการโต๊ะ
-                </Link>
-                <Link to="/printer" className={styles.navLink}>
-                  เครื่องพิมพ์
-                </Link>
-                <Link to="/user" className={styles.navLink}>
-                  จัดการผู้ใช้
-                </Link>
-                {/* Dropdown Menu */}
-                <div className="dropdown">
-                  <div className="flex">
-                    <button
-                      className="dropdown-toggle nav-link"
-                      onClick={toggleDropdown}
-                    >
-                      จัดการอาหาร
-                    </button>
-                    {isDropdownOpen ? <ChevronUp /> : <ChevronDown />}
-                  </div>
-                  {isDropdownOpen && (
-                    <div className="dropdown-menu">
-                      <Link to="/addMenu" className={styles.navLink}>
-                        จัดการเมนูอาหาร
-                      </Link>
-                      <Link to="/addCategory" className={styles.navLink}>
-                        จัดการหมวดหมู่
-                      </Link>
+            <>
+              <aside
+                ref={sidebarRef}
+                className={`${styles.sidebar} ${
+                  isSidebarOpen ? styles.open : ""
+                }`}
+                style={{
+                  transition: "transform 0.3s ease, opacity 0.3s ease",
+                  transform: isSidebarOpen
+                    ? "translateX(0)"
+                    : "translateX(-100%)",
+                  opacity: isSidebarOpen ? 1 : 0,
+                }}
+              >
+                <div className={styles.logo}>LOGO</div>
+                <nav className={styles.navMenu}>
+                  <Link to="/menu" className={styles.navLink}>
+                    เมนูอาหาร
+                  </Link>
+                  <Link to="/dashboard" className={styles.navLink}>
+                    เดชบอร์ด
+                  </Link>
+                  <Link to="/tables" className={styles.navLink}>
+                    จัดการโต๊ะ
+                  </Link>
+                  <Link to="/printer" className={styles.navLink}>
+                    เครื่องพิมพ์
+                  </Link>
+                  <Link to="/user" className={styles.navLink}>
+                    จัดการผู้ใช้
+                  </Link>
+                  {/* Dropdown Menu */}
+                  <div className="dropdown">
+                    <div className="flex">
+                      <button
+                        className="dropdown-toggle nav-link"
+                        onClick={toggleDropdown}
+                      >
+                        จัดการอาหาร
+                      </button>
+                      {isDropdownOpen ? <ChevronUp /> : <ChevronDown />}
                     </div>
-                  )}
-                </div>
-              </nav>
+                    {isDropdownOpen && (
+                      <div className="dropdown-menu">
+                        <Link to="/addMenu" className={styles.navLink}>
+                          จัดการเมนูอาหาร
+                        </Link>
+                        <Link to="/addCategory" className={styles.navLink}>
+                          จัดการหมวดหมู่
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </nav>
 
-              {user && (
-                <div className={styles.userInfo}>
-                  <p>{user.name}</p>
-                  <p>{user.role}</p>
-                </div>
-              )}
+                {user && (
+                  <div className={styles.userInfo}>
+                    <p>{user.name}</p>
+                    <p>{user.role}</p>
+                  </div>
+                )}
 
-              <button className={styles.logoutButton} onClick={handleLogout}>
-                LOGOUT
+                <button className={styles.logoutButton} onClick={handleLogout}>
+                  LOGOUT
+                </button>
+              </aside>
+              {/* ----- menu ---- */}
+              <button className={styles.menuIcon} onClick={toggleSidebar}>
+                <span className={styles.bar}></span>
+                <span className={styles.bar}></span>
+                <span className={styles.bar}></span>
               </button>
-            </aside>
+            </>
           )}
-
-          <button className={styles.menuIcon} onClick={toggleSidebar}>
-            <span className={styles.bar}></span>
-            <span className={styles.bar}></span>
-            <span className={styles.bar}></span>
-          </button>
 
           <main className={styles.mainContent}>
             <Routes>
@@ -188,7 +192,7 @@ const App = () => {
                     <Login />
                   ) : (
                     <Navigate
-                      to={user?.role === 'manager' ? '/dashboard' : '/tables'}
+                      to={user?.role === "manager" ? "/dashboard" : "/tables"}
                     />
                   )
                 }
@@ -198,7 +202,7 @@ const App = () => {
               <Route
                 path="/dashboard"
                 element={
-                  isLoggedIn && user?.role === 'manager' ? (
+                  isLoggedIn && user?.role === "manager" ? (
                     <DashBoard />
                   ) : (
                     <Navigate to="/login" />
@@ -213,6 +217,12 @@ const App = () => {
                 element={<MenuList />}
               />
 
+              <Route
+                path="/menu2"
+                // element={isLoggedIn ? <MenuList /> : <Navigate to="/login" />}
+                element={<Menu />}
+              />
+
               {/* Tables - อนุญาต */}
               <Route
                 path="/tables"
@@ -225,7 +235,7 @@ const App = () => {
               <Route
                 path="/printer"
                 element={
-                  isLoggedIn && user?.role === 'manager' ? (
+                  isLoggedIn && user?.role === "manager" ? (
                     <Printer />
                   ) : (
                     <Navigate to="/login" />
@@ -237,7 +247,7 @@ const App = () => {
               <Route
                 path="/user"
                 element={
-                  isLoggedIn && user?.role === 'manager' ? (
+                  isLoggedIn && user?.role === "manager" ? (
                     <UserManagement />
                   ) : (
                     <Navigate to="/login" />
@@ -249,7 +259,7 @@ const App = () => {
               <Route
                 path="/addMenu"
                 element={
-                  isLoggedIn && user?.role === 'manager' ? (
+                  isLoggedIn && user?.role === "manager" ? (
                     <AddMenu />
                   ) : (
                     <Navigate to="/login" />
@@ -261,7 +271,7 @@ const App = () => {
               <Route
                 path="/addCategory"
                 element={
-                  isLoggedIn && user?.role === 'manager' ? (
+                  isLoggedIn && user?.role === "manager" ? (
                     <AddCategory />
                   ) : (
                     <Navigate to="/login" />
@@ -273,7 +283,7 @@ const App = () => {
         </div>
       </Router>
     </ErrorBoundary>
-  )
-}
+  );
+};
 
-export default App
+export default App;
