@@ -563,19 +563,13 @@ func UpdateChargeType(c *fiber.Ctx) error {
 func DeleteDiscountType(c *fiber.Ctx) error {
 	id := c.Params("id")
 
-	// ตรวจสอบว่ามีข้อมูลอยู่หรือไม่
 	var discountType models.DiscountType
 	if err := db.DB.First(&discountType, id).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Discount type not found",
 		})
 	}
-
-	// Soft delete โดยการปิดการใช้งาน
-	discountType.IsActive = false
-	discountType.UpdatedAt = time.Now()
-
-	if err := db.DB.Save(&discountType).Error; err != nil {
+	if err := db.DB.Delete(&discountType).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to delete discount type",
 		})
@@ -598,7 +592,6 @@ func DeleteDiscountType(c *fiber.Ctx) error {
 func DeleteChargeType(c *fiber.Ctx) error {
 	id := c.Params("id")
 
-	// ตรวจสอบว่ามีข้อมูลอยู่หรือไม่
 	var chargeType models.AdditionalChargeType
 	if err := db.DB.First(&chargeType, id).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -606,11 +599,7 @@ func DeleteChargeType(c *fiber.Ctx) error {
 		})
 	}
 
-	// Soft delete โดยการปิดการใช้งาน
-	chargeType.IsActive = false
-	chargeType.UpdatedAt = time.Now()
-
-	if err := db.DB.Save(&chargeType).Error; err != nil {
+	if err := db.DB.Delete(&chargeType).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to delete charge type",
 		})
