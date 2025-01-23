@@ -57,6 +57,11 @@ func CreateOrder(c *fiber.Ctx) error {
 
 	// เริ่ม transaction
 	tx := db.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
 	// 1. ตรวจสอบ QR Code และโต๊ะ
 	var qrCode models.QRCode
@@ -231,26 +236,33 @@ func CreateOrder(c *fiber.Ctx) error {
 	}
 
 	// 4. สร้าง map ของเครื่องพิมพ์ตามหมวดหมู่
-	printerByCategory := make(map[string]string) // map[categoryName]printerIP
-	var mainPrinterIP string
+	printerByCategory := make(map[string]*models.Printer) // map[categoryName]*Printer
+	var mainPrinter *models.Printer
 
-	for _, printer := range printers {
+	for i := range printers {
+		printer := &printers[i]
 		if printer.Name == "main" {
-			mainPrinterIP = printer.IPAddress
+			mainPrinter = printer
 			continue
 		}
 		for _, category := range printer.Categories {
-			printerByCategory[category.Name] = printer.IPAddress
+			printerByCategory[category.Name] = printer
 		}
 	}
 
 	// 5. สร้าง print jobs
 	for categoryName, items := range categoryItems {
 		// หา printer ที่จะใช้
-		printerIP := printerByCategory[categoryName]
-		if printerIP == "" {
+		printer := printerByCategory[categoryName]
+		if printer == nil {
 			// ถ้าไม่มีเครื่องพิมพ์ที่กำหนด ใช้เครื่องพิมพ์หลัก
-			printerIP = mainPrinterIP
+			if mainPrinter == nil {
+				tx.Rollback()
+				return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+					"error": "No printer available for category: " + categoryName,
+				})
+			}
+			printer = mainPrinter
 		}
 
 		// สร้างเนื้อหาที่จะพิมพ์
@@ -258,11 +270,10 @@ func CreateOrder(c *fiber.Ctx) error {
 
 		// สร้าง print job
 		printJob := models.PrintJob{
-			PrinterIP: printerIP,
+			PrinterID: printer.ID, // ใช้ ID แทน IP
 			OrderID:   &completeOrder.ID,
 			Content:   content,
 			Status:    "pending",
-			CreatedAt: time.Now(),
 		}
 
 		if err := tx.Create(&printJob).Error; err != nil {

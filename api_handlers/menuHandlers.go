@@ -34,6 +34,28 @@ func GetMenuAll(c *fiber.Ctx) error {
 	return c.JSON(menuItem)
 }
 
+// @Summary เรียกรายการเมนูที่พร้อมใช้งาน
+// @Description ฟังก์ชันนี้ใช้สำหรับเรียกรายการเมนูทั้งหมดที่มีอยู่ในระบบ
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} models.MenuItem "รายการเมนูทั้งหมด"
+// @Failure 401 {object} map[string]interface{} "ไม่ได้รับอนุญาต"
+// @Failure 403 {object} map[string]interface{} "ไม่มีสิทธิ์เข้าถึง"
+// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการดึงข้อมูลเมนู"
+// @Router /api/menu/ActiveMenu [get]
+// @Tags menu
+func GetActiveMenu(c *fiber.Ctx) error {
+	var menuItem []models.MenuItem
+	// ค้นหาทุก Category
+	if err := db.DB.Preload("Category").Preload("OptionGroups").Preload("OptionGroups.Options").Where("is_available = ?", true).Find(&menuItem).Error; err != nil {
+		return c.Status(500).JSON(map[string]interface{}{
+			"error": fmt.Sprintf("Error fetching menuItem: %v", err),
+		})
+	}
+	// ส่งรายการ categories กลับในรูปแบบ JSON
+	return c.JSON(menuItem)
+}
+
 // @Summary ดึงข้อมูลเมนูตาม ID
 // @Description ฟังก์ชันนี้ใช้สำหรับดึงข้อมูลของเมนูโดยการระบุ ID ของเมนูนั้น
 // @Produce json
