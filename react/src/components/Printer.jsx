@@ -41,7 +41,7 @@ const Printer = () => {
   }
 
   return (
-    <div className="max-h-full h-full lg:ml-64 px-6 pb-8 mx-auto bg-gray-100">
+    <div className="max-h-full h-full  px-6 pb-8 mx-auto bg-gray-100">
       <div className="flex justify-between items-center p-4 mb-6 bg-gray-800 rounded-lg">
         <h1 className="text-2xl font-bold flex items-center text-white">
           <PrinterIcon className="w-8 h-8 mr-2 " /> {/* ใช้ PrinterIcon แทน */}

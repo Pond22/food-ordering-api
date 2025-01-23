@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import styles from '../styles/TableDetail.module.css'
-import { X, CalendarDays, Edit, Trash2, Plus } from 'lucide-react'
+import { X, CalendarDays, Edit, Trash2, Plus, Split } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import PaymentTables from './PaymentTables'
 
 // Helper component for displaying table info
 const TableInfo = ({ label, value }) => (
@@ -33,6 +35,12 @@ const TableManager = () => {
   const [reservationTime, setReservationTime] = useState('')
   const [selectedTable, setSelectedTable] = useState(null)
   const [selectedGroupId, setSelectedGroupId] = useState(null)
+
+   const navigate = useNavigate()
+   const handleCheckBillClick = () => {
+     // เมื่อกดปุ่มจะนำทางไปยังหน้า PaymentTables
+     navigate('/payment-tables')
+   }
 
   // Fetch tables from API and sort by ID
   useEffect(() => {
@@ -398,76 +406,92 @@ const TableManager = () => {
 
     return (
       <div className={tableStyles}>
-        {status === 'available' && (
-          <>
-            <div className="flex">
-              <div className="relative group">
-                <button
-                  className="bg-white text-black p-2 border rounded-full hover:bg-gray-100"
-                  onClick={() => handleTableAction('reserve', table)}
-                >
-                  <CalendarDays></CalendarDays>
-                </button>
-                <div className="absolute left-1/2 -translate-x-1/2 w-auto bottom-full mb-2 hidden group-hover:block bg-gray-400 text-white text-sm py-1 px-2 rounded-md shadow-lg">
-                  จอง
+        <div className="flex ">
+          {status === 'available' && (
+            <>
+              <div className="flex">
+                <div className="relative group">
+                  <button
+                    className="bg-white text-black p-2 border rounded-full hover:bg-gray-100"
+                    onClick={() => handleTableAction('reserve', table)}
+                  >
+                    <CalendarDays></CalendarDays>
+                  </button>
+                  <div className="absolute left-1/2 -translate-x-1/2 w-auto bottom-full mb-2 hidden group-hover:block bg-gray-400 text-white text-sm py-1 px-2 rounded-md shadow-lg">
+                    จอง
+                  </div>
                 </div>
-              </div>
 
-              <div className="relative group">
-                <button
-                  className="bg-white border text-black p-2 rounded-full hover:bg-gray-100"
-                  onClick={() => handleToggleTable(table, true)} // เปิดโต๊ะ
-                >
-                  <Plus></Plus>
-                </button>
-                <div className="absolute left-1/2 -translate-x-1/2 w-16 bottom-full mb-2 hidden group-hover:block bg-gray-400 text-white text-sm py-1 px-2 rounded-md shadow-lg">
-                  เปิดโต๊ะ
+                <div className="relative group">
+                  <button
+                    className="bg-white border text-black p-2 rounded-full hover:bg-gray-100"
+                    onClick={() => handleToggleTable(table, true)} // เปิดโต๊ะ
+                  >
+                    <Plus></Plus>
+                  </button>
+                  <div className="absolute left-1/2 -translate-x-1/2 w-16 bottom-full mb-2 hidden group-hover:block bg-gray-400 text-white text-sm py-1 px-2 rounded-md shadow-lg">
+                    เปิดโต๊ะ
+                  </div>
                 </div>
-              </div>
 
+                <button
+                  className={styles.trash}
+                  onClick={() => {
+                    setTableToDelete(table)
+                    setIsDeleteDialogOpen(true) // เปิด dialog ลบโต๊ะ
+                  }}
+                >
+                  <Trash2 className="size-6"></Trash2>
+                </button>
+              </div>
+            </>
+          )}
+          {status === 'reserved' && (
+            <>
               <button
-                className={styles.trash}
-                onClick={() => {
-                  setTableToDelete(table)
-                  setIsDeleteDialogOpen(true) // เปิด dialog ลบโต๊ะ
-                }}
+                className="bg-gray-500 text-white px-4 py-2 rounded"
+                onClick={() => handleTableAction('unreserve', table)}
               >
-                <Trash2 className="size-6"></Trash2>
+                ยกเลิกการจอง
+              </button>
+            </>
+          )}
+          {status === 'unavailable' && (
+            <>
+              <button
+                className="bg-yellow-500 text-white px-4 py-2 rounded"
+                onClick={() => handleToggleTable(table, false)} // ปิดโต๊ะ
+              >
+                ปิดโต๊ะ
+              </button>
+              {/* <button
+              onClick={()=><PaymentTables></PaymentTables>}>เช็คบิล</button> */}
+            </>
+          )}
+          {status === 'occupied' && (
+            <>
+              <button onClick={handleCheckBillClick}>เช็คบิล</button>
+            </>
+          )}
+          {table.GroupID && (
+            <div className="relative group">
+              <button
+                className="bg-orange-300 p-2 rounded-full text-white"
+                onClick={() => handleOpenPopupSpilt(table.GroupID)}
+              >
+                <Split />
+                <div className="absolute left-1/2 -translate-x-1/2 w-16 bottom-full mb-2 hidden group-hover:block bg-gray-400 text-white text-sm py-1 px-2 rounded-md shadow-lg">
+                  แยกโต๊ะ
+                </div>
               </button>
             </div>
-          </>
-        )}
-        {status === 'reserved' && (
-          <>
-            <button
-              className="bg-gray-500 text-white px-4 py-2 rounded"
-              onClick={() => handleTableAction('unreserve', table)}
-            >
-              ยกเลิกการจอง
-            </button>
-          </>
-        )}
-        {status === 'unavailable' && (
-          <button
-            className="bg-yellow-500 text-white px-4 py-2 rounded"
-            onClick={() => handleToggleTable(table, false)} // ปิดโต๊ะ
-          >
-            ปิดโต๊ะ
-          </button>
-        )}
-        {table.GroupID && (
-          <button
-            className="bg-gray-500 text-white px-4 py-2 rounded"
-            onClick={() => handleOpenPopupSpilt(table.GroupID)}
-          >
-            แยกโต๊ะ
-          </button>
-        )}
+          )}
+        </div>
       </div>
     )
   }
   return (
-    <div className="h-screen overflow-auto px-4 py-2 lg:ml-60 ">
+    <div className="h-screen overflow-auto px-4 py-2 ">
       <div className="py-5  bg-gray-800 p-4 mb-2 rounded">
         <h1 className="text-white">จัดการโต๊ะและชำระเงิน</h1>
       </div>

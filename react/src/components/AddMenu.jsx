@@ -36,23 +36,6 @@ const MenuManagement = () => {
   const [menuToDelete, setMenuToDelete] = useState(null) // เก็บเมนูที่ต้องการลบ
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
-  // const toggleMenuStatus = async (menuId) => {
-  //   try {
-  //     const response = await fetch(`/api/menu/toggle-status/${menuId}`, {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //     });
-  //     if (!response.ok) {
-  //       throw new Error("Failed to update menu status");
-  //     }
-  //     return await response.json(); // ค่าที่เซิร์ฟเวอร์ส่งกลับ
-  //   } catch (error) {
-  //     console.error(error);
-  //     alert("เกิดข้อผิดพลาดในการอัปเดตสถานะเมนู");
-  //     return null;
-  //   }
-  // };
-
   const toggleDropdown = (ID) => {
     setIsDropdownOpen((prev) => (prev === ID ? null : ID))
   }
@@ -123,7 +106,7 @@ const MenuManagement = () => {
   const toggleMenuStatus = async (menuId) => {
     try {
       const response = await axios.put(
-        `http://localhost:8080/api/menu/status/${menuId}`,
+        `${API_BASE_URL}/status/${menuId}`,
         null,
         {
           headers: {
@@ -643,54 +626,13 @@ const MenuManagement = () => {
   }
 
   return (
-    <div className="bg-gray-50 max-h-full h-full lg:ml-64 p-2">
+    <div className="bg-gray-50 max-h-full h-full lg:ml-4 p-2">
       <div className="flex justify-between rounded items-center bg-gray-800 shadow p-4 ">
         <h1 className="text-xl ml-10 font-bold text-white ">จัดการเมนูอาหาร</h1>
       </div>
 
       <div className="flex mb-4"></div>
       <div className="">
-        <div className="flex items-center mb-4">
-          {/* การค้นหาชื่อเมนู */}
-          <input
-            type="text"
-            className="p-2 border border-gray-300 rounded-lg"
-            placeholder="ค้นหาชื่อเมนู ราคา..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-
-          {/* ตัวกรองหมวดหมู่ */}
-          <select
-            className="ml-4 p-2 border border-gray-300 rounded-lg cursor-pointer"
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-          >
-            <option value="">เลือกหมวดหมู่</option>
-            {categories.map((category) => (
-              <option key={category.ID} value={category.ID}>
-                {category.Name}
-              </option>
-            ))}
-          </select>
-
-          {/* ตัวกรองกลุ่มตัวเลือก */}
-          <select
-            className="ml-4 p-2 border border-gray-300 rounded-lg cursor-pointer"
-            value={optionGroupFilter}
-            onChange={(e) => setOptionGroupFilter(e.target.value)}
-          >
-            <option value="">ตัวเลือกทั้งหมด</option>
-            {menus.flatMap((menu) =>
-              menu.OptionGroups.map((group) => (
-                <option key={group.ID} value={group.ID}>
-                  {group.Name}
-                </option>
-              ))
-            )}
-          </select>
-        </div>
-
         <div className="flex justify-between">
           <div>
             {/* ปุ่มเปลี่ยนตาราง */}
@@ -712,7 +654,7 @@ const MenuManagement = () => {
               }`}
               onClick={() => setActiveTab('promotion')}
             >
-              ข้อมูลตัวเลือกของสินค้า
+              ข้อมูลโปรโมชัน
             </button>
             <button
               className={`px-4 py-2 rounded-t-lg ${
@@ -726,250 +668,325 @@ const MenuManagement = () => {
             </button>
           </div>
           {/* สิ้นสุดปุ่มเปลี่ยนตาราง */}
-
-          <div>
-            <button
-              className="bg-blue-500 text-white px-4 py-2 rounded-lg mr-2 hover:bg-blue-600"
-              onClick={() => setShowAddMenuModal(true)}
-            >
-              เพิ่มเมนูอาหาร
-            </button>
-          </div>
         </div>
 
         {/* ตารางแสดงเมนู */}
         {activeTab === 'menu' && (
-          <table className="w-full max-x-full bg-white rounded-3xl shadow-lg border border-gray-300">
-            <thead>
-              <tr className="bg-blue-500 text-left text-white">
-                <th className="p-2 text-center">สถานะ</th>
-                <th className="p-1">รหัสสินค้า</th>
-                <th className="p-2">รูปสินค้า</th>
-                <th className="p-2 w-1/12 text-center">ชื่อเมนู</th>
-                <th className="p-2 w-3/12">คำอธิบาย</th>
-                <th className="p-2">หมวดหมู่</th>
-                <th className="p-2">ราคา (THB)</th>
-                <th className="p-2 text-center">ตัวเลือก</th>
-                <th className="p-2 ">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Array.isArray(filteredMenus) && filteredMenus.length > 0 ? (
-                filteredMenus.map((menu) => (
-                  <tr key={menu.ID} className="border-t">
-                    <td className="">
-                      <div className="flex items-center justify-center  ">
-                        <label className="relative  items-center cursor-pointer ">
-                          <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            checked={menu.Is_available}
-                            onChange={() => {
-                              // อัปเดตสถานะใน UI ทันที
-                              setMenus((prevMenus) =>
-                                prevMenus.map((m) =>
-                                  m.ID === menu.ID
-                                    ? { ...m, Is_available: !menu.Is_available }
-                                    : m
-                                )
-                              )
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                {/* การค้นหาชื่อเมนู */}
+                <input
+                  type="text"
+                  className="p-2 border border-gray-300 rounded-lg"
+                  placeholder="ค้นหาชื่อเมนู ราคา..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
 
-                              // ส่งคำขอไปยังเซิร์ฟเวอร์เพื่อเปลี่ยนสถานะ
-                              toggleMenuStatus(menu.ID).then((updatedMenu) => {
-                                if (updatedMenu) {
-                                  // อัปเดตสถานะในกรณีที่เซิร์ฟเวอร์ตอบกลับสำเร็จ
-                                  setMenus((prevMenus) =>
-                                    prevMenus.map((m) =>
-                                      m.ID === updatedMenu.ID ? updatedMenu : m
-                                    )
+                {/* ตัวกรองหมวดหมู่ */}
+                <select
+                  className="ml-4 p-2 border border-gray-300 rounded-lg cursor-pointer"
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                >
+                  <option value="">ค้นหาตามหมวดหมู่</option>
+                  {categories.map((category) => (
+                    <option key={category.ID} value={category.ID}>
+                      {category.Name}
+                    </option>
+                  ))}
+                </select>
+
+                {/* ตัวกรองกลุ่มตัวเลือก */}
+                <select
+                  className="ml-4 p-2 border border-gray-300 rounded-lg cursor-pointer"
+                  value={optionGroupFilter}
+                  onChange={(e) => setOptionGroupFilter(e.target.value)}
+                >
+                  <option value="">ตัวเลือกทั้งหมด</option>
+                  {menus.flatMap((menu) =>
+                    menu.OptionGroups.map((group) => (
+                      <option key={group.ID} value={group.ID}>
+                        {group.Name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+              <div>
+                <button
+                  className="bg-blue-500 text-white px-4 py-2 rounded-lg mr-2 hover:bg-blue-600"
+                  onClick={() => setShowAddMenuModal(true)}
+                >
+                  เพิ่มเมนูอาหาร
+                </button>
+              </div>
+            </div>
+            <table className="w-full max-x-full bg-white rounded-3xl shadow-lg border border-gray-300">
+              <thead>
+                <tr className="bg-blue-500 text-left text-white">
+                  <th className="p-2 text-center">สถานะ</th>
+                  <th className="p-1">รหัสสินค้า</th>
+                  <th className="p-2 w-4/12">รูปสินค้า</th>
+                  <th className="p-2 w-1/12 text-center">ชื่อเมนู</th>
+                  <th className="p-2 w-3/12">คำอธิบาย</th>
+                  <th className="p-2">หมวดหมู่</th>
+                  <th className="p-2">ราคา (THB)</th>
+                  <th className="p-2 text-center">ตัวเลือก</th>
+                  <th className="p-2 ">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.isArray(filteredMenus) && filteredMenus.length > 0 ? (
+                  filteredMenus.map((menu) => (
+                    <tr key={menu.ID} className="border-t">
+                      <td className="">
+                        <div className="flex items-center justify-center  ">
+                          <label className="relative  items-center cursor-pointer ">
+                            <input
+                              type="checkbox"
+                              className="sr-only peer"
+                              checked={menu.Is_available}
+                              onChange={() => {
+                                // อัปเดตสถานะใน UI ทันที
+                                setMenus((prevMenus) =>
+                                  prevMenus.map((m) =>
+                                    m.ID === menu.ID
+                                      ? {
+                                          ...m,
+                                          Is_available: !menu.Is_available,
+                                        }
+                                      : m
                                   )
-                                }
-                              })
-                            }}
-                          />
-                          <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
-                          <span className="ml-3 text-sm font-medium text-gray-900 ">
-                            {menu.Is_available ? 'พร้อม' : 'หมด'}
-                          </span>
-                        </label>
-                      </div>
-                    </td>
-                    <td className="text-center">{menu.ID}</td>
-                    <td className="w-3/12">
-                      {menu.Image && menu.Image.length > 0 ? (
-                        <img
-                          src={`data:image/png;base64,${menu.Image}`}
-                          alt={menu.Name}
-                          className="w-50 h-30 object-cover"
-                        />
-                      ) : (
-                        'ไม่มีรูป'
-                      )}
-                    </td>
-                    <td className="text-center w-1/12">
-                      <div>TH: {menu.Name} </div>
-                      <div>EN: {menu.NameEn}</div>
-                      <div>CH: {menu.NameCh}</div>
-                    </td>
-                    <td className=" w-3/12">
-                      <div className="mb-2">TH: {menu.Description}</div>
-                      <div className="mb-2">EN: {menu.DescriptionEn}</div>
-                      <div>CH: {menu.DescriptionCh}</div>
-                    </td>
-                    <td className="p-2">
-                      {menu.CategoryID ? (
-                        <div>{getCategoryNameById(menu.CategoryID)}</div>
-                      ) : (
-                        'ไม่พบหมวดหมู่'
-                      )}
-                    </td>
-                    <td className="p-2 text-center">{menu.Price}</td>
-                    <td className="p-2 w-7/12">
-                      {/* แสดงตัวเลือก */}
-                      {Array.isArray(menu.OptionGroups) &&
-                      menu.OptionGroups.length > 0 ? (
-                        <ul className="ml-4">
-                          {menu.OptionGroups.map((group) => (
-                            <li className="border-b" key={group.ID}>
-                              <div>กลุ่ม : {group.ID}</div>
-                              <span>
-                                TH : {group.Name} | EN : {group.NameEn} | CH :{' '}
-                                {group.NameCh}
-                              </span>
-                              <ul className="list-circle ml-4">
-                                {group.Options && group.Options.length > 0 ? (
-                                  group.Options.map((option) => (
-                                    <li key={option.ID}>
-                                      <span>
-                                        {option.Name} | {option.NameEn} |{' '}
-                                        {option.NameCh} - {option.Price} THB
-                                      </span>
-                                    </li>
-                                  ))
-                                ) : (
-                                  <span className="text-red-500 text-center">
-                                    ไม่มีตัวเลือก
-                                  </span>
-                                )}
-                              </ul>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <span className="text-red-500 text-center">
-                          ไม่มีตัวเลือก
-                        </span>
-                      )}
-                    </td>
+                                )
 
-                    <td className="flex justify-center ">
-                      <div className="flex">
-                        <div className="relative inline-block ">
-                          <div className="relative group">
-                            <button
-                              className="hover:bg-gray-100 p-2 rounded-full"
-                              onClick={() => toggleDropdown(menu.ID)}
-                            >
-                              <Ellipsis />
-                            </button>
-                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-400 text-white text-sm py-1 px-2 rounded-md shadow-lg">
-                              จัดการข้อมูล
-                            </div>
-                          </div>
-
-                          {/* Dropdown menu */}
-                          {isDropdownOpen === menu.ID && (
-                            <div className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none">
-                              <div className="py-1">
-                                <button
-                                  onClick={() => {
-                                    setCurrentMenuId(menu.ID)
-                                    setMenuDetails({
-                                      ID: menu.ID || '',
-                                      name: menu.Name || '',
-                                      nameEn: menu.NameEn || '',
-                                      nameCh: menu.NameCh || '',
-                                      price: menu.Price || 0,
-                                      description: menu.Description || '',
-                                      descriptionEn: menu.DescriptionEn || '',
-                                      descriptionCh: menu.DescriptionCh || '',
-                                      categoryId: menu.CategoryID || '',
-                                      optionGroups: Array.isArray(
-                                        menu.OptionGroups
+                                // ส่งคำขอไปยังเซิร์ฟเวอร์เพื่อเปลี่ยนสถานะ
+                                toggleMenuStatus(menu.ID).then(
+                                  (updatedMenu) => {
+                                    if (updatedMenu) {
+                                      // อัปเดตสถานะในกรณีที่เซิร์ฟเวอร์ตอบกลับสำเร็จ
+                                      setMenus((prevMenus) =>
+                                        prevMenus.map((m) =>
+                                          m.ID === updatedMenu.ID
+                                            ? updatedMenu
+                                            : m
+                                        )
                                       )
-                                        ? menu.OptionGroups.map((group) => ({
-                                            ID: group.ID || '',
-                                            name: group.Name || '',
-                                            nameEn: group.NameEn || '',
-                                            nameCh: group.NameCh || '',
-                                            MaxSelections:
-                                              group.MaxSelections || 1,
-                                            isRequired:
-                                              group.IsRequired || false,
-                                            options: Array.isArray(
-                                              group.Options
-                                            )
-                                              ? group.Options.map((option) => ({
-                                                  ID: option.ID || '',
-                                                  name: option.Name || '',
-                                                  nameEn: option.NameEn || '',
-                                                  nameCh: option.NameCh || '',
-                                                  price: option.Price || 0,
-                                                }))
-                                              : [],
-                                          }))
-                                        : [],
-                                    })
-                                    setIsDropdownOpen(false)
-                                    setShowEditMenuModal(true)
-                                  }}
-                                  className="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100"
-                                  role="menuitem"
-                                >
-                                  <Edit className="inline w-4 h-4 mr-2" />
-                                  แก้ไขเมนู
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setIsDropdownOpen(false)
-                                    setCurrentMenuId(menu.ID)
-                                    setShowUploadModal(true)
-                                  }}
-                                  className="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100"
-                                  role="menuitem"
-                                >
-                                  <Image className="inline w-4 h-4 mr-2" />
-                                  อัปโหลดรูปภาพ
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setIsDropdownOpen(false)
-                                    setMenuToDelete(menu)
-                                    setIsDeleteModalOpen(true)
-                                  }}
-                                  className="text-red-500 block px-4 py-2 text-sm hover:bg-gray-100"
-                                  role="menuitem"
-                                >
-                                  <Trash2 className="inline w-4 h-4 mr-2" />
-                                  ลบเมนู
-                                </button>
+                                    }
+                                  }
+                                )
+                              }}
+                            />
+                            <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                            <span className="ml-3 text-sm font-medium text-gray-900 ">
+                              {menu.Is_available ? 'พร้อม' : 'หมด'}
+                            </span>
+                          </label>
+                        </div>
+                      </td>
+                      <td className="text-center">{menu.ID}</td>
+                      <td className="border sm:w-32">
+                        {menu.Image && menu.Image.length > 0 ? (
+                          <img
+                            src={`data:image/png;base64,${menu.Image}`}
+                            alt={menu.Name}
+                            className="w-50 h-25 "
+                          />
+                        ) : (
+                          'ไม่มีรูป'
+                        )}
+                      </td>
+                      <td className="text-center w-1/12 border">
+                        <div>TH: {menu.Name} </div>
+                        <div>EN: {menu.NameEn}</div>
+                        <div>CH: {menu.NameCh}</div>
+                      </td>
+                      <td className=" w-3/12 border">
+                        <div className="mb-2 border-b border-gray-300 ">
+                          TH: {menu.Description}
+                        </div>
+                        <div className="mb-2 border-b border-gray-300">
+                          EN: {menu.DescriptionEn}
+                        </div>
+                        <div>CH: {menu.DescriptionCh}</div>
+                      </td>
+                      <td className="p-2 border">
+                        {menu.CategoryID ? (
+                          <div>{getCategoryNameById(menu.CategoryID)}</div>
+                        ) : (
+                          'ไม่พบหมวดหมู่'
+                        )}
+                      </td>
+                      <td className="p-2 text-center border">{menu.Price}</td>
+                      <td className=" w-7/12 border">
+                        {/* แสดงตัวเลือก */}
+                        {Array.isArray(menu.OptionGroups) &&
+                        menu.OptionGroups.length > 0 ? (
+                          <ul className="">
+                            {menu.OptionGroups.map((group) => (
+                              <li key={group.ID} className="border-b p-2">
+                                <div className="text-lg font-semibold text-gray-800">
+                                  กลุ่ม:{' '}
+                                  <span className="text-blue-600">
+                                    {group.ID}
+                                  </span>
+                                </div>
+                                <div className="text-gray-600 mt-1">
+                                  <span className="font-medium ">TH:</span>{' '}
+                                  {group.Name} |
+                                  <span className="font-medium">EN:</span>{' '}
+                                  {group.NameEn} |
+                                  <span className="font-medium">CH:</span>{' '}
+                                  {group.NameCh}
+                                </div>
+
+                                {/* รายการตัวเลือก */}
+                                <ul className="list-disc ml-1 mt-1 space-y-2">
+                                  {group.Options && group.Options.length > 0 ? (
+                                    group.Options.map((option) => (
+                                      <li
+                                        key={option.ID}
+                                        className="flex justify-between items-center"
+                                      >
+                                        <span className="font-mg text-gray-700">
+                                          • {option.Name} | {option.NameEn} |{' '}
+                                          {option.NameCh}
+                                        </span>
+                                        <span className="text-green-600 text-sm">
+                                          {option.Price} THB
+                                        </span>
+                                      </li>
+                                    ))
+                                  ) : (
+                                    <span className="text-red-500 text-center">
+                                      ไม่มีตัวเลือก
+                                    </span>
+                                  )}
+                                </ul>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <span className="text-red-500 text-center">
+                            ไม่มีตัวเลือก
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="flex justify-center ">
+                        <div className="flex">
+                          <div className="relative inline-block ">
+                            <div className="relative group">
+                              <button
+                                className="hover:bg-gray-100 p-2 rounded-full"
+                                onClick={() => toggleDropdown(menu.ID)}
+                              >
+                                <Ellipsis />
+                              </button>
+                              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-400 text-white text-sm py-1 px-2 rounded-md shadow-lg">
+                                จัดการข้อมูล
                               </div>
                             </div>
-                          )}
+
+                            {/* Dropdown menu */}
+                            {isDropdownOpen === menu.ID && (
+                              <div className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none">
+                                <div className="py-1">
+                                  <button
+                                    onClick={() => {
+                                      setCurrentMenuId(menu.ID)
+                                      setMenuDetails({
+                                        ID: menu.ID || '',
+                                        name: menu.Name || '',
+                                        nameEn: menu.NameEn || '',
+                                        nameCh: menu.NameCh || '',
+                                        price: menu.Price || 0,
+                                        description: menu.Description || '',
+                                        descriptionEn: menu.DescriptionEn || '',
+                                        descriptionCh: menu.DescriptionCh || '',
+                                        categoryId: menu.CategoryID || '',
+                                        optionGroups: Array.isArray(
+                                          menu.OptionGroups
+                                        )
+                                          ? menu.OptionGroups.map((group) => ({
+                                              ID: group.ID || '',
+                                              name: group.Name || '',
+                                              nameEn: group.NameEn || '',
+                                              nameCh: group.NameCh || '',
+                                              MaxSelections:
+                                                group.MaxSelections || 1,
+                                              isRequired:
+                                                group.IsRequired || false,
+                                              options: Array.isArray(
+                                                group.Options
+                                              )
+                                                ? group.Options.map(
+                                                    (option) => ({
+                                                      ID: option.ID || '',
+                                                      name: option.Name || '',
+                                                      nameEn:
+                                                        option.NameEn || '',
+                                                      nameCh:
+                                                        option.NameCh || '',
+                                                      price: option.Price || 0,
+                                                    })
+                                                  )
+                                                : [],
+                                            }))
+                                          : [],
+                                      })
+                                      setIsDropdownOpen(false)
+                                      setShowEditMenuModal(true)
+                                    }}
+                                    className="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100"
+                                    role="menuitem"
+                                  >
+                                    <Edit className="inline w-4 h-4 mr-2" />
+                                    แก้ไขเมนู
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setIsDropdownOpen(false)
+                                      setCurrentMenuId(menu.ID)
+                                      setShowUploadModal(true)
+                                    }}
+                                    className="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100"
+                                    role="menuitem"
+                                  >
+                                    <Image className="inline w-4 h-4 mr-2" />
+                                    อัปโหลดรูปภาพ
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setIsDropdownOpen(false)
+                                      setMenuToDelete(menu)
+                                      setIsDeleteModalOpen(true)
+                                    }}
+                                    className="text-red-500 block px-4 py-2 text-sm hover:bg-gray-100"
+                                    role="menuitem"
+                                  >
+                                    <Trash2 className="inline w-4 h-4 mr-2" />
+                                    ลบเมนู
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="8" className="text-center p-4">
+                      ไม่พบเมนู
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="8" className="text-center p-4">
-                    ไม่พบเมนู
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
         {/* สิ้นสุดตารางแสดงข้อมูลสินค้า */}
         <ConfirmDeleteModal
