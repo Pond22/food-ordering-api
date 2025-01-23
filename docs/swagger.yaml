@@ -9,6 +9,11 @@ definitions:
     required:
     - category_ids
     type: object
+  api_handlers.CallRequest:
+    properties:
+      table_number:
+        type: string
+    type: object
   api_handlers.ChangePasswordRequest:
     properties:
       current_password:
@@ -2490,6 +2495,36 @@ paths:
       summary: อัปเดตสถานะอาหาร หมด-ไม่หมด
       tags:
       - menu
+  /api/notifications/call-staff:
+    post:
+      consumes:
+      - application/json
+      description: ลูกค้าเรียกพนักงาน
+      parameters:
+      - description: โต๊ะที่เรียก
+        in: body
+        name: status
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.CallRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Notification sent to staff
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Call staff
+      tags:
+      - Notifications
   /api/orders:
     post:
       consumes:

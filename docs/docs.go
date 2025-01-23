@@ -2108,6 +2108,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/notifications/call-staff": {
+            "post": {
+                "description": "ลูกค้าเรียกพนักงาน",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Call staff",
+                "parameters": [
+                    {
+                        "description": "โต๊ะที่เรียก",
+                        "name": "status",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.CallRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notification sent to staff",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/orders": {
             "post": {
                 "description": "สร้างออเดอร์ใหม่พร้อมรายการอาหารและโปรโมชั่น (ถ้ามี)",
@@ -4230,6 +4276,14 @@ const docTemplate = `{
                     "items": {
                         "type": "integer"
                     }
+                }
+            }
+        },
+        "api_handlers.CallRequest": {
+            "type": "object",
+            "properties": {
+                "table_number": {
+                    "type": "string"
                 }
             }
         },

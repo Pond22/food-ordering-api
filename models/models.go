@@ -367,3 +367,11 @@ type PrintJob struct {
 
 	Order *Order `gorm:"foreignKey:OrderID"`
 }
+
+type Notification struct {
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	UserID    uint      `json:"user_id" gorm:"not null"`      // ID ของผู้ใช้ที่ได้รับการแจ้งเตือน
+	Message   string    `json:"message" gorm:"type:text"`     // ข้อความแจ้งเตือน
+	Status    string    `json:"status" gorm:"default:unread"` // สถานะ "unread" หรือ "read"
+	CreatedAt time.Time `json:"created_at"`
+}
