@@ -1,6 +1,8 @@
 package api_handlers
 
 import (
+	"bytes"
+	"fmt"
 	"food-ordering-api/db"
 	"food-ordering-api/models"
 	"net/http"
@@ -108,6 +110,19 @@ func ProcessPayment(c *fiber.Ctx) error {
 		})
 	}
 
+	// อัปเดตออเดอร์ให้เชื่อมกับใบเสร็จ
+	for _, order := range orders {
+		if err := tx.Model(&order).Updates(map[string]interface{}{
+			"receipt_id": receipt.ID,
+			"status":     "completed",
+		}).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to update order",
+			})
+		}
+	}
+
 	// 6. คำนวณและบันทึกส่วนลด
 	var totalDiscount float64
 	for _, discount := range req.Discounts {
@@ -208,6 +223,13 @@ func ProcessPayment(c *fiber.Ctx) error {
 	if err := tx.Commit().Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to commit transaction",
+		})
+	}
+
+	// เรียกใช้ฟังก์ชันการพิมพ์ใบเสร็จ
+	if err := PrintReceipt(receipt.ID); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to print receipt",
 		})
 	}
 
@@ -686,4 +708,97 @@ func GetAllChargeTypes(c *fiber.Ctx) error {
 		})
 	}
 	return c.JSON(chargeTypes)
+}
+
+func PrintReceipt(receiptID uint) error {
+	var receipt models.Receipt
+	if err := db.DB.Preload("Orders.Items.MenuItem").
+		Preload("Orders.Items.Options.MenuOption").
+		Preload("Discounts.DiscountType").
+		Preload("Charges.ChargeType").
+		First(&receipt, receiptID).Error; err != nil {
+		return fmt.Errorf("receipt not found")
+	}
+
+	// ค้นหาเครื่องพิมพ์หลักที่มีชื่อ "main"
+	var printer models.Printer
+	if err := db.DB.Where("name = ?", "main").First(&printer).Error; err != nil {
+		return fmt.Errorf("main printer not found")
+	}
+
+	// สร้างเนื้อหาใบเสร็จในรูปแบบ ESC/POS
+	content := createReceiptPrintContent(receipt)
+
+	// บันทึกลง print_jobs
+	printJob := models.PrintJob{
+		PrinterID: printer.ID,
+		ReceiptID: &receipt.ID,
+		Content:   content,
+		Status:    "pending",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := db.DB.Create(&printJob).Error; err != nil {
+		return fmt.Errorf("failed to create print job")
+	}
+
+	return nil
+}
+
+func createReceiptPrintContent(receipt models.Receipt) []byte {
+	var buf bytes.Buffer
+
+	// คงการตั้งค่าเดิม
+	buf.Write([]byte{0x1B, 0x40})       // Initialize
+	buf.Write([]byte{0x1B, 0x74, 0x11}) // Code Page TIS-620
+	buf.Write([]byte{0x1D, 0x21, 0x00}) // Character size
+	buf.Write([]byte{0x1B, 0x7C, 0x04}) // Print density
+
+	// Header - ใช้วิธีเขียนแบบเดียวกับฟังก์ชันแรก
+	buf.Write([]byte{0x1B, 0x61, 0x01}) // Center align
+	buf.WriteString(fmt.Sprintf("Receipt #%d\n", receipt.ID))
+	buf.Write([]byte{0x1B, 0x61, 0x00}) // Left align
+
+	// เพิ่มการตรวจสอบและจัดการข้อมูลก่อนเขียน
+	buf.WriteString(fmt.Sprintf("Table: %d\n", receipt.TableID))
+	buf.WriteString("-------------------------\n")
+
+	// ลดความซับซ้อนของ loop
+	for _, order := range receipt.Orders {
+		for _, item := range order.Items {
+			// เขียนแบบเดียวกับฟังก์ชันแรก
+			buf.Write([]byte{0x1B, 0x45, 0x01}) // Bold on
+			buf.WriteString(item.MenuItem.Name)
+			buf.Write([]byte{0x1B, 0x45, 0x00}) // Bold off
+
+			// จัดรูปแบบตัวเลขอย่างระมัดระวัง
+			buf.WriteString(fmt.Sprintf(" x%d  ฿%.2f\n", item.Quantity, item.Price))
+
+			// เช็คก่อนเขียน options
+			if len(item.Options) > 0 {
+				for _, opt := range item.Options {
+					buf.WriteString(fmt.Sprintf("  + %s\n", opt.MenuOption.Name))
+				}
+			}
+		}
+		buf.WriteString("\n")
+	}
+
+	// ส่วนท้าย - คงเดิม
+	buf.WriteString("-------------------------\n")
+	buf.WriteString(fmt.Sprintf("Subtotal: ฿%.2f\n", receipt.SubTotal))
+	buf.WriteString(fmt.Sprintf("Discounts: -฿%.2f\n", receipt.DiscountTotal))
+	buf.WriteString(fmt.Sprintf("Extra Charges: ฿%.2f\n", receipt.ChargeTotal))
+	buf.WriteString(fmt.Sprintf("Service Charge: ฿%.2f\n", receipt.ServiceCharge))
+	buf.WriteString(fmt.Sprintf("Total: ฿%.2f\n", receipt.Total))
+
+	buf.WriteString("-------------------------\n")
+	buf.WriteString(fmt.Sprintf("Payment Method: %s\n", receipt.PaymentMethod))
+	buf.WriteString(fmt.Sprintf("Printed: %s\n", time.Now().Format("15:04:05")))
+
+	// ตัดกระดาษ
+	buf.Write([]byte{0x1D, 0x56, 0x41, 0x03}) // GS V A 3 - Full cut
+
+	return buf.Bytes()
 }

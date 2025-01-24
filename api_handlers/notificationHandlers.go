@@ -63,7 +63,7 @@ func CallStaff(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"status": "Notification sent to staff"})
 }
 
-// ฟังก์ชันสำหรับกระจายแจ้งเตือนไปยังพนักงานทุกคน
+// ฟังก์ชันสำหรับกระจายแจ้งเตือนไปยังพนักงานทุกคนตอนนี้เป็นแบบ one way ไม่มีการบันทึกลงดาต้าเบสกดเรียกก็ถูกส่งรีเฟรชก็หายแงๆ
 func NotifyStaff(message string) {
 	mutex.Lock()
 	defer mutex.Unlock()

@@ -171,7 +171,7 @@ type Order struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Items     []OrderItem
-	ReceiptID *uint
+	ReceiptID *uint   `gorm:"index"`
 	Receipt   Receipt `gorm:"foreignKey:ReceiptID"`
 }
 
@@ -305,10 +305,12 @@ type ReceiptCharge struct {
 
 // ใบเสร็จ
 type Receipt struct {
-	ID            uint    `gorm:"primaryKey"`
-	UUID          string  `gorm:"not null;index"`
-	TableID       int     `gorm:"not null"`
+	ID      uint   `gorm:"primaryKey"`
+	UUID    string `gorm:"not null;index"`
+	TableID int    `gorm:"not null"`
+	// Orders        []Order `gorm:"foreignKey:ReceiptID"`
 	Orders        []Order `gorm:"foreignKey:ReceiptID"`
+	OrderID       *uint   `gorm:"index"`
 	SubTotal      float64 // ยอดรวมทุก order
 	DiscountTotal float64
 	ChargeTotal   float64
@@ -359,13 +361,15 @@ type PrintJob struct {
 	PrinterID uint    `gorm:"not null;index"`
 	Printer   Printer `gorm:"foreignKey:PrinterID"`
 	OrderID   *uint   // nullable
-	Content   []byte  `gorm:"type:bytea"`
-	Status    string  `gorm:"not null;default:'pending'"`
+	ReceiptID *uint
+	Content   []byte `gorm:"type:bytea"`
+	Status    string `gorm:"not null;default:'pending'"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
-	Order *Order `gorm:"foreignKey:OrderID"`
+	Order   *Order   `gorm:"foreignKey:OrderID"`
+	Receipt *Receipt `gorm:"foreignKey:ReceiptID"`
 }
 
 type Notification struct {
