@@ -417,6 +417,27 @@ definitions:
       username:
         type: string
     type: object
+  api_handlers.cancle_item_req:
+    properties:
+      items:
+        items:
+          properties:
+            order_item_id:
+              type: integer
+            quantity:
+              minimum: 1
+              type: integer
+          required:
+          - order_item_id
+          - quantity
+          type: object
+        type: array
+      order_uuid:
+        type: string
+    required:
+    - items
+    - order_uuid
+    type: object
   api_handlers.createPromo_req:
     properties:
       description:
@@ -866,6 +887,8 @@ definitions:
     type: object
   models.PrintJob:
     properties:
+      cancelledQuantity:
+        type: integer
       content:
         items:
           type: integer
@@ -874,6 +897,8 @@ definitions:
         type: string
       id:
         type: integer
+      jobType:
+        type: string
       order:
         $ref: '#/definitions/models.Order'
       orderID:
@@ -882,6 +907,10 @@ definitions:
       printer:
         $ref: '#/definitions/models.Printer'
       printerID:
+        type: integer
+      receipt:
+        $ref: '#/definitions/models.Receipt'
+      receiptID:
         type: integer
       status:
         type: string
@@ -972,7 +1001,10 @@ definitions:
         type: array
       id:
         type: integer
+      orderID:
+        type: integer
       orders:
+        description: Orders        []Order `gorm:"foreignKey:ReceiptID"`
         items:
           $ref: '#/definitions/models.Order'
         type: array
@@ -2600,6 +2632,28 @@ paths:
       summary: ดึงรายการออเดอร์ที่กำลังดำเนินการ
       tags:
       - Order_ใหม่
+  /api/orders/items/cancel:
+    post:
+      consumes:
+      - application/json
+      description: ยกเลิกรายการอาหารในออเดอร์ตามจำนวนที่กำหนด
+      parameters:
+      - description: ข้อมูลยกเลิก
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.cancle_item_req'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.OrderItem'
+      summary: ยกเลิกรายการอาหาร
+      tags:
+      - Order_ใหม่
   /api/orders/items/serve/{id}:
     post:
       consumes:
@@ -2648,25 +2702,6 @@ paths:
       summary: อัพเดทสถานะออเดอร์
       tags:
       - Order_ใหม่
-  /api/orders/table/{table_id}:
-    get:
-      description: ดึงรายการออเดอร์ทั้งหมดของโต๊ะที่ระบุ
-      parameters:
-      - description: Table ID
-        in: path
-        name: table_id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/models.Order'
-            type: array
-      summary: ดึงรายการออเดอร์ตามโต๊ะ
   /api/payment/charge-types:
     get:
       description: ดึงรายการประเภทค่าใช้จ่ายเพิ่มเติมทั้งหมด ทั้งที่เปิดและปิดใช้งาน
@@ -3682,6 +3717,43 @@ paths:
       security:
       - BearerAuth: []
       summary: ย้ายโต๊ะ
+      tags:
+      - Table
+  /api/table/orders/{id}:
+    get:
+      consumes:
+      - application/json
+      description: ดึงข้อมูลออเดอร์ของโต๊ะที่ระบุทั้งที่ยังไม่เสร็จและเสร็จสมบูรณ์
+      parameters:
+      - description: ID โต๊ะ
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ข้อมูลออเดอร์ของโต๊ะ
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: กรุณาระบุหมายเลขโต๊ะ
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: ไม่มีออเดอร์สำหรับโต๊ะนี้
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: ไม่สามารถดึงข้อมูลออเดอร์ได้
+          schema:
+            additionalProperties: true
+            type: object
+      summary: ดึงออเดอร์เมนูอาหารและราคาสุทธิของโต๊ะ
       tags:
       - Table
   /api/table/reservedTable/{id}:

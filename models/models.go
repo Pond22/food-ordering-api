@@ -357,16 +357,18 @@ type Printer struct {
 //		Order *Order `gorm:"foreignKey:OrderID"`
 //	}
 type PrintJob struct {
-	ID        uint    `gorm:"primaryKey"`
-	PrinterID uint    `gorm:"not null;index"`
-	Printer   Printer `gorm:"foreignKey:PrinterID"`
-	OrderID   *uint   // nullable
-	ReceiptID *uint
-	Content   []byte `gorm:"type:bytea"`
-	Status    string `gorm:"not null;default:'pending'"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	ID                uint    `gorm:"primaryKey"`
+	PrinterID         uint    `gorm:"not null;index"`
+	Printer           Printer `gorm:"foreignKey:PrinterID"`
+	OrderID           *uint   // nullable
+	ReceiptID         *uint
+	Content           []byte `gorm:"type:bytea"`
+	Status            string `gorm:"not null;default:'pending'"`
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
+	JobType           string
+	CancelledQuantity int `gorm:"default:0"`
 
 	Order   *Order   `gorm:"foreignKey:OrderID"`
 	Receipt *Receipt `gorm:"foreignKey:ReceiptID"`

@@ -706,3 +706,83 @@ func ToggleTableStatus(c *fiber.Ctx) error {
 		"new_status": newStatus,
 	})
 }
+
+// @Summary ดึงออเดอร์เมนูอาหารและราคาสุทธิของโต๊ะ
+// @Description ดึงข้อมูลออเดอร์ของโต๊ะที่ระบุทั้งที่ยังไม่เสร็จและเสร็จสมบูรณ์
+// @Accept json
+// @Produce json
+// @Param id path string true "ID โต๊ะ"
+// @Success 200 {object} map[string]interface{} "ข้อมูลออเดอร์ของโต๊ะ"
+// @Failure 400 {object} map[string]interface{} "กรุณาระบุหมายเลขโต๊ะ"
+// @Failure 404 {object} map[string]interface{} "ไม่มีออเดอร์สำหรับโต๊ะนี้"
+// @Failure 500 {object} map[string]interface{} "ไม่สามารถดึงข้อมูลออเดอร์ได้"
+// @Router /api/table/orders/{id} [get]
+// @Tags Table
+func GetTableOrders(c *fiber.Ctx) error {
+	tableID := c.Params("id")
+	if tableID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "กรุณาระบุหมายเลขโต๊ะ",
+		})
+	}
+
+	var qrCode models.QRCode
+	if err := db.DB.Where("table_id = ?", tableID).First(&qrCode).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "ไม่พบข้อมูล QR Code สำหรับโต๊ะนี้",
+		})
+	}
+
+	var orders []models.Order
+	if err := db.DB.Preload("Items.MenuItem.Category").Preload("Items.Options.MenuOption").Preload("Receipt.Staff").Where("uuid = ? AND (status = ? OR status = ?)", qrCode.UUID, "uncompleted", "completed").Find(&orders).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "ไม่สามารถดึงข้อมูลออเดอร์ได้",
+		})
+	}
+
+	if len(orders) == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "ไม่มีออเดอร์สำหรับโต๊ะนี้",
+		})
+	}
+
+	orderDetails := []fiber.Map{}
+	var grandTotal float64
+
+	for _, order := range orders {
+		var orderTotal float64
+		items := []fiber.Map{}
+		for _, item := range order.Items {
+			options := []string{}
+			for _, option := range item.Options {
+				options = append(options, option.MenuOption.Name)
+				orderTotal += option.Price
+			}
+			itemTotal := float64(item.Quantity) * item.Price
+			items = append(items, fiber.Map{
+				"เมนู":     item.MenuItem.Name,
+				"หมวดหมู่": item.MenuItem.Category.Name,
+				"จำนวน":    item.Quantity,
+				"ราคา":     item.Price,
+				"ตัวเลือก": options,
+				"รวม":      itemTotal,
+			})
+			orderTotal += itemTotal
+		}
+		orderDetails = append(orderDetails, fiber.Map{
+			"รหัสออเดอร์": order.ID,
+			"สถานะ":       order.Status,
+			"พนักงาน":     order.Receipt.Staff.Name,
+			"รายการ":      items,
+			"รวมทั้งหมด":  orderTotal,
+		})
+		grandTotal += orderTotal
+	}
+
+	return c.JSON(fiber.Map{
+		"โต๊ะที่":          tableID,
+		"รหัส UUID":        qrCode.UUID,
+		"ออเดอร์":          orderDetails,
+		"ราคาสุทธิทั้งหมด": grandTotal,
+	})
+}

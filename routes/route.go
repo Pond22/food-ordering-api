@@ -105,7 +105,8 @@ func SetupRoutes(app *fiber.App) {
 	// Order Management Routes
 	orders := api.Group("/orders")
 	{
-		orders.Post("/", api_handlers.CreateOrder)                //สั่งอาหารa
+		orders.Post("/", api_handlers.CreateOrder) //สั่งอาหารa
+		orders.Post("/items/cancel", api_handlers.CancelOrderItem)
 		orders.Put("/status/:id", api_handlers.UpdateOrderStatus) //สั่งอาหารa
 		orders.Post("/items/serve/:id", api_handlers.ServeOrderItem)
 		orders.Get("/active", api_handlers.GetActiveOrders)
@@ -119,6 +120,7 @@ func SetupRoutes(app *fiber.App) {
 
 	table := api.Group("/table")
 	{
+		table.Get("/orders/:id", api_handlers.GetTableOrders)
 		table.Post("/", api_handlers.Addtable)
 		table.Delete("/:id", api_handlers.DeleteTable)
 		table.Put("/:id", api_handlers.UpdateTable)

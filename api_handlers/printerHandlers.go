@@ -443,6 +443,37 @@ func prepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
 	return content.Bytes(), nil
 }
 
+func prepareCancelPrintContent(job models.PrintJob) ([]byte, error) {
+	var content bytes.Buffer
+
+	if job.Order != nil {
+		content.WriteString(fmt.Sprintf("== ใบแจ้งยกเลิกรายการอาหาร ==\n"))
+		content.WriteString(fmt.Sprintf("โต๊ะ: %d\n", job.Order.TableID))
+		content.WriteString("----------------------------------------\n")
+		content.WriteString(" รายการอาหาร                จำนวนที่ยกเลิก\n")
+		content.WriteString("----------------------------------------\n")
+
+		// ดึงข้อมูลจากฟิลด์ Content
+		items := strings.Split(string(job.Content), "\n")
+		for _, item := range items {
+			parts := strings.Split(item, "|")
+			if len(parts) == 2 {
+				itemName := fmt.Sprintf("%-25s", parts[0])
+				quantity := fmt.Sprintf("%5s", parts[1])
+				content.WriteString(fmt.Sprintf("%s %s\n", itemName, quantity))
+			}
+		}
+
+		content.WriteString("----------------------------------------\n")
+		content.WriteString(fmt.Sprintf("เวลายกเลิก: %s\n", time.Now().Format("02/01/2006 15:04:05")))
+		content.WriteString("========================================\n")
+		content.WriteString("กรุณาตรวจสอบการยกเลิก\n")
+		content.WriteString("========================================\n")
+	}
+
+	return content.Bytes(), nil
+}
+
 type PrintJobResponse struct {
 	ID        uint            `json:"id"`
 	PrinterID uint            `json:"printer_id"`
@@ -487,18 +518,8 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 		})
 	}
 
-	// ดึงงานพิมพ์ด้วย printer_id
+	// ดึงงานพิมพ์ที่รอดำเนินการ
 	var jobs []models.PrintJob
-	// err = db.DB.Where("printer_id = ? AND status = ?", printer.ID, "pending").
-	// 	Preload("Order").
-	// 	Preload("Order.Items", "status = ?", "pending").
-	// 	Preload("Order.Items.MenuItem").
-	// 	Preload("Order.Items.Options").
-	// 	Preload("Order.Items.Options.MenuOption").
-	// 	Preload("Order.Items.Options.MenuOption.OptionGroup").
-	// 	Order("created_at ASC").
-	// 	Find(&jobs).Error
-
 	err = db.DB.Where("printer_id = ? AND status = ?", printer.ID, "pending").
 		Preload("Order").
 		Preload("Order.Items", "status = ?", "pending").
@@ -506,12 +527,13 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 		Preload("Order.Items.Options").
 		Preload("Order.Items.Options.MenuOption").
 		Preload("Order.Items.Options.MenuOption.OptionGroup").
-		Preload("Receipt"). // ถ้าเป็นไปได้ควรแยกคิวรี่กัน N+1
+		Preload("Receipt").
 		Preload("Receipt.Orders.Items.MenuItem").
 		Preload("Receipt.Discounts.DiscountType").
 		Preload("Receipt.Charges.ChargeType").
 		Order("created_at ASC").
 		Find(&jobs).Error
+
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch print jobs",
@@ -524,23 +546,24 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 		var preparedContent []byte
 		var err error
 
-		if job.OrderID != nil {
-			// ใบแจ้งออเดอร์
-			preparedContent, err = prepareOrderPrintContent(job)
-			if err != nil {
-				log.Printf("Failed to prepare order content for job %d: %v", job.ID, err)
-				continue
+		switch job.JobType {
+		case "order":
+			if job.OrderID != nil {
+				preparedContent, err = prepareOrderPrintContent(job)
 			}
-		} else if job.ReceiptID != nil {
-			// ใบเสร็จ
-			preparedContent, err = prepareReceiptPrintContent(job)
-			if err != nil {
-				log.Printf("Failed to prepare receipt content for job %d: %v", job.ID, err)
-				continue
+		case "receipt":
+			if job.ReceiptID != nil {
+				preparedContent, err = prepareReceiptPrintContent(job)
 			}
-		} else {
-			// หากไม่มี order_id หรือ receipt_id ให้ข้าม
-			log.Printf("Skipping job %d due to missing identifiers", job.ID)
+		case "cancelation":
+			preparedContent, err = prepareCancelPrintContent(job)
+		default:
+			log.Printf("Skipping job %d due to unknown job type: %s", job.ID, job.JobType)
+			continue
+		}
+
+		if err != nil {
+			log.Printf("Failed to prepare content for job %d: %v", job.ID, err)
 			continue
 		}
 

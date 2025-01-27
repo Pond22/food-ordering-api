@@ -65,9 +65,23 @@ func ProcessPayment(c *fiber.Ctx) error {
 		})
 	}
 
-	// 2. ดึงทุก orders ที่ยังไม่ได้ชำระเงิน
+	// // 2. ดึงทุก orders ที่ยังไม่ได้ชำระเงิน
+	// var orders []models.Order
+	// if err := tx.Preload("Items.MenuItem").
+	// 	Preload("Items.Options.MenuOption").
+	// 	Where("uuid = ? AND table_id = ? AND status != ? AND status != ? AND receipt_id IS NULL",
+	// 		req.UUID, req.TableID, "completed", "cancelled").
+	// 	Find(&orders).Error; err != nil {
+	// 	tx.Rollback()
+	// 	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+	// 		"error": "No active orders found",
+	// 	})
+	// }
+
+	// 2. ดึงทุก orders ที่ยังไม่ได้ชำระเงิน (ยกเว้นที่ถูกยกเลิก)
 	var orders []models.Order
-	if err := tx.Preload("Items.MenuItem").
+	if err := tx.Preload("Items", "status != ?", "cancelled").
+		Preload("Items.MenuItem").
 		Preload("Items.Options.MenuOption").
 		Where("uuid = ? AND table_id = ? AND status != ? AND status != ? AND receipt_id IS NULL",
 			req.UUID, req.TableID, "completed", "cancelled").
@@ -727,13 +741,14 @@ func PrintReceipt(receiptID uint) error {
 	}
 
 	// สร้างเนื้อหาใบเสร็จในรูปแบบ ESC/POS
-	content := createReceiptPrintContent(receipt)
+	// content := createReceiptPrintContent(receipt)
 
 	// บันทึกลง print_jobs
 	printJob := models.PrintJob{
 		PrinterID: printer.ID,
 		ReceiptID: &receipt.ID,
-		Content:   content,
+		// Content:   content,
+		JobType:   "receipt",
 		Status:    "pending",
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
