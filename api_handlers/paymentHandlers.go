@@ -83,7 +83,7 @@ func ProcessPayment(c *fiber.Ctx) error {
 	if err := tx.Preload("Items", "status != ?", "cancelled").
 		Preload("Items.MenuItem").
 		Preload("Items.Options.MenuOption").
-		Where("uuid = ? AND table_id = ? AND status != ? AND status != ? AND receipt_id IS NULL",
+		Where("uuid = ? AND table_id = ? AND status NOT IN (?, ?) AND receipt_id IS NULL",
 			req.UUID, req.TableID, "completed", "cancelled").
 		Find(&orders).Error; err != nil {
 		tx.Rollback()

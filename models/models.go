@@ -166,7 +166,7 @@ type Order struct {
 	ID        uint    `gorm:"primaryKey"`
 	UUID      string  `gorm:"not null;index"`
 	TableID   int     `gorm:"not null"`
-	Status    string  `gorm:"not null"` //  "completed", "uncompleted"
+	Status    string  `gorm:"not null"` //  "completed", "uncompleted", "cancelled"
 	Total     float64 `gorm:"not null"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -199,10 +199,12 @@ type OrderItemOption struct {
 	OrderItem    OrderItem  `gorm:"foreignKey:OrderItemID"`
 	MenuOptionID uint       `gorm:"not null"` // Foreign key to MenuOption
 	MenuOption   MenuOption `gorm:"foreignKey:MenuOptionID"`
-	Value        string     `gorm:"not null"` // ค่าที่เลือก เช่น "เผ็ดมาก", "เพิ่มไข่ดาว"
-	Price        float64    `gorm:"not null"` // ราคา ณ เวลาที่สั่ง
+	Value        string     `gorm:"not null"`           // ค่าที่เลือก เช่น "เผ็ดมาก", "เพิ่มไข่ดาว"
+	Quantity     int        `gorm:"not null;default:1"` // จำนวนตัวเลือกเสริม
+	Price        float64    `gorm:"not null"`           // ราคา ณ เวลาที่สั่ง
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+	DeletedAt    gorm.DeletedAt `gorm:"index" swaggerignore:"true"` // เพิ่ม Soft Delete
 }
 
 // FE-2 ระบบจัดการผู้ใช้งาน

@@ -419,6 +419,8 @@ definitions:
     type: object
   api_handlers.cancle_item_req:
     properties:
+      id:
+        type: integer
       items:
         items:
           properties:
@@ -815,7 +817,7 @@ definitions:
       receiptID:
         type: integer
       status:
-        description: '"completed", "uncompleted"'
+        description: '"completed", "uncompleted", "cancelled"'
         type: string
       tableID:
         type: integer
@@ -879,6 +881,9 @@ definitions:
       price:
         description: ราคา ณ เวลาที่สั่ง
         type: number
+      quantity:
+        description: จำนวนตัวเลือกเสริม
+        type: integer
       updatedAt:
         type: string
       value:

@@ -4955,6 +4955,9 @@ const docTemplate = `{
                 "order_uuid"
             ],
             "properties": {
+                "id": {
+                    "type": "integer"
+                },
                 "items": {
                     "type": "array",
                     "items": {
@@ -5538,7 +5541,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "status": {
-                    "description": "\"completed\", \"uncompleted\"",
+                    "description": "\"completed\", \"uncompleted\", \"cancelled\"",
                     "type": "string"
                 },
                 "tableID": {
@@ -5631,6 +5634,10 @@ const docTemplate = `{
                 "price": {
                     "description": "ราคา ณ เวลาที่สั่ง",
                     "type": "number"
+                },
+                "quantity": {
+                    "description": "จำนวนตัวเลือกเสริม",
+                    "type": "integer"
                 },
                 "updatedAt": {
                     "type": "string"
