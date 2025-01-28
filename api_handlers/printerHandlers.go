@@ -156,6 +156,13 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 		})
 	}
 
+	// ตรวจสอบว่ามี category IDs ส่งมาหรือไม่
+	if len(req.CategoryIDs) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Category IDs are required",
+		})
+	}
+
 	tx := db.DB.Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -163,6 +170,7 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 		}
 	}()
 
+	// ตรวจสอบว่ามีเครื่องพิมพ์อยู่จริง
 	var printer models.Printer
 	if err := tx.First(&printer, printerID).Error; err != nil {
 		tx.Rollback()
@@ -171,12 +179,12 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 		})
 	}
 
-	// ตรวจสอบและดึงหมวดหมู่ที่ระบุ
+	// ตรวจสอบว่าหมวดหมู่ทั้งหมดที่ส่งมามีอยู่จริง
 	var categories []models.Category
 	if err := tx.Find(&categories, req.CategoryIDs).Error; err != nil {
 		tx.Rollback()
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid category IDs",
+			"error": "Failed to fetch categories",
 		})
 	}
 
@@ -187,16 +195,42 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 		})
 	}
 
-	// อัพเดทความสัมพันธ์
-	if err := tx.Model(&printer).Association("Categories").Replace(&categories); err != nil {
+	// ดึงความสัมพันธ์ที่มีอยู่เดิม
+	var existingRelations []struct {
+		PrinterID  uint
+		CategoryID uint
+	}
+	if err := tx.Table("printer_categories").
+		Where("printer_id = ?", printer.ID).
+		Find(&existingRelations).Error; err != nil {
 		tx.Rollback()
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to update printer categories",
+			"error": "Failed to fetch existing relations",
 		})
 	}
 
+	// สร้าง map เพื่อเช็คความสัมพันธ์ที่มีอยู่แล้ว
+	existingMap := make(map[uint]bool)
+	for _, rel := range existingRelations {
+		existingMap[rel.CategoryID] = true
+	}
+
+	// เพิ่มเฉพาะความสัมพันธ์ใหม่ที่ยังไม่มี
+	for _, catID := range req.CategoryIDs {
+		if !existingMap[catID] {
+			if err := tx.Exec("INSERT INTO printer_categories (printer_id, category_id) VALUES (?, ?)",
+				printer.ID, catID).Error; err != nil {
+				tx.Rollback()
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "Failed to assign categories",
+				})
+			}
+		}
+	}
+
 	// โหลดข้อมูลที่อัพเดทแล้ว
-	if err := tx.Preload("Categories").First(&printer, printerID).Error; err != nil {
+	var updatedPrinter models.Printer
+	if err := tx.Preload("Categories").First(&updatedPrinter, printerID).Error; err != nil {
 		tx.Rollback()
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch updated printer data",
@@ -209,7 +243,7 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(printer)
+	return c.JSON(updatedPrinter)
 }
 
 // @Summary ดึงรายการหมวดหมู่ของเครื่องพิมพ์
