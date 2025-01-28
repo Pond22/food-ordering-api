@@ -18,6 +18,7 @@ require (
 	github.com/go-openapi/swag v0.19.15 // indirect
 	github.com/gofiber/websocket/v2 v2.2.1 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hennedo/escpos v0.0.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/kenshaw/escpos v0.0.0-20221114190919-df06b682a8fc // indirect
