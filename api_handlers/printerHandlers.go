@@ -501,21 +501,55 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 	vendorID := c.Query("vendor_id")
 	productID := c.Query("product_id")
 
-	// ค้นหาเครื่องพิมพ์
 	var printer models.Printer
 	var err error
 
-	if printerIP != "" {
-		err = db.DB.Where("ip_address = ?", printerIP).First(&printer).Error
-	} else {
+	if vendorID != "" && productID != "" {
+		// กรณีเครื่องพิมพ์ USB
+		log.Printf("Looking for USB printer - VID: %s, PID: %s", vendorID, productID)
 		err = db.DB.Where("type = ? AND vendor_id = ? AND product_id = ?",
 			"usb", vendorID, productID).First(&printer).Error
+	} else if printerIP != "" {
+		// กรณีเครื่องพิมพ์เครือข่าย
+		log.Printf("Looking for Network printer - IP: %s", printerIP)
+
+		// ถ้า printerIP เริ่มต้นด้วย USB_ ให้ค้นหาจาก vendor_id และ product_id
+		if strings.HasPrefix(printerIP, "USB_") {
+			parts := strings.Split(printerIP[4:], "_")
+			if len(parts) == 2 {
+				vid, pid := parts[0], parts[1]
+				err = db.DB.Where("type = ? AND vendor_id = ? AND product_id = ?",
+					"usb", vid, pid).First(&printer).Error
+			} else {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"error": "Invalid USB printer identifier format",
+				})
+			}
+		} else {
+			// ค้นหาจาก IP address สำหรับ network printer
+			err = db.DB.Where("type = ? AND ip_address = ?",
+				"network", printerIP).First(&printer).Error
+		}
+	} else {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Missing printer identification parameters",
+		})
 	}
 
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "Printer not found",
-		})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Printf("Printer not found: %v", err)
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error":   "Printer not found",
+				"details": err.Error(),
+			})
+		} else {
+			log.Printf("Database error: %v", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Database error",
+				"details": err.Error(),
+			})
+		}
 	}
 
 	// ดึงงานพิมพ์ที่รอดำเนินการ
@@ -535,8 +569,10 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 		Find(&jobs).Error
 
 	if err != nil {
+		log.Printf("Error fetching print jobs: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to fetch print jobs",
+			"error":   "Failed to fetch print jobs",
+			"details": err.Error(),
 		})
 	}
 
@@ -558,23 +594,18 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 		case "cancelation":
 			preparedContent, err = prepareCancelPrintContent(job)
 		default:
-			log.Printf("Skipping job %d due to unknown job type: %s", job.ID, job.JobType)
-			continue
+			preparedContent = job.Content
 		}
 
 		if err != nil {
 			log.Printf("Failed to prepare content for job %d: %v", job.ID, err)
 			continue
 		}
-
-		// แปลงเป็น bitmap
 		bitmapImage, err := convertToBitmap(preparedContent)
 		if err != nil {
-			log.Printf("Failed to convert job %d to bitmap: %v", job.ID, err)
+			log.Printf("Failed to convert job %d to bitmap %v", job.ID, err)
 			continue
 		}
-
-		// สร้าง response
 		response := PrintJobResponse{
 			ID:        job.ID,
 			PrinterID: printer.ID,
@@ -587,8 +618,11 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 			Printer: PrinterResponse{
 				ID:         printer.ID,
 				Name:       printer.Name,
+				Type:       printer.Type,
 				IPAddress:  printer.IPAddress,
 				Port:       printer.Port,
+				VendorID:   printer.VendorID,
+				ProductID:  printer.ProductID,
 				Department: printer.Department,
 				Status:     printer.Status,
 				Categories: printer.Categories,
