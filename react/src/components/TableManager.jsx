@@ -36,11 +36,16 @@ const TableManager = () => {
   const [selectedTable, setSelectedTable] = useState(null)
   const [selectedGroupId, setSelectedGroupId] = useState(null)
 
-   const navigate = useNavigate()
-   const handleCheckBillClick = () => {
-     // เมื่อกดปุ่มจะนำทางไปยังหน้า PaymentTables
-     navigate('/payment-tables')
-   }
+  const [qrData, setQrData] = useState(null)
+  const [isTableOpen, setIsTableOpen] = useState(false) // ใช้เพื่อแสดงสถานะโต๊ะ
+  const [loading, setLoading] = useState(false) // ใช้ในการโหลดข้อมูล
+  const [uuid, setUuid] = useState('')
+
+  const navigate = useNavigate()
+  const handleCheckBillClick = () => {
+    // เมื่อกดปุ่มจะนำทางไปยังหน้า PaymentTables
+    navigate('/payment-tables')
+  }
 
   // Fetch tables from API and sort by ID
   useEffect(() => {
@@ -394,6 +399,34 @@ const TableManager = () => {
       alert('เกิดข้อผิดพลาดในการดำเนินการ')
     }
   }
+
+ const fetchQrCode = async (table) => {
+   try {
+     // ตรวจสอบว่า table มี property ID และส่งค่า ID ไปใน URL
+     if (!table || !table.ID) {
+       alert('ข้อมูลโต๊ะไม่ถูกต้อง')
+       return
+     }
+
+     // ดึงข้อมูล QR code จาก API
+     const qrResponse = await axios.get(
+       `http://localhost:8080/api/qr/${table.ID}` // ส่ง table.ID ไปแทน
+     )
+
+     // เก็บข้อมูล QR code ที่ได้รับจาก API
+     setQrData(qrResponse.data)
+
+     // ดึง uuid และเก็บไว้ใน state
+     setUuid(qrResponse.data.uuid)
+
+     return qrResponse.data
+   } catch (error) {
+     console.error('Error fetching QR code:', error)
+     alert('เกิดข้อผิดพลาดในการดึง QR code')
+     return null
+   }
+ }
+
   // Table rendering
   const renderTableActionButtons = (table) => {
     const status = table.Status || 'available'
@@ -425,7 +458,18 @@ const TableManager = () => {
                 <div className="relative group">
                   <button
                     className="bg-white border text-black p-2 rounded-full hover:bg-gray-100"
-                    onClick={() => handleToggleTable(table, true)} // เปิดโต๊ะ
+                    onClick={() => handleToggleTable(table, true)}
+                  >
+                    <Plus></Plus>
+                  </button>
+                  <div className="absolute left-1/2 -translate-x-1/2 w-16 bottom-full mb-2 hidden group-hover:block bg-gray-400 text-white text-sm py-1 px-2 rounded-md shadow-lg">
+                    เปลี่ยนสถานะ
+                  </div>
+                </div>
+                <div className="relative group">
+                  <button
+                    className="bg-white border text-black p-2 rounded-full hover:bg-gray-100"
+                    onClick={() => fetchQrCode(table)} // ส่ง table ไปแทน tableId
                   >
                     <Plus></Plus>
                   </button>
@@ -471,6 +515,7 @@ const TableManager = () => {
           {status === 'occupied' && (
             <>
               <button onClick={handleCheckBillClick}>เช็คบิล</button>
+              
             </>
           )}
           {table.GroupID && (
@@ -525,6 +570,10 @@ const TableManager = () => {
               }
               ${
                 table.Status === 'reserved'
+                  ? 'bg-yellow-100 border-orange-500'
+                  : ''
+              }${
+                table.Status === 'occupied'
                   ? 'bg-yellow-100 border-orange-500'
                   : ''
               }`}

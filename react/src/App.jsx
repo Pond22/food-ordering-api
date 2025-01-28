@@ -17,7 +17,6 @@ import {
   Edit,
   Trash2,
 } from 'lucide-react'
-import HomeMain from './components/Home'
 import Home from './components/Home'
 import Header from './components/Header'
 import Login from './components/Login'
@@ -31,6 +30,7 @@ import Printer from './components/Printer'
 import ErrorBoundary from './ErrorBoundary' // import Error Boundary
 import ChargeManagement from './components/ChargeManagement'
 import PaymentTables from './components/PaymentTables'
+import Menu from './pages/Menu'
 
 import styles from './styles/App.module.css'
 
@@ -287,7 +287,7 @@ const App = () => {
 
             <Route
               path="/menu"
-              element={isLoggedIn ? <MenuList /> : <Navigate to="/login" />}
+              element={isLoggedIn ? <Menu /> : <Navigate to="/login" />}
             />
 
             <Route
@@ -350,6 +350,7 @@ const App = () => {
               }
             />
             <Route path="/payment-tables" element={<PaymentTables />} />
+            <Route path="/menu/:tableId/:uuid" element={<Menu />} />
           </Routes>
         </main>
       </div>

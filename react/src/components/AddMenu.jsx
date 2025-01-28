@@ -850,7 +850,7 @@ const MenuManagement = () => {
                                         className="flex justify-between items-center"
                                       >
                                         <span className="font-mg text-gray-700">
-                                          • {option.Name} | {option.NameEn} |{' '}
+                                          • {option.ID}{option.Name} | {option.NameEn} |{' '}
                                           {option.NameCh}
                                         </span>
                                         <span className="text-green-600 text-sm">
