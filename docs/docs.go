@@ -2108,6 +2108,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/notifications/call-staff": {
+            "post": {
+                "description": "ลูกค้าเรียกพนักงาน",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Call staff",
+                "parameters": [
+                    {
+                        "description": "โต๊ะที่เรียก",
+                        "name": "status",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.CallRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notification sent to staff",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/orders": {
             "post": {
                 "description": "สร้างออเดอร์ใหม่พร้อมรายการอาหารและโปรโมชั่น (ถ้ามี)",
@@ -2160,6 +2206,40 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/api_handlers.OrderResponse"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/orders/items/cancel": {
+            "post": {
+                "description": "ยกเลิกรายการอาหารในออเดอร์ตามจำนวนที่กำหนด",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Order_ใหม่"
+                ],
+                "summary": "ยกเลิกรายการอาหาร",
+                "parameters": [
+                    {
+                        "description": "ข้อมูลยกเลิก",
+                        "name": "order",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.cancle_item_req"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.OrderItem"
                         }
                     }
                 }
@@ -2233,35 +2313,6 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/models.Order"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/orders/table/{table_id}": {
-            "get": {
-                "description": "ดึงรายการออเดอร์ทั้งหมดของโต๊ะที่ระบุ",
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "ดึงรายการออเดอร์ตามโต๊ะ",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Table ID",
-                        "name": "table_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.Order"
-                            }
                         }
                     }
                 }
@@ -3732,6 +3783,60 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/table/orders/{id}": {
+            "get": {
+                "description": "ดึงข้อมูลออเดอร์ของโต๊ะที่ระบุทั้งที่ยังไม่เสร็จและเสร็จสมบูรณ์",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Table"
+                ],
+                "summary": "ดึงออเดอร์เมนูอาหารและราคาสุทธิของโต๊ะ",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID โต๊ะ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ข้อมูลออเดอร์ของโต๊ะ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "กรุณาระบุหมายเลขโต๊ะ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่มีออเดอร์สำหรับโต๊ะนี้",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "ไม่สามารถดึงข้อมูลออเดอร์ได้",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/table/reservedTable/{id}": {
             "post": {
                 "security": [
@@ -3751,6 +3856,15 @@ const docTemplate = `{
                 ],
                 "summary": "จองโต๊ะ",
                 "parameters": [
+                    {
+                        "description": "ข้อมูลการจองโต๊ะ",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ReservationRequest"
+                        }
+                    },
                     {
                         "type": "string",
                         "description": "ID ของกลุ่มโต๊ะนั้นๆ",
@@ -4221,6 +4335,14 @@ const docTemplate = `{
                     "items": {
                         "type": "integer"
                     }
+                }
+            }
+        },
+        "api_handlers.CallRequest": {
+            "type": "object",
+            "properties": {
+                "table_number": {
+                    "type": "string"
                 }
             }
         },
@@ -4696,6 +4818,23 @@ const docTemplate = `{
                 }
             }
         },
+        "api_handlers.ReservationRequest": {
+            "type": "object",
+            "properties": {
+                "customer_name": {
+                    "type": "string"
+                },
+                "guest_count": {
+                    "type": "integer"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "reserved_for": {
+                    "type": "string"
+                }
+            }
+        },
         "api_handlers.ResetPasswordRequest": {
             "type": "object",
             "required": [
@@ -4805,6 +4944,40 @@ const docTemplate = `{
                     "$ref": "#/definitions/models.UserRole"
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "api_handlers.cancle_item_req": {
+            "type": "object",
+            "required": [
+                "items",
+                "order_uuid"
+            ],
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "order_item_id",
+                            "quantity"
+                        ],
+                        "properties": {
+                            "order_item_id": {
+                                "type": "integer"
+                            },
+                            "quantity": {
+                                "type": "integer",
+                                "minimum": 1
+                            }
+                        }
+                    }
+                },
+                "order_uuid": {
                     "type": "string"
                 }
             }
@@ -5368,7 +5541,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "status": {
-                    "description": "\"completed\", \"uncompleted\"",
+                    "description": "\"completed\", \"uncompleted\", \"cancelled\"",
                     "type": "string"
                 },
                 "tableID": {
@@ -5462,6 +5635,10 @@ const docTemplate = `{
                     "description": "ราคา ณ เวลาที่สั่ง",
                     "type": "number"
                 },
+                "quantity": {
+                    "description": "จำนวนตัวเลือกเสริม",
+                    "type": "integer"
+                },
                 "updatedAt": {
                     "type": "string"
                 },
@@ -5474,6 +5651,9 @@ const docTemplate = `{
         "models.PrintJob": {
             "type": "object",
             "properties": {
+                "cancelledQuantity": {
+                    "type": "integer"
+                },
                 "content": {
                     "type": "array",
                     "items": {
@@ -5486,6 +5666,9 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "jobType": {
+                    "type": "string"
+                },
                 "order": {
                     "$ref": "#/definitions/models.Order"
                 },
@@ -5497,6 +5680,12 @@ const docTemplate = `{
                     "$ref": "#/definitions/models.Printer"
                 },
                 "printerID": {
+                    "type": "integer"
+                },
+                "receipt": {
+                    "$ref": "#/definitions/models.Receipt"
+                },
+                "receiptID": {
                     "type": "integer"
                 },
                 "status": {
@@ -5627,7 +5816,11 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "orderID": {
+                    "type": "integer"
+                },
                 "orders": {
+                    "description": "Orders        []Order ` + "`" + `gorm:\"foreignKey:ReceiptID\"` + "`" + `",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.Order"

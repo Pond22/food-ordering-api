@@ -172,7 +172,7 @@ func GetActivePromotions(c *fiber.Ctx) error {
 		Preload("Items.MenuItem.Category").
 		Preload("Items.MenuItem.OptionGroups").
 		Preload("Items.MenuItem.OptionGroups.Options").
-		Where("is_active = ? AND start_date <= ? AND end_date >= ?", true, now, now).Find(&promotions).Error; err != nil {
+		Where("is_active = ? AND start_date <= ? AND end_date >= ? AND deleted_at IS NULL", true, now, now).Find(&promotions).Error; err != nil {
 		// Where("is_active = ? AND start_date <= ? AND end_date >= ?", true, now, now).
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch promotions"})
 	}
@@ -238,14 +238,12 @@ func UpdatePromotion(c *fiber.Ctx) error {
 
 	tx := db.DB.Begin()
 
-	// ตรวจสอบว่ามีโปรโมชั่นที่ต้องการอัพเดตหรือไม่
 	var promo models.Promotion
 	if err := tx.First(&promo, promoID).Error; err != nil {
 		tx.Rollback()
 		return c.Status(404).JSON(fiber.Map{"error": "Promotion not found"})
 	}
 
-	// อัพเดตข้อมูลโปรโมชั่น
 	updates := map[string]interface{}{}
 
 	if req.Name != "" {
@@ -275,48 +273,11 @@ func UpdatePromotion(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to update promotion"})
 	}
 
-	// ลบรายการเดิมทั้งหมดเฉพาะเมื่อมีการส่ง items มา
-	if len(req.Items) > 0 {
-		if err := tx.Where("promotion_id = ?", promoID).Delete(&models.PromotionItem{}).Error; err != nil {
-			tx.Rollback()
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to update promotion items"})
-		}
-	}
-
-	// เพิ่มรายการใหม่
-	for _, item := range req.Items {
-		// ตรวจสอบว่ามีเมนูนี้อยู่จริง
-		var menuItem models.MenuItem
-		if err := tx.First(&menuItem, item.MenuItemID).Error; err != nil {
-			tx.Rollback()
-			return c.Status(400).JSON(fiber.Map{
-				"error": fmt.Sprintf("Menu item ID %d not found", item.MenuItemID),
-			})
-		}
-
-		promoItem := models.PromotionItem{
-			PromotionID: promo.ID,
-			MenuItemID:  item.MenuItemID,
-			Quantity:    item.Quantity,
-		}
-
-		if err := tx.Create(&promoItem).Error; err != nil {
-			tx.Rollback()
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to create promotion items"})
-		}
-	}
-
 	if err := tx.Commit().Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to commit transaction"})
 	}
 
-	// ดึงข้อมูลโปรโมชั่นที่อัพเดตพร้อมรายการอาหาร
-	var updatedPromo models.Promotion
-	if err := db.DB.Preload("Items.MenuItem").First(&updatedPromo, promoID).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to load updated promotion"})
-	}
-
-	return c.JSON(updatedPromo)
+	return c.JSON(fiber.Map{"message": "Promotion updated successfully"})
 }
 
 // @Summary ลบโปรโมชั่น (Soft Delete)
@@ -347,7 +308,7 @@ func DeletePromotion(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to delete promotion items"})
 	}
 
-	// Then soft delete the promotion
+	// Then soft delete the promotion itself
 	if err := tx.Model(&promo).Update("deleted_at", time.Now()).Error; err != nil {
 		tx.Rollback()
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to delete promotion"})
@@ -400,14 +361,15 @@ func GetPromotionByID(c *fiber.Ctx) error {
 // @Failure 500 {object} ErrorResponse "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์"
 // @Router /api/promotions [get]
 func GetAllPromotion(c *fiber.Ctx) error {
-	var promotion []models.Promotion
+	var promotions []models.Promotion
 	if err := db.DB.Preload("Items.MenuItem").
 		Preload("Items.MenuItem.Category").
 		Preload("Items.MenuItem.OptionGroups").
 		Preload("Items.MenuItem.OptionGroups.Options").
-		Find(&promotion).Error; err != nil {
+		Where("deleted_at IS NULL").
+		Find(&promotions).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Promotion not found"})
 	}
 
-	return c.JSON(promotion)
+	return c.JSON(promotions)
 }

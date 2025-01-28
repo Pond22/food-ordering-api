@@ -6,9 +6,11 @@ import (
 	"food-ordering-api/db"
 	"food-ordering-api/models"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 // สำหรับรับข้อมูลการสั่งอาหาร
@@ -55,7 +57,6 @@ func CreateOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	// เริ่ม transaction
 	tx := db.DB.Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -131,6 +132,7 @@ func CreateOrder(c *fiber.Ctx) error {
 				OrderItemID:  orderItem.ID,
 				MenuOptionID: opt.MenuOptionID,
 				Price:        menuOption.Price,
+				Quantity:     item.Quantity,
 			}
 
 			if err := tx.Create(&orderItemOption).Error; err != nil {
@@ -207,7 +209,6 @@ func CreateOrder(c *fiber.Ctx) error {
 			"error": "Failed to update order total",
 		})
 	}
-
 	// 1. ดึงข้อมูล Order ที่สมบูรณ์
 	var completeOrder models.Order
 	if err := tx.Preload("Items.MenuItem.Category").
@@ -274,6 +275,7 @@ func CreateOrder(c *fiber.Ctx) error {
 			OrderID:   &completeOrder.ID,
 			Content:   content,
 			Status:    "pending",
+			JobType:   "order",
 		}
 
 		if err := tx.Create(&printJob).Error; err != nil {
@@ -669,25 +671,227 @@ func GetOrder(c *fiber.Ctx) error {
 	return c.JSON(order)
 }
 
-// @Summary ดึงรายการออเดอร์ตามโต๊ะ
-// @Description ดึงรายการออเดอร์ทั้งหมดของโต๊ะที่ระบุ
-// @Produce json
-// @Param table_id path int true "Table ID"
-// @Success 200 {array} models.Order
-// @Router /api/orders/table/{table_id} [get]
-func GetTableOrders(c *fiber.Ctx) error {
-	tableID := c.Params("table_id")
+type cancle_item_req struct {
+	OrderUUID string `json:"order_uuid" binding:"required"`
+	Table_id  uint   `json:"id"`
+	Items     []struct {
+		OrderItemID uint `json:"order_item_id" binding:"required"`
+		Quantity    int  `json:"quantity" binding:"required,min=1"`
+	} `json:"items" binding:"required"`
+}
 
-	var orders []models.Order
-	if err := db.DB.Preload("Items").
-		Preload("Items.MenuItem").
-		Preload("Items.Options").
-		Where("table_id = ?", tableID).
-		Find(&orders).Error; err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to fetch table orders",
+// @Summary ยกเลิกรายการอาหาร
+// @Description ยกเลิกรายการอาหารในออเดอร์ตามจำนวนที่กำหนด
+// @Accept json
+// @Produce json
+// @Param order body cancle_item_req true "ข้อมูลยกเลิก"
+// @Success 200 {object} models.OrderItem
+// @Router /api/orders/items/cancel [post]
+// @Tags Order_ใหม่
+func CancelOrderItem(c *fiber.Ctx) error {
+	var req cancle_item_req
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request format",
 		})
 	}
 
-	return c.JSON(orders)
+	if req.OrderUUID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Order UUID is required",
+		})
+	}
+
+	tx := db.DB.Begin()
+
+	var order models.Order
+
+	if err := tx.Where("uuid = ? AND table_id = ?", req.OrderUUID, req.Table_id).Preload("Items.MenuItem").Preload("Items.Options").First(&order).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Order not found",
+		})
+	}
+
+	// รายการสำหรับ PrintJob
+	var printContents []string
+
+	for _, reqItem := range req.Items {
+		var orderItem models.OrderItem
+		if err := tx.Where("id = ?", reqItem.OrderItemID).Preload("MenuItem").Preload("Options").First(&orderItem).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": fmt.Sprintf("Order item ID %d not found", reqItem.OrderItemID),
+			})
+		}
+
+		if reqItem.Quantity > orderItem.Quantity {
+			tx.Rollback()
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": fmt.Sprintf("Cancel quantity exceeds ordered quantity for item ID %d", reqItem.OrderItemID),
+			})
+		}
+
+		if orderItem.Quantity == reqItem.Quantity {
+			orderItem.Status = "cancelled"
+			orderItem.Quantity = 0
+			if err := tx.Where("order_item_id = ?", orderItem.ID).
+				Delete(&models.OrderItemOption{}).Error; err != nil {
+				tx.Rollback()
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "Failed to delete item options",
+				})
+			}
+		} else {
+			orderItem.Quantity -= reqItem.Quantity
+			for i := range orderItem.Options {
+				orderItem.Options[i].Quantity -= reqItem.Quantity
+				if err := tx.Save(&orderItem.Options[i]).Error; err != nil {
+					tx.Rollback()
+					return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+						"error": "Failed to update order item option quantity",
+					})
+				}
+			}
+		}
+
+		if err := tx.Save(&orderItem).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to update order item status",
+			})
+		}
+
+		printContents = append(printContents, fmt.Sprintf("%s|%d", orderItem.MenuItem.Name, reqItem.Quantity))
+	}
+
+	// อัปเดตยอดรวมออเดอร์หลังจากยกเลิกรายการ
+	if err := updateOrdersTotalByUUIDAndTableID(tx, req.OrderUUID, req.Table_id); err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update order total",
+		})
+	}
+
+	// หาเครื่องพิมพ์ที่เกี่ยวข้องตามหมวดหมู่ของเมนูอาหารในออเดอร์
+	var printers []models.Printer
+	err := db.DB.Joins("JOIN printer_categories ON printers.id = printer_categories.printer_id").
+		Where("printer_categories.category_id IN (?)",
+			db.DB.Table("order_items").Select("menu_item_id").Where("order_id = ?", order.ID)).
+		Find(&printers).Error
+
+	if err != nil || len(printers) == 0 {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "No printers available for this order's categories",
+		})
+	}
+
+	printContentString := strings.Join(printContents, "\n")
+	for _, printer := range printers {
+		printJob := models.PrintJob{
+			PrinterID:         printer.ID,
+			OrderID:           &order.ID,
+			Status:            "pending",
+			JobType:           "cancelation",
+			CancelledQuantity: len(req.Items),
+			Content:           []byte(printContentString),
+		}
+
+		if err := tx.Create(&printJob).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": fmt.Sprintf("Failed to create print job for printer %s", printer.Name),
+			})
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to commit transaction",
+		})
+	}
+
+	return c.JSON(fiber.Map{"message": "Order items cancelled successfully"})
 }
+
+func updateOrdersTotalByUUIDAndTableID(tx *gorm.DB, uuid string, tableID uint) error {
+	// ดึงข้อมูล Orders ทั้งหมดที่ตรงกับ UUID และ Table ID
+	var orders []models.Order
+	err := tx.Where("uuid = ? AND table_id = ?", uuid, tableID).
+		Preload("Items.MenuItem").
+		Preload("Items.Options").
+		Find(&orders).Error
+	if err != nil {
+		return fmt.Errorf("failed to find orders: %w", err)
+	}
+
+	// ถ้าไม่เจอ orders ใด ๆ
+	if len(orders) == 0 {
+		return fmt.Errorf("no orders found for uuid %s and table_id %d", uuid, tableID)
+	}
+
+	// คำนวณยอดรวมใหม่สำหรับแต่ละ order
+	for _, order := range orders {
+		var total float64
+
+		// คำนวณราคารวมของ Items (ไม่รวมสถานะ 'cancelled')
+		err := tx.Model(&models.OrderItem{}).
+			Select("COALESCE(SUM(price * quantity), 0)").
+			Where("order_id = ? AND status != ?", order.ID, "cancelled").
+			Scan(&total).Error
+		if err != nil {
+			return fmt.Errorf("failed to calculate total for order ID %d: %w", order.ID, err)
+		}
+
+		// คำนวณราคารวมของ Options (ไม่รวมของที่ถูกลบและสถานะ 'cancelled')
+		var optionsTotal float64
+		err = tx.Model(&models.OrderItemOption{}).
+			Joins("JOIN order_items ON order_item_options.order_item_id = order_items.id").
+			Select("COALESCE(SUM(order_item_options.price * order_item_options.quantity), 0)").
+			Where("order_items.order_id = ? AND order_items.status != ? AND order_item_options.deleted_at IS NULL",
+				order.ID, "cancelled").
+			Scan(&optionsTotal).Error
+		if err != nil {
+			return fmt.Errorf("failed to calculate options total for order ID %d: %w", order.ID, err)
+		}
+
+		// รวมยอดทั้งหมด
+		finalTotal := total + optionsTotal
+		fmt.Printf("Updating order ID %d with total: %.2f\n", order.ID, finalTotal)
+
+		// อัปเดตยอดรวมในตาราง orders
+		err = tx.Model(&models.Order{}).
+			Where("id = ?", order.ID).
+			Update("total", finalTotal).Error
+		if err != nil {
+			return fmt.Errorf("failed to update total for order ID %d: %w", order.ID, err)
+		}
+	}
+
+	return nil
+}
+
+// // @Summary ดึงรายการออเดอร์ตามโต๊ะ
+// // @Description ดึงรายการออเดอร์ทั้งหมดของโต๊ะที่ระบุ
+// // @Produce json
+// // @Param table_id path int true "Table ID"
+// // @Success 200 {array} models.Order
+// // @Router /api/orders/table/{table_id} [get]
+// func GetTableOrders(c *fiber.Ctx) error {
+// 	tableID := c.Params("table_id")
+
+// 	var orders []models.Order
+// 	if err := db.DB.Preload("Items").
+// 		Preload("Items.MenuItem").
+// 		Preload("Items.Options").
+// 		Where("table_id = ?", tableID).
+// 		Find(&orders).Error; err != nil {
+// 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+// 			"error": "Failed to fetch table orders",
+// 		})
+// 	}
+
+// 	return c.JSON(orders)
+// }

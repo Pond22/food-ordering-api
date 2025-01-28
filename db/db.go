@@ -47,5 +47,5 @@ func migrate() {
 	DB.AutoMigrate(&models.PrintJob{})
 	DB.AutoMigrate(&models.POSSession{})
 	// DB.AutoMigrate(&models.PromoSalesReport{})
-	// DB.AutoMigrate(&models.TableHistory{})
+	DB.AutoMigrate(&models.Notification{})
 }

@@ -13,9 +13,8 @@ func TableWebSocketHandler(db *gorm.DB) fiber.Handler {
 	return websocket.New(func(conn *websocket.Conn) {
 		defer conn.Close()
 
-		// background task สำหรับส่งข้อมูลซ้ำๆ
 		go func() {
-			ticker := time.NewTicker(2 * time.Second)
+			ticker := time.NewTicker(2 * time.Second) //ตั้งเวลาส่ง ws รัวๆ
 			defer ticker.Stop()
 
 			for range ticker.C {

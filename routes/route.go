@@ -7,11 +7,19 @@ import (
 	utils "food-ordering-api/utility"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/websocket/v2"
 )
 
 func SetupRoutes(app *fiber.App) {
 	// API Group
 	api := app.Group("/api")
+
+	notifications := api.Group("/notifications")
+	{
+		notifications.Post("/call-staff", api_handlers.CallStaff)
+	}
+	// WebSocket สำหรับพนักงาน
+	app.Get("/ws/staff", websocket.New(api_handlers.StaffWebSocket))
 
 	pos := api.Group("/pos")
 	{

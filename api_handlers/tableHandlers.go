@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -484,11 +485,19 @@ func SplitTables(c *fiber.Ctx) error {
 	})
 }
 
+type ReservationRequest struct {
+	CustomerName string    `json:"customer_name"`
+	PhoneNumber  string    `json:"phone_number"`
+	GuestCount   int       `json:"guest_count"`
+	ReservedFor  time.Time `json:"reserved_for"`
+}
+
 // @Summary จองโต๊ะ
 // @Description จองโต๊ะโดยโต๊ะต้องอยู่ในถานะพร้อมให้บริการถึงจองได้
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Param request body ReservationRequest true "ข้อมูลการจองโต๊ะ"
 // @Param id path string true "ID ของกลุ่มโต๊ะนั้นๆ"
 // @Success 200 {object} map[string]interface{} "เค"
 // @Failure 400 {object} map[string]interface{} "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน"
@@ -498,44 +507,68 @@ func SplitTables(c *fiber.Ctx) error {
 // @Router /api/table/reservedTable/{id} [post]
 // @Tags Table
 func ReservedTable(c *fiber.Ctx) error {
-	req := c.Params("id")
-	if req == "" {
-		return c.Status(400).JSON(fiber.Map{"error": "Table ID Require"})
+	tableID := c.Params("id")
+	if tableID == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "กรุณาระบุหมายเลขโต๊ะ"})
+	}
+
+	// รับข้อมูลการจอง
+	var req ReservationRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "ข้อมูลการจองไม่ถูกต้อง"})
 	}
 
 	tx := db.DB.Begin()
 
+	// ตรวจสอบโต๊ะ
 	var table models.Table
-	if err := tx.Where("id = ?", req).First(&table).Error; err != nil {
+	if err := tx.Where("id = ?", tableID).First(&table).Error; err != nil {
 		tx.Rollback()
-		return c.Status(404).JSON(fiber.Map{"error": "Table not found"})
+		return c.Status(404).JSON(fiber.Map{"error": "ไม่พบโต๊ะที่ระบุ"})
 	}
 
 	if table.Status != "available" {
 		tx.Rollback()
-		return c.Status(401).JSON(fiber.Map{"error": "Table not available"})
+		return c.Status(400).JSON(fiber.Map{"error": "โต๊ะไม่ว่าง"})
 	}
 
+	// สร้างข้อมูลการจอง
+	reservation := models.TableReservation{
+		TableID:      uint(table.ID),
+		CustomerName: req.CustomerName,
+		PhoneNumber:  req.PhoneNumber,
+		GuestCount:   req.GuestCount,
+		ReservedFor:  req.ReservedFor,
+		Status:       "active",
+	}
+
+	if err := tx.Create(&reservation).Error; err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถบันทึกการจองได้"})
+	}
+
+	// อัพเดทสถานะโต๊ะ - รวมถึงโต๊ะที่อยู่ในกลุ่มเดียวกัน
 	if hasGroupID(table.GroupID) {
 		if err := tx.Model(&models.Table{}).
 			Where("group_id = ?", table.GroupID).
 			Update("status", "reserved").Error; err != nil {
 			tx.Rollback()
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to update merged tables status"})
+			return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถอัพเดทสถานะโต๊ะรวมได้"})
 		}
 	} else {
 		if err := tx.Model(&table).Update("status", "reserved").Error; err != nil {
 			tx.Rollback()
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to update table status"})
+			return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถอัพเดทสถานะโต๊ะได้"})
 		}
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to commit changes"})
+		return c.Status(500).JSON(fiber.Map{"error": "เกิดข้อผิดพลาดในการบันทึกข้อมูล"})
 	}
 
 	return c.Status(200).JSON(fiber.Map{
-		"message": "Table(s) reserved successfully",
+		"message":        "จองโต๊ะสำเร็จ",
+		"reservation_id": reservation.ID,
 	})
 }
 
@@ -553,44 +586,54 @@ func ReservedTable(c *fiber.Ctx) error {
 // @Router /api/table/unreservedTable/{id} [post]
 // @Tags Table
 func UnreservedTable(c *fiber.Ctx) error {
-	req := c.Params("id")
-	if req == "" {
-		return c.Status(400).JSON(fiber.Map{"error": "Table ID Require"})
+	tableID := c.Params("id")
+	if tableID == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "กรุณาระบุหมายเลขโต๊ะ"})
 	}
 
 	tx := db.DB.Begin()
 
+	// ตรวจสอบโต๊ะ
 	var table models.Table
-	if err := tx.Where("id = ?", req).First(&table).Error; err != nil {
+	if err := tx.Where("id = ?", tableID).First(&table).Error; err != nil {
 		tx.Rollback()
-		return c.Status(404).JSON(fiber.Map{"error": "Table not found"})
+		return c.Status(404).JSON(fiber.Map{"error": "ไม่พบโต๊ะที่ระบุ"})
 	}
 
 	if table.Status != "reserved" {
 		tx.Rollback()
-		return c.Status(401).JSON(fiber.Map{"error": "Table not reserved"})
+		return c.Status(400).JSON(fiber.Map{"error": "โต๊ะนี้ไม่ได้ถูกจอง"})
 	}
 
+	// อัพเดทสถานะการจอง
+	if err := tx.Model(&models.TableReservation{}).
+		Where("table_id = ? AND status = ?", tableID, "active").
+		Update("status", "cancelled").Error; err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถยกเลิกการจองได้"})
+	}
+
+	// อัพเดทสถานะโต๊ะ - รวมถึงโต๊ะที่อยู่ในกลุ่มเดียวกัน
 	if hasGroupID(table.GroupID) {
 		if err := tx.Model(&models.Table{}).
 			Where("group_id = ?", table.GroupID).
 			Update("status", "available").Error; err != nil {
 			tx.Rollback()
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to update merged tables status"})
+			return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถอัพเดทสถานะโต๊ะรวมได้"})
 		}
 	} else {
 		if err := tx.Model(&table).Update("status", "available").Error; err != nil {
 			tx.Rollback()
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to update table status"})
+			return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถอัพเดทสถานะโต๊ะได้"})
 		}
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to commit changes"})
+		return c.Status(500).JSON(fiber.Map{"error": "เกิดข้อผิดพลาดในการบันทึกข้อมูล"})
 	}
 
 	return c.Status(200).JSON(fiber.Map{
-		"message": "Table(s) reserved successfully",
+		"message": "ยกเลิกการจองสำเร็จ",
 	})
 }
 
@@ -661,5 +704,85 @@ func ToggleTableStatus(c *fiber.Ctx) error {
 		"message":    "สลับสถานะสำเร็จ",
 		"table":      table,
 		"new_status": newStatus,
+	})
+}
+
+// @Summary ดึงออเดอร์เมนูอาหารและราคาสุทธิของโต๊ะ
+// @Description ดึงข้อมูลออเดอร์ของโต๊ะที่ระบุทั้งที่ยังไม่เสร็จและเสร็จสมบูรณ์
+// @Accept json
+// @Produce json
+// @Param id path string true "ID โต๊ะ"
+// @Success 200 {object} map[string]interface{} "ข้อมูลออเดอร์ของโต๊ะ"
+// @Failure 400 {object} map[string]interface{} "กรุณาระบุหมายเลขโต๊ะ"
+// @Failure 404 {object} map[string]interface{} "ไม่มีออเดอร์สำหรับโต๊ะนี้"
+// @Failure 500 {object} map[string]interface{} "ไม่สามารถดึงข้อมูลออเดอร์ได้"
+// @Router /api/table/orders/{id} [get]
+// @Tags Table
+func GetTableOrders(c *fiber.Ctx) error {
+	tableID := c.Params("id")
+	if tableID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "กรุณาระบุหมายเลขโต๊ะ",
+		})
+	}
+
+	var qrCode models.QRCode
+	if err := db.DB.Where("table_id = ?", tableID).First(&qrCode).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "ไม่พบข้อมูล QR Code สำหรับโต๊ะนี้",
+		})
+	}
+
+	var orders []models.Order
+	if err := db.DB.Preload("Items.MenuItem.Category").Preload("Items.Options.MenuOption").Preload("Receipt.Staff").Where("uuid = ? AND (status = ? OR status = ?)", qrCode.UUID, "uncompleted", "completed").Find(&orders).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "ไม่สามารถดึงข้อมูลออเดอร์ได้",
+		})
+	}
+
+	if len(orders) == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "ไม่มีออเดอร์สำหรับโต๊ะนี้",
+		})
+	}
+
+	orderDetails := []fiber.Map{}
+	var grandTotal float64
+
+	for _, order := range orders {
+		var orderTotal float64
+		items := []fiber.Map{}
+		for _, item := range order.Items {
+			options := []string{}
+			for _, option := range item.Options {
+				options = append(options, option.MenuOption.Name)
+				orderTotal += option.Price
+			}
+			itemTotal := float64(item.Quantity) * item.Price
+			items = append(items, fiber.Map{
+				"เมนู":     item.MenuItem.Name,
+				"หมวดหมู่": item.MenuItem.Category.Name,
+				"จำนวน":    item.Quantity,
+				"ราคา":     item.Price,
+				"ตัวเลือก": options,
+				"รวม":      itemTotal,
+			})
+			orderTotal += itemTotal
+		}
+		orderDetails = append(orderDetails, fiber.Map{
+			"รหัสออเดอร์": order.ID,
+			"สถานะ":       order.Status,
+			"พนักงาน":     order.Receipt.Staff.Name,
+			"รายการ":      items,
+			"รวมทั้งหมด":  orderTotal,
+		})
+		grandTotal += orderTotal
+	}
+
+	return c.JSON(fiber.Map{
+		"โต๊ะที่":          tableID,
+		"รหัส UUID":        qrCode.UUID,
+		"ออเดอร์":          orderDetails,
+		"ราคาสุทธิทั้งหมด": grandTotal,
 	})
 }

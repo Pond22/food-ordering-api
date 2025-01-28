@@ -275,7 +275,7 @@ func cleanText(text string) string {
 }
 
 // ฟังก์ชันสำหรับเตรียมเนื้อหาสำหรับพิมพ์ออเดอร์ไปครัว
-func preparePrintContent(job models.PrintJob) ([]byte, error) {
+func prepareOrderPrintContent(job models.PrintJob) ([]byte, error) {
 	var content bytes.Buffer
 
 	if job.Order != nil {
@@ -348,6 +348,132 @@ func preparePrintContent(job models.PrintJob) ([]byte, error) {
 	return content.Bytes(), nil
 }
 
+func prepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
+	var content bytes.Buffer
+
+	if job.Receipt != nil {
+		// หัวข้อใบเสร็จ
+		headerLines := []string{
+			"***** ใบเสร็จรับเงิน *****",
+			"Receipt #" + fmt.Sprintf("%d", job.Receipt.ID),
+			"โต๊ะ: " + fmt.Sprintf("%d", job.Receipt.TableID),
+			"----------------------------------------",
+			fmt.Sprintf("วันที่-เวลา: %s", time.Now().Format("02/01/2006 15:04:05")),
+			"----------------------------------------",
+		}
+
+		for _, line := range headerLines {
+			content.WriteString(cleanText(line) + "\n")
+		}
+
+		// แสดงรายการอาหาร
+		content.WriteString("[ รายการอาหาร ]\n")
+		content.WriteString("----------------------------------------\n")
+
+		for i, order := range job.Receipt.Orders {
+			for _, item := range order.Items {
+				// แสดงรายการอาหาร
+				itemLine := fmt.Sprintf("%d. %s", i+1, item.MenuItem.Name)
+				if item.Quantity > 1 {
+					itemLine += fmt.Sprintf(" x%d", item.Quantity)
+				}
+				itemLine += fmt.Sprintf("   ฿%.2f", item.Price)
+				content.WriteString(cleanText(itemLine) + "\n")
+
+				// ตัวเลือกเพิ่มเติม
+				for _, opt := range item.Options {
+					optionLine := fmt.Sprintf("   • %s: %s",
+						cleanText(opt.MenuOption.OptionGroup.Name),
+						cleanText(opt.MenuOption.Name))
+					content.WriteString(optionLine + "\n")
+				}
+
+				// หมายเหตุพิเศษ
+				if item.Notes != "" {
+					content.WriteString(fmt.Sprintf("   [หมายเหตุ: %s]\n", cleanText(item.Notes)))
+				}
+			}
+		}
+
+		content.WriteString("----------------------------------------\n")
+
+		// แสดงผลรวม
+		subTotalLine := fmt.Sprintf("ยอดรวม: ฿%.2f", job.Receipt.SubTotal)
+		discountLine := fmt.Sprintf("ส่วนลด: ฿%.2f", job.Receipt.DiscountTotal)
+		extraChargesLine := fmt.Sprintf("ค่าใช้จ่ายเพิ่มเติม: ฿%.2f", job.Receipt.ChargeTotal)
+		serviceChargeLine := fmt.Sprintf("ค่าบริการ: ฿%.2f", job.Receipt.ServiceCharge)
+		totalLine := fmt.Sprintf("ยอดสุทธิ: ฿%.2f", job.Receipt.Total)
+
+		summaryLines := []string{
+			subTotalLine,
+			discountLine,
+			extraChargesLine,
+			serviceChargeLine,
+			"----------------------------------------",
+			totalLine,
+			"----------------------------------------",
+		}
+
+		for _, line := range summaryLines {
+			content.WriteString(cleanText(line) + "\n")
+		}
+
+		// ข้อมูลการชำระเงิน
+		paymentInfo := fmt.Sprintf("ชำระโดย: %s", cleanText(job.Receipt.PaymentMethod))
+		content.WriteString(paymentInfo + "\n")
+
+		// ข้อมูลพนักงาน
+		employeeInfo := fmt.Sprintf("พนักงาน: %d", job.Receipt.StaffID)
+		content.WriteString(employeeInfo + "\n")
+
+		// ข้อความขอบคุณ
+		footerLines := []string{
+			"========================================",
+			"ขอบคุณที่ใช้บริการ",
+			"========================================",
+		}
+
+		for _, line := range footerLines {
+			content.WriteString(line + "\n")
+		}
+	} else {
+		content.Write(job.Content)
+	}
+
+	return content.Bytes(), nil
+}
+
+func prepareCancelPrintContent(job models.PrintJob) ([]byte, error) {
+	var content bytes.Buffer
+
+	if job.Order != nil {
+		content.WriteString(fmt.Sprintf("== ใบแจ้งยกเลิกรายการอาหาร ==\n"))
+		content.WriteString(fmt.Sprintf("โต๊ะ: %d\n", job.Order.TableID))
+		content.WriteString("----------------------------------------\n")
+		content.WriteString(" รายการอาหาร                จำนวนที่ยกเลิก\n")
+		content.WriteString("----------------------------------------\n")
+
+		// ดึงข้อมูลจากฟิลด์ Content
+		items := strings.Split(string(job.Content), "\n")
+		for _, item := range items {
+			parts := strings.Split(item, "|")
+			if len(parts) == 2 {
+				itemName := fmt.Sprintf("%-25s", parts[0])
+				quantity := fmt.Sprintf("%5s", parts[1])
+				content.WriteString(fmt.Sprintf("%s %s\n", itemName, quantity))
+			}
+		}
+
+		content.WriteString("----------------------------------------\n")
+		content.WriteString(fmt.Sprintf("เวลายกเลิก: %s\n", time.Now().Format("02/01/2006 15:04:05")))
+		content.WriteString("========================================\n")
+		content.WriteString("กรุณาตรวจสอบการยกเลิก\n")
+		content.WriteString("========================================\n")
+	}
+
+	return content.Bytes(), nil
+}
+
 type PrintJobResponse struct {
 	ID        uint            `json:"id"`
 	PrinterID uint            `json:"printer_id"`
@@ -392,7 +518,7 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 		})
 	}
 
-	// ดึงงานพิมพ์ด้วย printer_id
+	// ดึงงานพิมพ์ที่รอดำเนินการ
 	var jobs []models.PrintJob
 	err = db.DB.Where("printer_id = ? AND status = ?", printer.ID, "pending").
 		Preload("Order").
@@ -401,6 +527,10 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 		Preload("Order.Items.Options").
 		Preload("Order.Items.Options.MenuOption").
 		Preload("Order.Items.Options.MenuOption.OptionGroup").
+		Preload("Receipt").
+		Preload("Receipt.Orders.Items.MenuItem").
+		Preload("Receipt.Discounts.DiscountType").
+		Preload("Receipt.Charges.ChargeType").
 		Order("created_at ASC").
 		Find(&jobs).Error
 
@@ -413,8 +543,25 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 	// เตรียม response
 	var responses []PrintJobResponse
 	for _, job := range jobs {
-		// เตรียมเนื้อหาสำหรับพิมพ์
-		preparedContent, err := preparePrintContent(job)
+		var preparedContent []byte
+		var err error
+
+		switch job.JobType {
+		case "order":
+			if job.OrderID != nil {
+				preparedContent, err = prepareOrderPrintContent(job)
+			}
+		case "receipt":
+			if job.ReceiptID != nil {
+				preparedContent, err = prepareReceiptPrintContent(job)
+			}
+		case "cancelation":
+			preparedContent, err = prepareCancelPrintContent(job)
+		default:
+			log.Printf("Skipping job %d due to unknown job type: %s", job.ID, job.JobType)
+			continue
+		}
+
 		if err != nil {
 			log.Printf("Failed to prepare content for job %d: %v", job.ID, err)
 			continue

@@ -166,12 +166,12 @@ type Order struct {
 	ID        uint    `gorm:"primaryKey"`
 	UUID      string  `gorm:"not null;index"`
 	TableID   int     `gorm:"not null"`
-	Status    string  `gorm:"not null"` //  "completed", "uncompleted"
+	Status    string  `gorm:"not null"` //  "completed", "uncompleted", "cancelled"
 	Total     float64 `gorm:"not null"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Items     []OrderItem
-	ReceiptID *uint
+	ReceiptID *uint   `gorm:"index"`
 	Receipt   Receipt `gorm:"foreignKey:ReceiptID"`
 }
 
@@ -199,10 +199,12 @@ type OrderItemOption struct {
 	OrderItem    OrderItem  `gorm:"foreignKey:OrderItemID"`
 	MenuOptionID uint       `gorm:"not null"` // Foreign key to MenuOption
 	MenuOption   MenuOption `gorm:"foreignKey:MenuOptionID"`
-	Value        string     `gorm:"not null"` // ค่าที่เลือก เช่น "เผ็ดมาก", "เพิ่มไข่ดาว"
-	Price        float64    `gorm:"not null"` // ราคา ณ เวลาที่สั่ง
+	Value        string     `gorm:"not null"`           // ค่าที่เลือก เช่น "เผ็ดมาก", "เพิ่มไข่ดาว"
+	Quantity     int        `gorm:"not null;default:1"` // จำนวนตัวเลือกเสริม
+	Price        float64    `gorm:"not null"`           // ราคา ณ เวลาที่สั่ง
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+	DeletedAt    gorm.DeletedAt `gorm:"index" swaggerignore:"true"` // เพิ่ม Soft Delete
 }
 
 // FE-2 ระบบจัดการผู้ใช้งาน
@@ -305,10 +307,12 @@ type ReceiptCharge struct {
 
 // ใบเสร็จ
 type Receipt struct {
-	ID            uint    `gorm:"primaryKey"`
-	UUID          string  `gorm:"not null;index"`
-	TableID       int     `gorm:"not null"`
+	ID      uint   `gorm:"primaryKey"`
+	UUID    string `gorm:"not null;index"`
+	TableID int    `gorm:"not null"`
+	// Orders        []Order `gorm:"foreignKey:ReceiptID"`
 	Orders        []Order `gorm:"foreignKey:ReceiptID"`
+	OrderID       *uint   `gorm:"index"`
 	SubTotal      float64 // ยอดรวมทุก order
 	DiscountTotal float64
 	ChargeTotal   float64
@@ -355,15 +359,27 @@ type Printer struct {
 //		Order *Order `gorm:"foreignKey:OrderID"`
 //	}
 type PrintJob struct {
-	ID        uint    `gorm:"primaryKey"`
-	PrinterID uint    `gorm:"not null;index"`
-	Printer   Printer `gorm:"foreignKey:PrinterID"`
-	OrderID   *uint   // nullable
-	Content   []byte  `gorm:"type:bytea"`
-	Status    string  `gorm:"not null;default:'pending'"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	ID                uint    `gorm:"primaryKey"`
+	PrinterID         uint    `gorm:"not null;index"`
+	Printer           Printer `gorm:"foreignKey:PrinterID"`
+	OrderID           *uint   // nullable
+	ReceiptID         *uint
+	Content           []byte `gorm:"type:bytea"`
+	Status            string `gorm:"not null;default:'pending'"`
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
+	JobType           string
+	CancelledQuantity int `gorm:"default:0"`
 
-	Order *Order `gorm:"foreignKey:OrderID"`
+	Order   *Order   `gorm:"foreignKey:OrderID"`
+	Receipt *Receipt `gorm:"foreignKey:ReceiptID"`
+}
+
+type Notification struct {
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	UserID    uint      `json:"user_id" gorm:"not null"`      // ID ของผู้ใช้ที่ได้รับการแจ้งเตือน
+	Message   string    `json:"message" gorm:"type:text"`     // ข้อความแจ้งเตือน
+	Status    string    `json:"status" gorm:"default:unread"` // สถานะ "unread" หรือ "read"
+	CreatedAt time.Time `json:"created_at"`
 }
