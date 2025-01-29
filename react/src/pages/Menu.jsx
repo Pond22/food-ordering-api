@@ -7,7 +7,7 @@ export default function Menu() {
   const { checkCartExpiry, setTableData } = useCartStore();
 
   const queryParams = new URLSearchParams(window.location.search);
-  const tableId = queryParams.get("table_id");
+  const tableId = queryParams.get("table");
   const uuid = queryParams.get("uuid");
 
   useEffect(() => {

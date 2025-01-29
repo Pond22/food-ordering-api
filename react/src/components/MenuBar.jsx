@@ -14,7 +14,37 @@ import useCartStore from "../hooks/cart-store";
 export default function MenuBar() {
   const [openCallModal, setOpenCallModal] = useState(false);
   const [openCartModal, setOpenCartModal] = useState(false);
-  const { cart, increaseQuantity, decreaseQuantity, tableId } = useCartStore();
+  const { cart, increaseQuantity, decreaseQuantity, tableId, uuid } = useCartStore();
+
+  const param = {
+    "items": [
+      {
+        "menu_item_id": 2,
+        "notes": "อร่้อยๆ",
+        "options": [
+          {
+            "menu_option_id": 1
+          }
+        ],
+        "quantity": 5
+      },
+      {
+        "menu_item_id": 2,
+        "notes": "11111",
+        "options": [
+          {
+            "menu_option_id": 2
+          }
+        ],
+        "quantity": 6
+      }
+    ],
+    "table_id": tableId,
+    "use_promo": [
+      
+    ],
+    "uuid": uuid
+  }
 
   const calculateTotal = () => {
     return cart.reduce((total, item) => total + item.menuItem.Price * item.quantity, 0);
