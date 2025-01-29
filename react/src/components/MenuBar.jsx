@@ -14,40 +14,42 @@ import useCartStore from "../hooks/cart-store";
 export default function MenuBar() {
   const [openCallModal, setOpenCallModal] = useState(false);
   const [openCartModal, setOpenCartModal] = useState(false);
-  const { cart, increaseQuantity, decreaseQuantity, tableId, uuid } = useCartStore();
+  const { cart, increaseQuantity, decreaseQuantity, tableId, uuid } =
+    useCartStore();
 
-  const param = {
-    "items": [
+  const param = { //test test
+    items: [
       {
-        "menu_item_id": 2,
-        "notes": "อร่้อยๆ",
-        "options": [
+        menu_item_id: 2,
+        notes: "อร่้อยๆ",
+        options: [
           {
-            "menu_option_id": 1
-          }
+            menu_option_id: 1,
+          },
         ],
-        "quantity": 5
+        quantity: 5,
       },
       {
-        "menu_item_id": 2,
-        "notes": "11111",
-        "options": [
+        menu_item_id: 2,
+        notes: "11111",
+        options: [
           {
-            "menu_option_id": 2
-          }
+            menu_option_id: 2,
+          },
         ],
-        "quantity": 6
-      }
+        quantity: 6,
+      },
     ],
-    "table_id": tableId,
-    "use_promo": [
-      
-    ],
-    "uuid": uuid
-  }
+    table_id: tableId,
+    use_promo: [],
+    uuid: uuid,
+  };
 
   const calculateTotal = () => {
-    return cart.reduce((total, item) => total + item.menuItem.Price * item.quantity, 0);
+    return cart.reduce(
+      (total, item) => total + item.menuItem.Price * item.quantity,
+      0
+    );
   };
 
   useEffect(() => {
@@ -173,7 +175,13 @@ export default function MenuBar() {
                             <div className="flex justify-between items-center gap-3">
                               <button
                                 className="bg-gray-200 hover:bg-gray-300 disabled:opacity-70 disabled:hover:bg-gray-200 p-2 rounded-md text-black"
-                                onClick={() => decreaseQuantity(item.menu_item_id, item.notes, item.options)}
+                                onClick={() =>
+                                  decreaseQuantity(
+                                    item.menu_item_id,
+                                    item.notes,
+                                    item.options
+                                  )
+                                }
                               >
                                 <Minus className="size-2" />
                               </button>
@@ -182,7 +190,13 @@ export default function MenuBar() {
                               </span>
                               <button
                                 className="bg-gray-200 hover:bg-gray-300 p-2 rounded-md text-black"
-                                onClick={() => increaseQuantity(item.menu_item_id, item.notes, item.options)}
+                                onClick={() =>
+                                  increaseQuantity(
+                                    item.menu_item_id,
+                                    item.notes,
+                                    item.options
+                                  )
+                                }
                               >
                                 <PlusIcon className="size-2" />
                               </button>
