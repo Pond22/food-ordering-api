@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"food-ordering-api/db"
 	"food-ordering-api/models"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -372,4 +375,98 @@ func GetAllPromotion(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(promotions)
+}
+
+// @Summary อัพเดทรูปภาพโปรโมชั่น
+// @Description อัพเดทรูปภาพของโปรโมชั่น รองรับไฟล์ JPG และ PNG ขนาดไม่เกิน 5MB
+// @Tags promotions
+// @Accept multipart/form-data
+// @Produce json
+// @Param id path integer true "ID ของโปรโมชั่น"
+// @Param image formData file true "รูปภาพโปรโมชั่น"
+// @Success 200 {object} models.Promotion "รายละเอียดของโปรโมชั่นที่อัพเดทรูปภาพแล้ว"
+// @Failure 400 {object} ErrorResponse "ข้อมูลไม่ถูกต้อง"
+// @Failure 401 {object} ErrorResponse "ไม่ได้รับอนุญาต"
+// @Failure 404 {object} ErrorResponse "ไม่พบโปรโมชั่นที่ระบุ"
+// @Failure 500 {object} ErrorResponse "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์"
+// @Router /api/promotions/image/{id} [put]
+func UpdatePromotionImage(c *fiber.Ctx) error { //Security BearerAuth
+	id := c.Params("id")
+	promoID, err := strconv.Atoi(id)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid promotion ID format",
+		})
+	}
+
+	// ตรวจสอบว่ามีโปรโมชั่นอยู่จริง
+	var existingPromotion models.Promotion
+	if err := db.DB.First(&existingPromotion, promoID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Promotion not found",
+		})
+	}
+
+	// รับไฟล์รูปภาพ
+	file, err := c.FormFile("image")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Error getting image file",
+		})
+	}
+
+	// ตรวจสอบขนาดไฟล์ (จำกัดขนาดไม่เกิน 5MB)
+	if file.Size > 5*1024*1024 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Image file size must be less than 5MB",
+		})
+	}
+
+	// ตรวจสอบนามสกุลไฟล์
+	filename := file.Filename
+	ext := filepath.Ext(filename)
+	validExts := map[string]bool{
+		".jpg":  true,
+		".jpeg": true,
+		".png":  true,
+	}
+	if !validExts[strings.ToLower(ext)] {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Only JPG and PNG files are allowed",
+		})
+	}
+
+	// เปิดไฟล์
+	fileContent, err := file.Open()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Error opening image file",
+		})
+	}
+	defer fileContent.Close()
+
+	// อ่านข้อมูลไฟล์
+	buffer := make([]byte, file.Size)
+	if _, err := fileContent.Read(buffer); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Error reading image file",
+		})
+	}
+
+	// อัพเดทรูปภาพในฐานข้อมูล
+	if err := db.DB.Model(&existingPromotion).Update("image", buffer).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update promotion image",
+		})
+	}
+
+	// ดึงข้อมูลที่อัพเดทแล้วมาแสดง
+	var updatedPromotion models.Promotion
+	if err := db.DB.Preload("Items.MenuItem").First(&updatedPromotion, promoID).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Error loading updated promotion",
+		})
+	}
+
+	return c.JSON(updatedPromotion)
 }

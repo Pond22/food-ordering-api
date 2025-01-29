@@ -85,6 +85,7 @@ func SetupRoutes(app *fiber.App) {
 		promotion.Get("/", api_handlers.GetAllPromotion)
 		promotion.Get("/Active", api_handlers.GetActivePromotions)
 		promotion.Patch("/status/:id", api_handlers.UpdatePromotionStatus)
+		promotion.Put("/image/:id", api_handlers.UpdatePromotionImage)
 		promotion.Put("/:id", api_handlers.UpdatePromotion)
 		promotion.Delete("/:id", api_handlers.DeletePromotion)
 		promotion.Get("/:id", api_handlers.GetPromotionByID)

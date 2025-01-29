@@ -3284,6 +3284,69 @@
                 }
             }
         },
+        "/api/promotions/image/{id}": {
+            "put": {
+                "description": "อัพเดทรูปภาพของโปรโมชั่น รองรับไฟล์ JPG และ PNG ขนาดไม่เกิน 5MB",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "promotions"
+                ],
+                "summary": "อัพเดทรูปภาพโปรโมชั่น",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของโปรโมชั่น",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "รูปภาพโปรโมชั่น",
+                        "name": "image",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของโปรโมชั่นที่อัพเดทรูปภาพแล้ว",
+                        "schema": {
+                            "$ref": "#/definitions/models.Promotion"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบโปรโมชั่นที่ระบุ",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/promotions/status/{id}": {
             "patch": {
                 "security": [
@@ -5750,6 +5813,90 @@
                 },
                 "vendorID": {
                     "description": "สำหรับ USB printer",
+                    "type": "string"
+                }
+            }
+        },
+        "models.Promotion": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "descriptionCh": {
+                    "type": "string"
+                },
+                "descriptionEn": {
+                    "type": "string"
+                },
+                "endDate": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image": {
+                    "description": "รูปโปร",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "isActive": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.PromotionItem"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "nameCh": {
+                    "type": "string"
+                },
+                "nameEn": {
+                    "type": "string"
+                },
+                "price": {
+                    "description": "เพิ่มฟิลด์ราคา",
+                    "type": "number"
+                },
+                "startDate": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.PromotionItem": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "menuItem": {
+                    "$ref": "#/definitions/models.MenuItem"
+                },
+                "menuItemID": {
+                    "type": "integer"
+                },
+                "promotionID": {
+                    "type": "integer"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "updatedAt": {
                     "type": "string"
                 }
             }

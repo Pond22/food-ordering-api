@@ -119,8 +119,10 @@ func ProcessPayment(c *fiber.Ctx) error {
 	// 5. บันทึกใบเสร็จ
 	if err := tx.Create(&receipt).Error; err != nil {
 		tx.Rollback()
+		fmt.Println("Error creating receipt:", err) // Debug log
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to create receipt",
+			"error":  "Failed to create receipt",
+			"detail": err.Error(), // ส่งรายละเอียดของ error ออกมา
 		})
 	}
 

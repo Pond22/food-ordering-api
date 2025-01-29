@@ -15,7 +15,7 @@ export default function MenuBar() {
   const [openCallModal, setOpenCallModal] = useState(false);
   const [openCartModal, setOpenCartModal] = useState(false);
   const { cart, increaseQuantity, decreaseQuantity } = useCartStore();
-
+  console.log(cart);
   const calculateTotal = () => {
     return cart.reduce((total, item) => total + item.Price * item.quantity, 0);
   };

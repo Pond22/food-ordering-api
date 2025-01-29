@@ -19,9 +19,10 @@ type Promotion struct {
 	IsActive      bool            `gorm:"not null;default:true"`
 	Price         float64         `gorm:"not null"` // เพิ่มฟิลด์ราคา
 	Items         []PromotionItem `gorm:"foreignKey:PromotionID"`
+	Image         []byte          `gorm:"type:bytea"` // รูปโปร
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
-	DeletedAt     *time.Time `gorm:"index"`
+	DeletedAt     gorm.DeletedAt `json:"-" swaggerignore:"true"`
 }
 
 type PromotionItem struct {
@@ -33,7 +34,7 @@ type PromotionItem struct {
 	Quantity    int       `gorm:"not null;default:1"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
-	DeletedAt   gorm.DeletedAt `gorm:"index"`
+	DeletedAt   gorm.DeletedAt `json:"-" swaggerignore:"true"`
 }
 
 // PromotionUsage - บันทึกการใช้โปรโมชั่น
@@ -45,5 +46,5 @@ type PromotionUsage struct {
 	Order       Order     `gorm:"foreignKey:OrderID"`
 	SaveAmount  float64   `gorm:"not null"` // จำนวนเงินที่ประหยัดได้
 	CreatedAt   time.Time
-	DeletedAt   gorm.DeletedAt `gorm:"index"`
+	DeletedAt   gorm.DeletedAt `json:"-" swaggerignore:"true"`
 }

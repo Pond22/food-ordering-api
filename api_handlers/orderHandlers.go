@@ -775,16 +775,30 @@ func CancelOrderItem(c *fiber.Ctx) error {
 
 	// หาเครื่องพิมพ์ที่เกี่ยวข้องตามหมวดหมู่ของเมนูอาหารในออเดอร์
 	var printers []models.Printer
-	err := db.DB.Joins("JOIN printer_categories ON printers.id = printer_categories.printer_id").
-		Where("printer_categories.category_id IN (?)",
-			db.DB.Table("order_items").Select("menu_item_id").Where("order_id = ?", order.ID)).
+	err := db.DB.Distinct("printers.*").
+		Joins("JOIN printer_categories ON printers.id = printer_categories.printer_id").
+		Joins("JOIN order_items ON order_items.order_id = ?", order.ID).
+		Joins("JOIN menu_items ON menu_items.id = order_items.menu_item_id").
+		Where("printer_categories.category_id = menu_items.category_id").
 		Find(&printers).Error
 
-	if err != nil || len(printers) == 0 {
+	if err != nil {
 		tx.Rollback()
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "No printers available for this order's categories",
+			"error": fmt.Sprintf("Failed to find printers: %v", err),
 		})
+	}
+
+	// If no category-specific printers found, fall back to main printer
+	if len(printers) == 0 {
+		var mainPrinter models.Printer
+		if err := tx.Where("name = ?", "main").First(&mainPrinter).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "No printers available and could not find main printer",
+			})
+		}
+		printers = append(printers, mainPrinter)
 	}
 
 	printContentString := strings.Join(printContents, "\n")
