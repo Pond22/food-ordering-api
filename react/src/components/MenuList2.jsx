@@ -5,6 +5,7 @@ import MenuItem from "./MenuItem";
 export default function MenuList() {
   const [categories, setCategories] = useState([]);
   const [menus, setMenus] = useState([]);
+  
   const [activeLink, setActiveLink] = useState(0);
   const scrollRef = useRef(null);
 

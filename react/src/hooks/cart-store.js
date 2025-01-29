@@ -1,75 +1,143 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+const CACHE_TIME = 2 * 60 * 60 * 1000;
+
 const useCartStore = create(
   persist(
-    (set) => ({
-      cart: [], // ตะกร้าสินค้า
+    (set, get) => ({
+      cart: [],
+      tableId: null,
+      uuid: null,
 
-      // เพิ่มสินค้าในตะกร้า
+      setTableData: (newTableId, newUuid) => {
+        const { tableId, uuid, clearCart } = get();
+
+        if (tableId !== newTableId || uuid !== newUuid) {
+          clearCart();
+        }
+
+        set({ tableId: newTableId, uuid: newUuid });
+      },
+
       addToCart: (item, quantity, note, selectedOptions) =>
         set((state) => {
-          const existingItem = state.cart.find((i) => i.ID === item.ID);
+          const timestamp = new Date().getTime();
+
+          const existingItem = state.cart.find(
+            (i) =>
+              i.menu_item_id === item.ID &&
+              i.notes === note &&
+              JSON.stringify(i.options) ===
+                JSON.stringify(
+                  selectedOptions.map((opt) => ({
+                    menu_option_id: opt.menu_option_id,
+                  }))
+                )
+          );
+
           if (existingItem) {
+            // อัปเดตจำนวนสินค้า หากมีอยู่แล้ว
             return {
               cart: state.cart.map((i) =>
-                i.ID === item.ID
-                  ? {
-                      ...i,
-                      quantity: i.quantity + quantity,
-                      note,
-                      selectedOptions,
-                    }
+                i.menuItem === item &&
+                i.menu_item_id === item.ID &&
+                i.notes === note &&
+                JSON.stringify(i.options) ===
+                  JSON.stringify(
+                    selectedOptions.map((opt) => ({
+                      menu_option_id: opt.menu_option_id,
+                    }))
+                  )
+                  ? { ...i, quantity: i.quantity + quantity, timestamp }
                   : i
               ),
             };
           } else {
+            // เพิ่มเป็นรายการใหม่ ถ้าเป็นสินค้าคนละตัว (note หรือ options ต่างกัน)
             return {
               cart: [
                 ...state.cart,
                 {
-                  ...item,
-                  quantity,
-                  note,
-                  selectedOptions,
+                  menuItem: item,
+                  menu_item_id: item.ID,
+                  notes: note || "",
+                  options: selectedOptions.map((opt) => ({
+                    menu_option_id: opt.menu_option_id, 
+                  })),
+                  quantity: quantity,
+                  timestamp,
                 },
               ],
             };
           }
         }),
 
-      // เพิ่มจำนวนสินค้าในตะกร้า
-      increaseQuantity: (itemId) =>
+      increaseQuantity: (menuItemId, note, selectedOptions) =>
         set((state) => ({
           cart: state.cart.map((i) =>
-            i.ID === itemId ? { ...i, quantity: i.quantity + 1 } : i
+            i.menu_item_id === menuItemId &&
+            i.notes === note &&
+            JSON.stringify(i.options) ===
+              JSON.stringify(
+                selectedOptions.map((opt) => ({
+                  menu_option_id: opt.menu_option_id,
+                }))
+              )
+              ? { ...i, quantity: i.quantity + 1 }
+              : i
           ),
         })),
 
-      // ลดจำนวนสินค้าในตะกร้า
-      decreaseQuantity: (itemId) =>
+      decreaseQuantity: (menuItemId, note, selectedOptions) =>
         set((state) => ({
           cart: state.cart
             .map((i) =>
-              i.ID === itemId
+              i.menu_item_id === menuItemId &&
+              i.notes === note &&
+              JSON.stringify(i.options) ===
+                JSON.stringify(
+                  selectedOptions.map((opt) => ({
+                    menu_option_id: opt.menu_option_id,
+                  }))
+                )
                 ? { ...i, quantity: i.quantity - 1 }
                 : i
             )
             .filter((i) => i.quantity > 0),
         })),
 
-      // ลบสินค้าออกจากตะกร้า
-      removeFromCart: (itemId) =>
+      removeFromCart: (menuItemId, note, selectedOptions) =>
         set((state) => ({
-          cart: state.cart.filter((i) => i.ID !== itemId),
+          cart: state.cart.filter(
+            (i) =>
+              i.menu_item_id !== menuItemId ||
+              i.notes !== note ||
+              JSON.stringify(i.options) !==
+                JSON.stringify(
+                  selectedOptions.map((opt) => ({
+                    menu_option_id: opt.menu_option_id,
+                  }))
+                )
+          ),
         })),
 
-      // ล้างตะกร้าทั้งหมด
+      checkCartExpiry: () => {
+        const now = new Date().getTime();
+        const updatedCart = get().cart.filter(
+          (item) => now - item.timestamp < CACHE_TIME
+        );
+
+        if (updatedCart.length !== get().cart.length) {
+          set({ cart: updatedCart });
+        }
+      },
+
       clearCart: () => set({ cart: [] }),
     }),
     {
-      name: "cart-storage", // ชื่อ key ที่เก็บใน localStorage
-      getStorage: () => localStorage, // ระบุว่าใช้ localStorage
+      name: "cart-storage", 
+      getStorage: () => localStorage,
     }
   )
 );

@@ -14,15 +14,17 @@ import useCartStore from "../hooks/cart-store";
 export default function MenuBar() {
   const [openCallModal, setOpenCallModal] = useState(false);
   const [openCartModal, setOpenCartModal] = useState(false);
-  const { cart, increaseQuantity, decreaseQuantity } = useCartStore();
+  const { cart, increaseQuantity, decreaseQuantity, tableId } = useCartStore();
 
   const calculateTotal = () => {
-    return cart.reduce((total, item) => total + item.Price * item.quantity, 0);
+    return cart.reduce((total, item) => total + item.menuItem.Price * item.quantity, 0);
   };
 
   useEffect(() => {
     calculateTotal();
   }, [cart]);
+
+  const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <nav className="bg-[#1C2B41] shadow-sm fixed top-0 w-full z-50">
@@ -32,7 +34,7 @@ export default function MenuBar() {
             EasyOrder
           </span>
           <span className="text-base font-semibold whitespace-nowrap">
-            โต๊ะที่...
+            โต๊ะที่ {tableId}
           </span>
         </div>
         <div className="block w-auto">
@@ -87,7 +89,7 @@ export default function MenuBar() {
                 <ShoppingCart />
                 <span className="sr-only">Cart</span>
                 <div className="absolute inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full -top-2 -end-2">
-                  {cart.length}
+                  {totalQuantity}
                 </div>
               </button>
               {openCartModal && (
@@ -123,25 +125,25 @@ export default function MenuBar() {
                     <div className="flex-1 overflow-y-auto py-2">
                       {cart.map((item, i) => (
                         <div
-                          key={item.ID}
+                          key={i}
                           className="flex justify-between items-center gap-2 p-2 border-b last:border-none"
                         >
                           <div className="flex flex-col gap-1">
                             <h6 className="text-lg font-medium">
-                              {item.Name}
+                              {item.menuItem.Name}
                             </h6>
                             <span className="text-sm text-gray-600">
-                              หมายเหตุ : {item.note || "-"}
+                              หมายเหตุ : {item.notes || "-"}
                             </span>
                           </div>
                           <div className="flex flex-col items-center gap-1">
                             <span className="text-base font-medium">
-                              {item.Price * item.quantity}&nbsp;บาท
+                              {item.menuItem.Price * item.quantity}&nbsp;บาท
                             </span>
                             <div className="flex justify-between items-center gap-3">
                               <button
                                 className="bg-gray-200 hover:bg-gray-300 disabled:opacity-70 disabled:hover:bg-gray-200 p-2 rounded-md text-black"
-                                onClick={() => decreaseQuantity(item.ID)}
+                                onClick={() => decreaseQuantity(item.menu_item_id, item.notes, item.options)}
                               >
                                 <Minus className="size-2" />
                               </button>
@@ -150,7 +152,7 @@ export default function MenuBar() {
                               </span>
                               <button
                                 className="bg-gray-200 hover:bg-gray-300 p-2 rounded-md text-black"
-                                onClick={() => increaseQuantity(item.ID)}
+                                onClick={() => increaseQuantity(item.menu_item_id, item.notes, item.options)}
                               >
                                 <PlusIcon className="size-2" />
                               </button>

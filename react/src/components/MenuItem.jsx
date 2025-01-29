@@ -6,7 +6,8 @@ import useCartStore from "../hooks/cart-store";
 const MenuItem = ({ item }) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false); // Popup state
   const [note, setNote] = useState(""); // Note for the kitchen
-  const [selectedOptions, setSelectedOptions] = useState({}); // Store selected options for each group
+  const [selectedOptions, setSelectedOptions] = useState({});
+  
   const [quantity, setQuantity] = useState(1);
 
   const { addToCart } = useCartStore();
@@ -22,7 +23,7 @@ const MenuItem = ({ item }) => {
   // Handle adding item to cart
   const handleAddToCart = () => {
     if (quantity > 0) {
-      addToCart(item, quantity, note, selectedOptions);
+      addToCart(item, quantity, note, Object.values(selectedOptions));
       setNote(""); // Clear the note
       setSelectedOptions({}); // Clear selected options
       setQuantity(1);
@@ -31,10 +32,10 @@ const MenuItem = ({ item }) => {
   };
 
   // Handle option selection change
-  const handleOptionChange = (groupName, optionName, price) => {
+  const handleOptionChange = (groupID, option) => {
     setSelectedOptions((prev) => ({
       ...prev,
-      [groupName]: { optionName, price },
+      [groupID]: { menu_option_id: option.ID }, 
     }));
   };
 
@@ -141,7 +142,13 @@ const MenuItem = ({ item }) => {
                               type="radio"
                               name={group.Name}
                               value={option.Name}
-                              className=""
+                              checked={
+                                selectedOptions[group.ID]?.menu_option_id === option.ID
+                              }
+                              onChange={() =>
+                                handleOptionChange(group.ID, option)
+                              }
+                              className="cursor-pointer"
                             />
                             {option.Name} (+{option.Price}฿)
                           </div>
