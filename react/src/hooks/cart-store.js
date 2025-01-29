@@ -25,9 +25,12 @@ const useCartStore = create(
       addToCart: (item, quantity, note, selectedOptions) =>
         set((state) => {
           const itemPrice = state.calculateItemPrice(item, selectedOptions) // คำนวณราคาใหม่ของสินค้า
+
+          // ตรวจสอบว่ามีสินค้าในตะกร้าแล้วหรือไม่
           const existingItem = state.cart.find((i) => i.ID === item.ID)
 
           if (existingItem) {
+            // ถ้ามีสินค้ารายการเดิมอยู่แล้ว
             return {
               cart: state.cart.map((i) =>
                 i.ID === item.ID
@@ -42,6 +45,7 @@ const useCartStore = create(
               ),
             }
           } else {
+            // ถ้าไม่มีสินค้าในตะกร้า
             return {
               cart: [
                 ...state.cart,

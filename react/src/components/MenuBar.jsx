@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Modal } from 'flowbite-react'
+import axios from 'axios'
 import {
   Banknote,
   Bell,
@@ -11,11 +12,12 @@ import {
 } from 'lucide-react'
 import useCartStore from '../hooks/cart-store'
 
-export default function MenuBar({ tableId, uuid }) {
+export default function MenuBar({ tableID, uuid }) {
   const [openCallModal, setOpenCallModal] = useState(false)
   const [openCartModal, setOpenCartModal] = useState(false)
   const { cart, increaseQuantity, decreaseQuantity } = useCartStore()
 
+  // คำนวณราคาในตะกร้า
   const calculateTotal = () => {
     return cart.reduce((total, item) => total + item.Price * item.quantity, 0)
   }
@@ -24,15 +26,68 @@ export default function MenuBar({ tableId, uuid }) {
     calculateTotal()
   }, [cart])
 
+  const handleConfirmOrder = async () => {
+    const items = cart.map((item) => ({
+      menu_item_id: item.ID, // menu_item_id ถูกต้องแล้ว
+      notes: item.note || '', // ส่งหมายเหตุถูกต้อง
+      options: Array.isArray(item.selectedOptions)
+        ? item.selectedOptions.map((opt) => ({
+            menu_option_id: opt.menu_option_id || opt.id, // menu_option_id ถูกต้องไหม?
+            option_name: opt.optionName, // เพิ่มชื่อของตัวเลือก (หาก API ต้องการ)
+            option_price: opt.price, // เพิ่มราคาของตัวเลือก (หาก API ต้องการ)
+          }))
+        : [], // ส่งเป็น array ว่างหากไม่มีตัวเลือก
+      quantity: item.quantity, // จำนวนของรายการถูกต้อง
+    }))
+
+    const orderData = {
+      items,
+      // ?tableID=%v&uuid=%v
+      table_id: tableID, // table_id ถูกต้อง
+      use_promo: [], // หากต้องการข้อมูลโปรโมชันให้เพิ่มใน use_promo
+      uuid: uuid, // uuid ถูกต้อง
+    }
+
+    try {
+      const response = await axios.post(
+        'http://localhost:8080/api/orders', // URL ของ API
+        orderData, // ข้อมูลออเดอร์
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+        }
+      )
+
+      if (response.status === 200) {
+        alert('Order placed successfully!')
+        setOpenCartModal(false)
+        // เคลียร์ตะกร้าหลังจากสั่งซื้อสำเร็จ
+        useCartStore.getState().clearCart() // เรียกใช้ฟังก์ชัน clearCart ที่ได้เพิ่มเข้าไป
+      } else {
+        alert('Failed to place order!')
+      }
+    } catch (error) {
+      if (error.response) {
+        console.error('API Error:', error.response.data)
+        alert('Failed to place order! ' + error.response.data.error)
+      } else {
+        console.error('Error:', error)
+        alert('An error occurred while placing the order.')
+      }
+    }
+  }
+
   return (
     <nav className="bg-[#1C2B41] shadow-sm fixed top-0 w-full z-50">
       <div className="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto px-4 py-2">
         <div className="flex flex-col gap-1 justify-center items-start text-white">
-          <span className="text-xl font-semibold whitespace-nowrap text-gold">
+          <span className="text-xl font-semibold whitespace-nowrap bg-gradient-to-t from-yellow-400 to-yellow-600 text-transparent bg-clip-text">
             Grand Kaze Yakiniku Chang Mai
           </span>
           <span className="text-base font-bold whitespace-nowrap text-red-500">
-            Table: {tableId} | UUID: {uuid}
+            Table : {tableID} | uuid : {uuid}
           </span>
         </div>
         <div className="block w-auto">
@@ -50,7 +105,6 @@ export default function MenuBar({ tableId, uuid }) {
                 size="md"
                 onClose={() => setOpenCallModal(false)}
                 popup
-                className=""
               >
                 <Modal.Header className="bg-gray-200" />
                 <Modal.Body className="bg-gray-200 rounded-md">
@@ -118,7 +172,6 @@ export default function MenuBar({ tableId, uuid }) {
                       </button>
                     </div>
                     <hr className="mt-4" />
-
                     {/* Scrollable Content */}
                     <div className="flex-1 overflow-y-auto py-2">
                       {cart.map((item, i) => (
@@ -131,7 +184,6 @@ export default function MenuBar({ tableId, uuid }) {
                             <span className="text-sm text-gray-600">
                               หมายเหตุ : {item.note || '-'}
                             </span>
-                            {/* แสดง selectedOptions */}
                             {item.selectedOptions &&
                               Object.keys(item.selectedOptions).length > 0 && (
                                 <div className="mt-1 text-sm text-gray-600">
@@ -192,7 +244,10 @@ export default function MenuBar({ tableId, uuid }) {
                           {calculateTotal()}&nbsp;THB
                         </span>
                       </div>
-                      <button className="px-4 py-3 w-full rounded-md text-white font-semibold bg-[#4bcc37] hover:bg-[#4aac3b]">
+                      <button
+                        className="px-4 py-3 w-full rounded-md text-white font-semibold bg-[#4bcc37] hover:bg-[#4aac3b]"
+                        onClick={handleConfirmOrder}
+                      >
                         ยืนยันการสั่งอาหาร
                       </button>
                     </div>

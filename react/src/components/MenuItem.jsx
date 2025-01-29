@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Plus, Minus, PlusIcon } from 'lucide-react'
 import useCartStore from '../hooks/cart-store'
+import styles from '../styles/MenuItem.module.css'
 
 const MenuItem = ({ item, promotion, language }) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false) // Popup state
@@ -29,10 +30,10 @@ const MenuItem = ({ item, promotion, language }) => {
       console.log('Adding Item to Cart: ', finalItem)
       addToCart(finalItem, quantity, note, selectedOptions)
 
-      setNote('')
-      setSelectedOptions({})
-      setQuantity(1)
-      setIsPopupOpen(false)
+      setNote('') // รีเซ็ต note
+      setSelectedOptions({}) // รีเซ็ต selectedOptions
+      setQuantity(1) // รีเซ็ต quantity
+      setIsPopupOpen(false) // ปิด Popup
     }
 
     if (selectedPromotion && quantity > 0) {
@@ -44,19 +45,19 @@ const MenuItem = ({ item, promotion, language }) => {
         quantity: quantity,
         note: note,
         isPromotion: true,
-        selectedOptions, // ส่งตัวเลือกที่เลือกในโปรโมชัน
+        selectedOptions, // ส่ง selectedOptions ในรูปแบบเดียวกับที่ API ต้องการ
       }
       console.log('Adding Promotion to Cart: ', promotionItem)
-      addToCart(promotionItem)
+      addToCart(promotionItem, quantity, note, selectedOptions) // ส่งโปรโมชันไปที่ addToCart
       handleClosePopup()
     }
   }
 
   // ฟังก์ชันที่ใช้สำหรับเพิ่มตัวเลือก
-  const handleOptionChange = (groupName, optionName, price) => {
+  const handleOptionChange = (groupName, optionID, price) => {
     setSelectedOptions((prev) => ({
       ...prev,
-      [groupName]: { optionName, price }, // เก็บชื่อและราคาของตัวเลือกในแต่ละกลุ่ม
+      [groupName]: { menuOptionID: optionID, price }, // ใช้ menuOptionID แทน optionName
     }))
     console.log('Selected Options Updated: ', { ...selectedOptions })
   }
@@ -65,7 +66,11 @@ const MenuItem = ({ item, promotion, language }) => {
   const displayItem = item || promotion
 
   return (
-    <div className={'bg-white border border-gold rounded-md shadow-md'}>
+    <div
+      className={
+        'bg-gradient-to-b from-black/80 via-black/50 to-white/10 border border-white/30 rounded-md shadow-xl hover:shadow-xl transition-shadow duration-300'
+      }
+    >
       {/* แสดงรูปภาพเมนูหรือโปรโมชัน */}
       {displayItem.Image ? (
         <img
@@ -77,11 +82,16 @@ const MenuItem = ({ item, promotion, language }) => {
           onClick={togglePopup} // เมื่อคลิกจะแสดง Popup
         />
       ) : (
-        <div className="placeholder-image">No Image Available</div>
+        <div className="placeholder-image h-28 sm:h-36 w-full">
+          No Image Available
+        </div>
       )}
 
-      <div className={'p-2 flex flex-col gap-4'}>
-        <h3 className="text-lg text-gold font-semibold" onClick={togglePopup}>
+      <div className={'p-2 px-4 flex flex-col gap-4'}>
+        <h3
+          className="text-lg bg-gradient-to-t from-yellow-400 to-yellow-600 text-transparent bg-clip-text"
+          onClick={togglePopup}
+        >
           {language === 'th'
             ? displayItem.Name
             : language === 'en'
@@ -94,7 +104,7 @@ const MenuItem = ({ item, promotion, language }) => {
           </p>
           <button
             onClick={togglePopup}
-            className=" bg-green-400 hover:bg-green-500 rounded-full p-1 text-white"
+            className=" bg-gold hover:bg-green-500 rounded-full p-1 text-white"
           >
             <Plus className="size-5" />
           </button>
@@ -184,7 +194,7 @@ const MenuItem = ({ item, promotion, language }) => {
                           onChange={() =>
                             handleOptionChange(
                               group.Name,
-                              option.Name,
+                              option.ID, // ใช้ option.ID แทน option.Name
                               option.Price
                             )
                           }
