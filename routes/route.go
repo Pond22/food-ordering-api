@@ -8,11 +8,19 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
+	"github.com/gofiber/websocket/v2"
 )
 
 func SetupRoutes(app *fiber.App) {
 	// API Group
 	api := app.Group("/api")
+
+	notifications := api.Group("/notifications")
+	{
+		notifications.Post("/call-staff", api_handlers.CallStaff)
+	}
+	// WebSocket สำหรับพนักงาน
+	app.Get("/ws/staff", websocket.New(api_handlers.StaffWebSocket))
 
 	notifications := api.Group("/notifications")
 	{
@@ -53,6 +61,7 @@ func SetupRoutes(app *fiber.App) {
 	{
 		// เมนูพื้นฐาน
 		menu.Post("/", api_handlers.CreateMenuItemHandler)
+		menu.Get("/ActiveMenu", api_handlers.GetActiveMenu)
 		menu.Get("/ActiveMenu", api_handlers.GetActiveMenu)
 		menu.Get("/", api_handlers.GetMenu)
 		menu.Put("/:id", api_handlers.UpdateMenuItem)
@@ -156,6 +165,69 @@ func SetupRoutes(app *fiber.App) {
 		printer.Get("/pending-jobs", api_handlers.GetPendingPrintJobs)
 		printer.Put("/status/:id", api_handlers.UpdatePrintJobStatus)
 	}
+
+	payment := api.Group("/payment")
+	{
+		// การชำระเงินและใบเสร็จ
+		payment.Post("/process", api_handlers.ProcessPayment) // ชำระเงิน
+		payment.Get("/receipt/:id", api_handlers.GetReceipt)  // ดึงข้อมูลใบเสร็จ
+
+		// จัดการประเภทส่วนลด
+		discountTypes := payment.Group("/discount-types")
+		{
+			discountTypes.Get("/active", api_handlers.GetActiveDiscountTypes) // ดึงเฉพาะที่เปิดใช้งาน
+			discountTypes.Get("/", api_handlers.GetAllDiscountTypes)          // ดึงทั้งหมด
+			discountTypes.Get("/:id", api_handlers.GetDiscountType)           // ดึงตาม ID
+			discountTypes.Post("/", api_handlers.CreateDiscountType)          // สร้างใหม่
+			discountTypes.Put("/:id", api_handlers.UpdateDiscountType)        // แก้ไข
+			discountTypes.Delete("/:id", api_handlers.DeleteDiscountType)     // ลบ/ปิดใช้งาน
+		}
+
+		// จัดการประเภทค่าใช้จ่ายเพิ่มเติม
+		chargeTypes := payment.Group("/charge-types")
+		{
+			chargeTypes.Get("/active", api_handlers.GetActiveChargeTypes) // ดึงเฉพาะที่เปิดใช้งาน
+			chargeTypes.Get("/", api_handlers.GetAllChargeTypes)          // ดึงทั้งหมด
+			chargeTypes.Get("/:id", api_handlers.GetChargeType)           // ดึงตาม ID
+			chargeTypes.Post("/", api_handlers.CreateChargeType)          // สร้างใหม่
+			chargeTypes.Put("/:id", api_handlers.UpdateChargeType)        // แก้ไข
+			chargeTypes.Delete("/:id", api_handlers.DeleteChargeType)     // ลบ/ปิดใช้งาน
+		}
+	}
+	// payment := api.Group("/payment")
+	// {
+	// 	// การชำระเงินและใบเสร็จ
+	// 	payment.Post("/process", api_handlers.ProcessPayment) // ชำระเงิน
+	// 	payment.Get("/receipt/:id", api_handlers.GetReceipt)  // ดึงข้อมูลใบเสร็จ
+
+	// 	// จัดการประเภทส่วนลด
+	// 	discountTypes := payment.Group("/discount-types")
+	// 	{
+	// 		discountTypes.Get("/active", api_handlers.GetActiveDiscountTypes) // ดึงเฉพาะที่เปิดใช้งาน
+	// 		discountTypes.Get("/", api_handlers.GetAllDiscountTypes)          // ดึงทั้งหมด
+	// 		discountTypes.Get("/:id", api_handlers.GetDiscountType)           // ดึงตาม ID
+	// 		discountTypes.Post("/", api_handlers.CreateDiscountType,
+	// 			utils.RoleRequired(models.RoleManager)) // สร้างใหม่ (ผู้จัดการเท่านั้น)
+	// 		discountTypes.Put("/:id", api_handlers.UpdateDiscountType,
+	// 			utils.RoleRequired(models.RoleManager)) // แก้ไข (ผู้จัดการเท่านั้น)
+	// 		discountTypes.Delete("/:id", api_handlers.DeleteDiscountType,
+	// 			utils.RoleRequired(models.RoleManager)) // ลบ/ปิดใช้งาน (ผู้จัดการเท่านั้น)
+	// 	}
+
+	// 	// จัดการประเภทค่าใช้จ่ายเพิ่มเติม
+	// 	chargeTypes := payment.Group("/charge-types")
+	// 	{
+	// 		chargeTypes.Get("/active", api_handlers.GetActiveChargeTypes) // ดึงเฉพาะที่เปิดใช้งาน
+	// 		chargeTypes.Get("/", api_handlers.GetAllChargeTypes)          // ดึงทั้งหมด
+	// 		chargeTypes.Get("/:id", api_handlers.GetChargeType)           // ดึงตาม ID
+	// 		chargeTypes.Post("/", api_handlers.CreateChargeType,
+	// 			utils.RoleRequired(models.RoleManager)) // สร้างใหม่ (ผู้จัดการเท่านั้น)
+	// 		chargeTypes.Put("/:id", api_handlers.UpdateChargeType,
+	// 			utils.RoleRequired(models.RoleManager)) // แก้ไข (ผู้จัดการเท่านั้น)
+	// 		chargeTypes.Delete("/:id", api_handlers.DeleteChargeType,
+	// 			utils.RoleRequired(models.RoleManager)) // ลบ/ปิดใช้งาน (ผู้จัดการเท่านั้น)
+	// 	}
+	// }
 
 	payment := api.Group("/payment")
 	{

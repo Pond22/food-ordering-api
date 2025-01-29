@@ -3287,6 +3287,7 @@ const docTemplate = `{
                 }
             }
         },
+<<<<<<< HEAD
         "/api/promotions/image/{id}": {
             "put": {
                 "description": "อัพเดทรูปภาพของโปรโมชั่น รองรับไฟล์ JPG และ PNG ขนาดไม่เกิน 5MB",
@@ -3350,6 +3351,8 @@ const docTemplate = `{
                 }
             }
         },
+=======
+>>>>>>> develop-frontend
         "/api/promotions/status/{id}": {
             "patch": {
                 "security": [
@@ -5811,6 +5814,7 @@ const docTemplate = `{
                     "description": "'network' หรือ 'usb'",
                     "type": "string"
                 },
+<<<<<<< HEAD
                 "updatedAt": {
                     "type": "string"
                 },
@@ -5899,7 +5903,13 @@ const docTemplate = `{
                 "quantity": {
                     "type": "integer"
                 },
+=======
+>>>>>>> develop-frontend
                 "updatedAt": {
+                    "type": "string"
+                },
+                "vendorID": {
+                    "description": "สำหรับ USB printer",
                     "type": "string"
                 }
             }

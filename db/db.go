@@ -38,6 +38,8 @@ func migrate() {
 	DB.AutoMigrate(&models.AdditionalChargeType{})
 	DB.AutoMigrate(&models.ReceiptDiscount{})
 	DB.AutoMigrate(&models.ReceiptCharge{})
+	DB.AutoMigrate(&models.ReceiptDiscount{})
+	DB.AutoMigrate(&models.ReceiptCharge{})
 	DB.AutoMigrate(&models.Receipt{})
 	DB.AutoMigrate(&models.OptionGroup{})
 	DB.AutoMigrate(&models.Promotion{})
@@ -47,5 +49,6 @@ func migrate() {
 	DB.AutoMigrate(&models.PrintJob{})
 	DB.AutoMigrate(&models.POSSession{})
 	// DB.AutoMigrate(&models.PromoSalesReport{})
+	DB.AutoMigrate(&models.Notification{})
 	DB.AutoMigrate(&models.Notification{})
 }

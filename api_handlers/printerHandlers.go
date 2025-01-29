@@ -5,8 +5,15 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"bufio"
+	"bytes"
+	"errors"
+	"fmt"
 	"food-ordering-api/db"
 	"food-ordering-api/models"
+	"image"
+	"image/draw"
+	"log"
 	"image"
 	"image/draw"
 	"log"
@@ -15,8 +22,16 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"os"
+	"strings"
+	"time"
+	"unicode"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang/freetype/truetype"
+	"golang.org/x/image/font"
+	"golang.org/x/image/math/fixed"
+	"gorm.io/gorm"
 	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
@@ -42,12 +57,16 @@ type PrinterResponse struct {
 	ID         uint              `json:"id"`
 	Name       string            `json:"name"`
 	Type       string            `json:"type"`
+	Type       string            `json:"type"`
 	IPAddress  string            `json:"ip_address"`
 	Port       int               `json:"port"`
 	VendorID   string            `json:"vendor_id,omitempty"`
 	ProductID  string            `json:"product_id,omitempty"`
+	VendorID   string            `json:"vendor_id,omitempty"`
+	ProductID  string            `json:"product_id,omitempty"`
 	Department string            `json:"department"`
 	Status     string            `json:"status"`
+	LastSeen   time.Time         `json:"last_seen"`
 	LastSeen   time.Time         `json:"last_seen"`
 	Categories []models.Category `json:"categories"`
 }
@@ -152,6 +171,7 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 	var req AssignCategoryRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request format",
 		})
 	}
@@ -169,11 +189,17 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 			tx.Rollback()
 		}
 	}()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
 	// ตรวจสอบว่ามีเครื่องพิมพ์อยู่จริง
 	var printer models.Printer
 	if err := tx.First(&printer, printerID).Error; err != nil {
 		tx.Rollback()
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Printer not found",
 		})
@@ -190,6 +216,7 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 
 	if len(categories) != len(req.CategoryIDs) {
 		tx.Rollback()
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Some categories not found",
 		})
@@ -233,11 +260,13 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 	if err := tx.Preload("Categories").First(&updatedPrinter, printerID).Error; err != nil {
 		tx.Rollback()
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch updated printer data",
 		})
 	}
 
 	if err := tx.Commit().Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to commit transaction",
 		})
@@ -253,6 +282,10 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 // @Success 200 {array} models.Category
 // @Router /api/printers/categories/{id} [get]
 // @Tags Printer
+func getPrinterCategories(printer *models.Printer) ([]models.Category, error) {
+	var categories []models.Category
+	err := db.DB.Model(printer).Association("Categories").Find(&categories)
+	return categories, err
 func getPrinterCategories(printer *models.Printer) ([]models.Category, error) {
 	var categories []models.Category
 	err := db.DB.Model(printer).Association("Categories").Find(&categories)
@@ -519,10 +552,237 @@ type PrintJobResponse struct {
 	Order     *models.Order   `json:"order,omitempty"`
 	Printer   PrinterResponse `json:"printer"`
 }
+// ฟังก์ชันสำหรับทำความสะอาดข้อความ
+func cleanText(text string) string {
+	// แทนที่ตัวอักษรควบคุมและจัดการช่องว่าง
+	text = strings.Map(func(r rune) rune {
+		if unicode.IsPrint(r) || unicode.IsSpace(r) {
+			return r
+		}
+		return -1
+	}, text)
+	return strings.TrimSpace(text)
+}
+
+// ฟังก์ชันสำหรับเตรียมเนื้อหาสำหรับพิมพ์ออเดอร์ไปครัว
+func prepareOrderPrintContent(job models.PrintJob) ([]byte, error) {
+	var content bytes.Buffer
+
+	if job.Order != nil {
+		headerLines := []string{
+			"Order #" + fmt.Sprintf("%d", job.Order.ID),
+			"โต๊ะ: " + fmt.Sprintf("%d", job.Order.TableID),
+			"----------------------------------------",
+			fmt.Sprintf("วันที่-เวลา: %s", time.Now().Format("02/01/2006 15:04:05")),
+			"----------------------------------------",
+		}
+
+		for _, line := range headerLines {
+			content.WriteString(cleanText(line) + "\n")
+		}
+
+		// แยกรายการตามสถานะ
+		var newItems []models.OrderItem
+		for _, item := range job.Order.Items {
+			if item.Status == "pending" {
+				newItems = append(newItems, item)
+			}
+		}
+
+		if len(newItems) > 0 {
+			content.WriteString("\n[รายการใหม่]\n")
+			content.WriteString("----------------------------------------\n")
+
+			for i, item := range newItems {
+				// หมายเลขรายการและชื่ออาหาร
+				itemLine := fmt.Sprintf("%d. %s", i+1, item.MenuItem.Name)
+				if item.Quantity > 1 {
+					itemLine += fmt.Sprintf(" x%d", item.Quantity)
+				}
+				content.WriteString(cleanText(itemLine) + "\n")
+
+				// ตัวเลือกเพิ่มเติม
+				for _, opt := range item.Options {
+					// ใช้ MenuOption ที่เชื่อมโยงกับ OrderItemOption
+					optionLine := fmt.Sprintf("   • %s: %s",
+						cleanText(opt.MenuOption.OptionGroup.Name),
+						cleanText(opt.MenuOption.Name))
+					content.WriteString(optionLine + "\n")
+				}
+
+				// หมายเหตุพิเศษ
+				if item.Notes != "" {
+					content.WriteString(fmt.Sprintf("   [หมายเหตุ: %s]\n", cleanText(item.Notes)))
+				}
+
+				// เว้นบรรทัดระหว่างรายการ
+				if i < len(newItems)-1 {
+					content.WriteString("----------------\n")
+				}
+			}
+		}
+
+		footerLines := []string{
+			"========================================",
+			"** กรุณาตรวจสอบรายการให้ครบถ้วน **",
+			"========================================",
+		}
+
+		for _, line := range footerLines {
+			content.WriteString(line + "\n")
+		}
+	} else {
+		content.Write(job.Content)
+	}
+
+	return content.Bytes(), nil
+}
+
+func prepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
+	var content bytes.Buffer
+
+	if job.Receipt != nil {
+		// หัวข้อใบเสร็จ
+		headerLines := []string{
+			"***** ใบเสร็จรับเงิน *****",
+			"Receipt #" + fmt.Sprintf("%d", job.Receipt.ID),
+			"โต๊ะ: " + fmt.Sprintf("%d", job.Receipt.TableID),
+			"----------------------------------------",
+			fmt.Sprintf("วันที่-เวลา: %s", time.Now().Format("02/01/2006 15:04:05")),
+			"----------------------------------------",
+		}
+
+		for _, line := range headerLines {
+			content.WriteString(cleanText(line) + "\n")
+		}
+
+		// แสดงรายการอาหาร
+		content.WriteString("[ รายการอาหาร ]\n")
+		content.WriteString("----------------------------------------\n")
+
+		for i, order := range job.Receipt.Orders {
+			for _, item := range order.Items {
+				// แสดงรายการอาหาร
+				itemLine := fmt.Sprintf("%d. %s", i+1, item.MenuItem.Name)
+				if item.Quantity > 1 {
+					itemLine += fmt.Sprintf(" x%d", item.Quantity)
+				}
+				itemLine += fmt.Sprintf("   ฿%.2f", item.Price)
+				content.WriteString(cleanText(itemLine) + "\n")
+
+				// ตัวเลือกเพิ่มเติม
+				for _, opt := range item.Options {
+					optionLine := fmt.Sprintf("   • %s: %s",
+						cleanText(opt.MenuOption.OptionGroup.Name),
+						cleanText(opt.MenuOption.Name))
+					content.WriteString(optionLine + "\n")
+				}
+
+				// หมายเหตุพิเศษ
+				if item.Notes != "" {
+					content.WriteString(fmt.Sprintf("   [หมายเหตุ: %s]\n", cleanText(item.Notes)))
+				}
+			}
+		}
+
+		content.WriteString("----------------------------------------\n")
+
+		// แสดงผลรวม
+		subTotalLine := fmt.Sprintf("ยอดรวม: ฿%.2f", job.Receipt.SubTotal)
+		discountLine := fmt.Sprintf("ส่วนลด: ฿%.2f", job.Receipt.DiscountTotal)
+		extraChargesLine := fmt.Sprintf("ค่าใช้จ่ายเพิ่มเติม: ฿%.2f", job.Receipt.ChargeTotal)
+		serviceChargeLine := fmt.Sprintf("ค่าบริการ: ฿%.2f", job.Receipt.ServiceCharge)
+		totalLine := fmt.Sprintf("ยอดสุทธิ: ฿%.2f", job.Receipt.Total)
+
+		summaryLines := []string{
+			subTotalLine,
+			discountLine,
+			extraChargesLine,
+			serviceChargeLine,
+			"----------------------------------------",
+			totalLine,
+			"----------------------------------------",
+		}
+
+		for _, line := range summaryLines {
+			content.WriteString(cleanText(line) + "\n")
+		}
+
+		// ข้อมูลการชำระเงิน
+		paymentInfo := fmt.Sprintf("ชำระโดย: %s", cleanText(job.Receipt.PaymentMethod))
+		content.WriteString(paymentInfo + "\n")
+
+		// ข้อมูลพนักงาน
+		employeeInfo := fmt.Sprintf("พนักงาน: %d", job.Receipt.StaffID)
+		content.WriteString(employeeInfo + "\n")
+
+		// ข้อความขอบคุณ
+		footerLines := []string{
+			"========================================",
+			"ขอบคุณที่ใช้บริการ",
+			"========================================",
+		}
+
+		for _, line := range footerLines {
+			content.WriteString(line + "\n")
+		}
+	} else {
+		content.Write(job.Content)
+	}
+
+	return content.Bytes(), nil
+}
+
+func prepareCancelPrintContent(job models.PrintJob) ([]byte, error) {
+	var content bytes.Buffer
+
+	if job.Order != nil {
+		content.WriteString(fmt.Sprintf("== ใบแจ้งยกเลิกรายการอาหาร ==\n"))
+		content.WriteString(fmt.Sprintf("โต๊ะ: %d\n", job.Order.TableID))
+		content.WriteString("----------------------------------------\n")
+		content.WriteString(" รายการอาหาร                จำนวนที่ยกเลิก\n")
+		content.WriteString("----------------------------------------\n")
+
+		// ดึงข้อมูลจากฟิลด์ Content
+		items := strings.Split(string(job.Content), "\n")
+		for _, item := range items {
+			parts := strings.Split(item, "|")
+			if len(parts) == 2 {
+				itemName := fmt.Sprintf("%-25s", parts[0])
+				quantity := fmt.Sprintf("%5s", parts[1])
+				content.WriteString(fmt.Sprintf("%s %s\n", itemName, quantity))
+			}
+		}
+
+		content.WriteString("----------------------------------------\n")
+		content.WriteString(fmt.Sprintf("เวลายกเลิก: %s\n", time.Now().Format("02/01/2006 15:04:05")))
+		content.WriteString("========================================\n")
+		content.WriteString("กรุณาตรวจสอบการยกเลิก\n")
+		content.WriteString("========================================\n")
+	}
+
+	return content.Bytes(), nil
+}
+
+type PrintJobResponse struct {
+	ID        uint            `json:"id"`
+	PrinterID uint            `json:"printer_id"`
+	OrderID   *uint           `json:"order_id,omitempty"`
+	Content   []byte          `json:"content"`
+	Status    string          `json:"status"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	Order     *models.Order   `json:"order,omitempty"`
+	Printer   PrinterResponse `json:"printer"`
+}
 
 // @Summary รับงานพิมพ์ที่รอดำเนินการ
 // @Description ดึงรายการงานพิมพ์ที่ยังไม่ได้พิมพ์สำหรับเครื่องพิมพ์ที่ระบุ (รองรับทั้ง IP และ USB)
+// @Description ดึงรายการงานพิมพ์ที่ยังไม่ได้พิมพ์สำหรับเครื่องพิมพ์ที่ระบุ (รองรับทั้ง IP และ USB)
 // @Produce json
+// @Param printer_ip query string false "Printer IP Address (สำหรับเครื่องพิมพ์เครือข่าย)"
+// @Param vendor_id query string false "Vendor ID (สำหรับเครื่องพิมพ์ USB)"
+// @Param product_id query string false "Product ID (สำหรับเครื่องพิมพ์ USB)"
 // @Param printer_ip query string false "Printer IP Address (สำหรับเครื่องพิมพ์เครือข่าย)"
 // @Param vendor_id query string false "Vendor ID (สำหรับเครื่องพิมพ์ USB)"
 // @Param product_id query string false "Product ID (สำหรับเครื่องพิมพ์ USB)"
@@ -530,6 +790,7 @@ type PrintJobResponse struct {
 // @Router /api/printers/pending-jobs [get]
 // @Tags Printer
 func GetPendingPrintJobs(c *fiber.Ctx) error {
+	// ตรวจสอบ params
 	// ตรวจสอบ params
 	printerIP := c.Query("printer_ip")
 	vendorID := c.Query("vendor_id")
@@ -588,6 +849,17 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 
 	// ดึงงานพิมพ์ที่รอดำเนินการ
 	var jobs []models.PrintJob
+	err = db.DB.Where("printer_id = ? AND status = ?", printer.ID, "pending").
+		Preload("Order").
+		Preload("Order.Items", "status = ?", "pending").
+		Preload("Order.Items.MenuItem").
+		Preload("Order.Items.Options").
+		Preload("Order.Items.Options.MenuOption").
+		Preload("Order.Items.Options.MenuOption.OptionGroup").
+		Preload("Receipt").
+		Preload("Receipt.Orders.Items.MenuItem").
+		Preload("Receipt.Discounts.DiscountType").
+		Preload("Receipt.Charges.ChargeType").
 	err = db.DB.Where("printer_id = ? AND status = ?", printer.ID, "pending").
 		Preload("Order").
 		Preload("Order.Items", "status = ?", "pending").

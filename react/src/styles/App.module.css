@@ -21,6 +21,7 @@ body{
   padding: 10px 20px;
   top: 0;
 }
+/* ปรับปรุงการทำงานของ Sidebar */
 .sidebar {
   width: 250px;
   background-color: #2c3e50;
@@ -29,14 +30,22 @@ body{
   display: flex;
   flex-direction: column;
   padding: 20px;
+  padding-right: 0px;
   z-index: 1000;
   transition: transform 0.3s ease;
   position: fixed;
 }
+.sidebar.open {
+  transform: translateX(0); /* เปิด Sidebar */
+}
+.sidebar.closed {
+  transform: translateX(-100%); /* ซ่อน Sidebar */
+}
 .logo{
   display: flex;
-  justify-content: center;
+  justify-content:left;
   color: #ecf0f1;
+  align-items: center;
 }
 
 
@@ -57,11 +66,20 @@ body{
   margin: 10px 0;
   padding: 10px;
   border-radius: 5px;
+  border-top-right-radius: 0px;
+  border-bottom-right-radius: 0px;
   transition: background 0.3s;
 }
 
 .navLink:hover {
   background-color: #34495e;
+}
+
+.activeLink {
+  border-right:5px solid #d4af37;
+  /* ตัวอย่างสีที่เปลี่ยนเมื่อคลิก */
+  /* background-color: #16a085; */
+  color: #d4af37;
 }
 
 .logoutButton {
@@ -71,6 +89,7 @@ body{
   padding: 10px;
   border-radius: 5px;
   cursor: pointer;
+  margin-right: 20px;
 }
 
 .logoutButton:hover {
@@ -84,6 +103,10 @@ body{
   overflow-y: auto;
   box-sizing: border-box; 
   height: 100%; 
+  margin-left: 15rem;
+}
+.bodyinmain{
+  margin-left: 15rem;
 }
 
 .open {
@@ -113,14 +136,14 @@ body{
 
 /* Media Query for small screens */
 @media (max-width: 1024px) {
-  .sidebar {
+   .sidebar {
     position: fixed;
     top: 0;
-    left: -250px; /* Initially hidden off-screen */
+    left: -250px; /* เริ่มต้นซ่อน */
   }
 
   .sidebar.open {
-    left: 0; /* Show when open */
+    left: 0; /* แสดงเมื่อเปิด */
   }
 
   .menuIcon {

@@ -1,77 +1,77 @@
-import React, { useState, useEffect, useRef } from "react";
-import MenuItem from "./MenuItem";
-import styles from "../styles/MenuList.module.css";
-import { ShoppingCart } from "lucide-react";
+import React, { useState, useEffect, useRef } from 'react'
+// import MenuItem from './MenuItem'
+import styles from '../styles/MenuList.module.css'
+import { ShoppingCart } from 'lucide-react'
 
 const MenuList = () => {
-  const [menuItems, setMenuItems] = useState([]); // State สำหรับเก็บข้อมูลเมนู
-  const [categories, setCategories] = useState([]); // State สำหรับเก็บข้อมูลหมวดหมู่
-  const [selectedCategory, setSelectedCategory] = useState(""); // State สำหรับเก็บหมวดหมู่ที่เลือก
-  const [activeLink, setActiveLink] = useState(""); // State สำหรับเก็บลิงก์ที่ถูกคลิก
-  const navRef = useRef(); // ใช้ ref เพื่อใช้งานกับ nav (ถ้าจำเป็น)
-  const categoryRefs = useRef({}); // ใช้เก็บ refs สำหรับหมวดหมู่แต่ละอัน
+  const [menuItems, setMenuItems] = useState([]) // State สำหรับเก็บข้อมูลเมนู
+  const [categories, setCategories] = useState([]) // State สำหรับเก็บข้อมูลหมวดหมู่
+  const [selectedCategory, setSelectedCategory] = useState('') // State สำหรับเก็บหมวดหมู่ที่เลือก
+  const [activeLink, setActiveLink] = useState('') // State สำหรับเก็บลิงก์ที่ถูกคลิก
+  const navRef = useRef() // ใช้ ref เพื่อใช้งานกับ nav (ถ้าจำเป็น)
+  const categoryRefs = useRef({}) // ใช้เก็บ refs สำหรับหมวดหมู่แต่ละอัน
 
-  const [cart, setCart] = useState([]);
-  const [isCartVisible, setIsCartVisible] = useState(false);
+  const [cart, setCart] = useState([])
+  const [isCartVisible, setIsCartVisible] = useState(false)
 
   // ฟังก์ชันดึงข้อมูลเมนูจาก API
   useEffect(() => {
     const fetchData = async () => {
       try {
         const response = await fetch(
-          "http://localhost:8080/api/menu/ActiveMenu"
-        );
-        const data = await response.json();
-        setMenuItems(data);
+          'http://localhost:8080/api/menu/ActiveMenu'
+        )
+        const data = await response.json()
+        setMenuItems(data)
 
         // ดึงหมวดหมู่ที่ไม่ซ้ำกัน
         const uniqueCategories = [
           ...new Set(data.map((item) => item.Category.Name)),
-        ];
-        setCategories(uniqueCategories);
+        ]
+        setCategories(uniqueCategories)
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error('Error fetching data:', error)
       }
-    };
+    }
 
-    fetchData();
-  }, []);
+    fetchData()
+  }, [])
 
   // ฟังก์ชันสำหรับการคลิกหมวดหมู่จากเมนู
   const handleCategoryClick = (category) => {
-    setSelectedCategory(category);
-    setActiveLink(category); // ตั้งค่าหมวดหมู่ที่เลือก และเปลี่ยน active link
+    setSelectedCategory(category)
+    setActiveLink(category) // ตั้งค่าหมวดหมู่ที่เลือก และเปลี่ยน active link
 
     // เลื่อนหน้าไปยังหมวดหมู่ที่เลือก
-    categoryRefs.current[category]?.scrollIntoView({ behavior: "smooth" });
-  };
+    categoryRefs.current[category]?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   // ฟังก์ชันกรองเมนูตามหมวดหมู่ที่เลือก
   const filteredMenuItems = menuItems.filter(
     (item) => item.Category.Name === selectedCategory
-  );
+  )
 
   const getCartItemCount = () => {
-    return cart.reduce((total, item) => total + item.quantity, 0);
-  };
+    return cart.reduce((total, item) => total + item.quantity, 0)
+  }
 
   const handleCartToggle = () => {
-    setIsCartVisible(!isCartVisible);
-  };
+    setIsCartVisible(!isCartVisible)
+  }
 
   const handleAddToCart = (item) => {
     setCart((prevCart) => {
-      const existingItem = prevCart.find((cartItem) => cartItem.id === item.id);
+      const existingItem = prevCart.find((cartItem) => cartItem.id === item.id)
       if (existingItem) {
         return prevCart.map((cartItem) =>
           cartItem.id === item.id
             ? { ...cartItem, quantity: cartItem.quantity + 1 }
             : cartItem
-        );
+        )
       }
-      return [...prevCart, { ...item, quantity: 1 }];
-    });
-  };
+      return [...prevCart, { ...item, quantity: 1 }]
+    })
+  }
 
   // เริ่มแสดงหน้าจอ
   return (
@@ -94,7 +94,7 @@ const MenuList = () => {
                 <ul>
                   {cart.map((item) => (
                     <li key={item.id}>
-                      {item.name} x {item.quantity} -{" "}
+                      {item.name} x {item.quantity} -{' '}
                       {item.price * item.quantity} ฿
                     </li>
                   ))}
@@ -168,7 +168,7 @@ const MenuList = () => {
           // กรองเมนูตามหมวดหมู่
           const filteredMenuItems = menuItems.filter(
             (item) => item.Category.Name === category
-          );
+          )
 
           return (
             <div
@@ -188,11 +188,11 @@ const MenuList = () => {
                 ))}
               </div>
             </div>
-          );
+          )
         })}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default MenuList;
+export default MenuList

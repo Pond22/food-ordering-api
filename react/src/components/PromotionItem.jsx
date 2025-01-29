@@ -1,9 +1,8 @@
 import React, { useState } from 'react'
 import { Plus, Minus, PlusIcon } from 'lucide-react'
 import useCartStore from '../hooks/cart-store'
-import styles from '../styles/MenuItem.module.css'
-
-const MenuItem = ({ item, promotion, language }) => {
+import { Carousel } from 'flowbite-react'
+const PromotionItem = ({ item, promotion }) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false) // Popup state
   const [note, setNote] = useState('') // Note for the kitchen
   const [selectedOptions, setSelectedOptions] = useState({}) // Store selected options for each group
@@ -19,23 +18,21 @@ const MenuItem = ({ item, promotion, language }) => {
   // Toggle popup visibility
   const togglePopup = () => setIsPopupOpen((prev) => !prev)
 
-  // ฟังก์ชันการเพิ่มสินค้าไปที่ตะกร้า
+  // Handle adding item to cart
   const handleAddToCart = () => {
     if (quantity > 0) {
       const finalItem = {
-        ...displayItem,
-        Price: displayItem.Price || 0,
-        selectedOptions, // ส่ง selectedOptions ไปที่ตะกร้า
+        ...displayItem, // รวมข้อมูลจาก item หรือ promotion
+        Price: displayItem.Price || 0, // กำหนดค่า Price เริ่มต้นถ้า undefined
       }
-      console.log('Adding Item to Cart: ', finalItem)
+
+      // ตรวจสอบว่า finalItem มีข้อมูลที่จำเป็นครบถ้วนหรือไม่
       addToCart(finalItem, quantity, note, selectedOptions)
-
-      setNote('') // รีเซ็ต note
-      setSelectedOptions({}) // รีเซ็ต selectedOptions
-      setQuantity(1) // รีเซ็ต quantity
-      setIsPopupOpen(false) // ปิด Popup
+      setNote('') // Clear the note
+      setSelectedOptions({}) // Clear selected options
+      setQuantity(1) // Reset quantity
+      setIsPopupOpen(false) // Close the popup after adding to cart
     }
-
     if (selectedPromotion && quantity > 0) {
       const promotionItem = {
         ID: selectedPromotion.ID,
@@ -45,70 +42,73 @@ const MenuItem = ({ item, promotion, language }) => {
         quantity: quantity,
         note: note,
         isPromotion: true,
-        selectedOptions, // ส่ง selectedOptions ในรูปแบบเดียวกับที่ API ต้องการ
       }
-      console.log('Adding Promotion to Cart: ', promotionItem)
-      addToCart(promotionItem, quantity, note, selectedOptions) // ส่งโปรโมชันไปที่ addToCart
+      addToCart(promotionItem)
       handleClosePopup()
     }
   }
 
-  // ฟังก์ชันที่ใช้สำหรับเพิ่มตัวเลือก
-  const handleOptionChange = (groupName, optionID, price) => {
+  // Handle option selection change
+  const handleOptionChange = (groupName, optionName, price) => {
     setSelectedOptions((prev) => ({
       ...prev,
-      [groupName]: { menuOptionID: optionID, price }, // ใช้ menuOptionID แทน optionName
+      [groupName]: { optionName, price },
     }))
-    console.log('Selected Options Updated: ', { ...selectedOptions })
   }
 
   // กำหนดให้แสดงข้อมูลจาก item หรือ promotion
   const displayItem = item || promotion
 
   return (
-    <div
-      className={
-        'bg-gradient-to-b from-black/80 via-black/50 to-white/10 border border-white/30 rounded-md shadow-xl hover:shadow-xl transition-shadow duration-300'
-      }
-    >
+    <div >
       {/* แสดงรูปภาพเมนูหรือโปรโมชัน */}
-      {displayItem.Image ? (
-        <img
-          src={`data:image/png;base64,${displayItem.Image}`}
-          alt={displayItem.Name}
-          className={
-            'h-28 sm:h-36 w-full rounded-tl-md rounded-tr-md object-cover'
-          }
-          onClick={togglePopup} // เมื่อคลิกจะแสดง Popup
-        />
-      ) : (
-        <div className="placeholder-image h-28 sm:h-36 w-full">
-          No Image Available
-        </div>
-      )}
+      <div className="my-4 h-48 sm:h-64 xl:h-80 2xl:h-96 border border-black">
+        <Carousel leftControl=" " rightControl=" ">
+          {displayItem ? (
+            <div key={displayItem.ID} className="relative">
+              <div className="bg-white border border-gold rounded-md shadow-md">
+                {/* แสดงรูปภาพเมนูหรือโปรโมชัน */}
+                {displayItem.Image ? (
+                  <img
+                    src={`data:image/png;base64,${displayItem.Image}`}
+                    alt={displayItem.Name}
+                    className="w-full h-full object-cover"
+                    onClick={togglePopup} // เมื่อคลิกจะแสดง Popup
+                  />
+                ) : (
+                  <div className="placeholder-image">No Image Available</div>
+                )}
+              </div>
 
-      <div className={'p-2 px-4 flex flex-col gap-4'}>
-        <h3
-          className="text-lg bg-gradient-to-t from-yellow-400 to-yellow-600 text-transparent bg-clip-text"
-          onClick={togglePopup}
-        >
-          {language === 'th'
-            ? displayItem.Name
-            : language === 'en'
-            ? displayItem.NameEn
-            : displayItem.NameCh}
-        </h3>
-        <div className={'flex justify-between items-center'}>
-          <p className="text-base text-red-700 font-semibold">
-            {displayItem.Price} THB
-          </p>
-          <button
-            onClick={togglePopup}
-            className=" bg-gold hover:bg-green-500 rounded-full p-1 text-white"
-          >
-            <Plus className="size-5" />
-          </button>
-        </div>
+              <div className="p-2 flex flex-col gap-4">
+                <h3
+                  className="text-lg text-gold font-semibold"
+                  onClick={togglePopup}
+                >
+                  {displayItem.Name}
+                </h3>
+                <div className="flex justify-between items-center">
+                  <p className="text-base text-red-700 font-semibold">
+                    {displayItem.Price} THB
+                  </p>
+                  <button
+                    onClick={togglePopup}
+                    className="bg-green-400 hover:bg-green-500 rounded-full p-1 text-white"
+                  >
+                    <Plus className="size-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white p-4">
+              <h2 className="text-lg font-semibold">{displayItem.Name}</h2>
+              <p className="text-sm">{displayItem.Description}</p>
+            </div> */}
+            </div>
+          ) : (
+            <p className="text-center text-lg">ไม่มีข้อมูลในขณะนี้</p>
+          )}
+        </Carousel>
       </div>
 
       {isPopupOpen && (
@@ -153,64 +153,52 @@ const MenuItem = ({ item, promotion, language }) => {
             <div className="p-6">
               <div className="flex justify-between">
                 <h3 className="text-black text-2xl font-medium mb-2">
-                  {language === 'th'
-                    ? displayItem.Name
-                    : language === 'en'
-                    ? displayItem.NameEn
-                    : displayItem.NameCh}
+                  {displayItem.Name || 'Untitled Item'}
                 </h3>
                 <p className="text-black text-xl font-semibold mb-6">
                   {displayItem.Price || 0}&nbsp;บาท
                 </p>
               </div>
               <p className="text-gray-400 mb-4">
-                {language === 'th'
-                  ? displayItem.Description
-                  : language === 'en'
-                  ? displayItem.DescriptionEn
-                  : displayItem.DescriptionCh}
+                {displayItem.Description || 'No description available'}
               </p>
 
               {/* แสดงตัวเลือกต่างๆ หากมี */}
-              {displayItem.OptionGroups.map((group, groupIndex) => (
-                <div key={`group-${groupIndex}-${group.ID}`}>
-                  <h4 className="text-black text-lg font-medium">
-                    {language === 'th'
-                      ? group.Name
-                      : language === 'en'
-                      ? group.NameEn
-                      : group.NameCh}
-                  </h4>
-                  <div className="flex flex-col gap-2 mt-2">
-                    {group.Options.map((option, optionIndex) => (
-                      <div
-                        key={`option-${groupIndex}-${optionIndex}-${option.ID}`} // ใช้ key ที่รวม groupIndex และ optionIndex
-                        className="flex justify-start items-center gap-3 text-black/70 text-base"
-                      >
-                        <input
-                          type="radio"
-                          name={group.Name}
-                          value={option.Name}
-                          onChange={() =>
-                            handleOptionChange(
-                              group.Name,
-                              option.ID, // ใช้ option.ID แทน option.Name
-                              option.Price
-                            )
-                          }
-                          className=""
-                        />
-                        {language === 'th'
-                          ? option.Name
-                          : language === 'en'
-                          ? option.NameEn
-                          : option.NameCh}{' '}
-                        (+{option.Price}฿)
+              {displayItem.OptionGroups &&
+                displayItem.OptionGroups.length > 0 && (
+                  <div className="mb-6">
+                    {displayItem.OptionGroups.map((group) => (
+                      <div key={group.ID}>
+                        <h4 className="text-black text-lg font-medium">
+                          {group.Name || 'Option Group'}
+                        </h4>
+                        <div className="flex flex-col gap-2 mt-2">
+                          {group.Options.map((option) => (
+                            <div
+                              key={option.ID}
+                              className="flex justify-start items-center gap-3 text-black/70 text-base"
+                            >
+                              <input
+                                type="radio"
+                                name={group.Name}
+                                value={option.Name}
+                                onChange={() =>
+                                  handleOptionChange(
+                                    group.Name,
+                                    option.Name,
+                                    option.Price
+                                  )
+                                }
+                                className=""
+                              />
+                              {option.Name} (+{option.Price}฿)
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ))}
                   </div>
-                </div>
-              ))}
+                )}
 
               <div className="mb-4">
                 <label className="block text-black/50 text-sm font-medium mb-2">
@@ -246,16 +234,12 @@ const MenuItem = ({ item, promotion, language }) => {
                 </button>
               </div>
 
-              {/*  Add to Cart */}
+              {/* เปลี่ยนปุ่ม Close เป็น Add to Cart */}
               <button
                 onClick={handleAddToCart}
                 className="bg-blue-500 hover:bg-blue-600 text-white py-3 w-full rounded-lg px-4 font-medium transition-colors"
               >
-                {language === 'th'
-                  ? 'เพิ่มไปยังตะกร้า'
-                  : language === 'en'
-                  ? 'Add to Cart'
-                  : '加入购物车'}
+                Add to Cart
               </button>
             </div>
           </div>
@@ -265,4 +249,4 @@ const MenuItem = ({ item, promotion, language }) => {
   )
 }
 
-export default MenuItem
+export default PromotionItem

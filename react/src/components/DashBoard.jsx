@@ -59,7 +59,7 @@ const DashBoard = () => {
   const averageSales = Math.round(totalSales / salesData.length);
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-lg mx-auto lg:ml-60">
+    <div className="bg-white p-6 rounded-xl shadow-lg mx-auto ">
       <div className="flex justify-between items-center mb-6 ml-12">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center">
           <TrendingUp className="mr-2 text-blue-600" /> Sales Dashboard

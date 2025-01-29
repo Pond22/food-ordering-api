@@ -1,21 +1,15 @@
 /** @type {import('tailwindcss').Config} */
 
-const flowbite = require("flowbite-react/tailwind");
+const flowbite = require('flowbite-react/tailwind')
 
 module.exports = {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-    flowbite.content(),
-  ],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}', flowbite.content()],
   theme: {
     extend: {
       colors: {
-        gold: '#D4AF37',  // สีทองมาตรฐาน
-      }
-    }
+        gold: '#D4AF37', // สีทองมาตรฐาน
+      },
+    },
   },
-  plugins: [
-    flowbite.plugin(),
-  ],
+  plugins: [flowbite.plugin()],
 }
