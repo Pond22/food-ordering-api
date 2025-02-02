@@ -29,7 +29,6 @@ type PromotionItem struct {
 	ID          uint      `gorm:"primaryKey"`
 	PromotionID uint      `gorm:"not null;index"`
 	Promotion   Promotion `json:"-" gorm:"foreignKey:PromotionID;references:ID;constraint:OnDelete:CASCADE"`
-	Promotion   Promotion `json:"-" gorm:"foreignKey:PromotionID;references:ID;constraint:OnDelete:CASCADE"`
 	MenuItemID  uint      `gorm:"not null;index"`
 	MenuItem    MenuItem  `gorm:"foreignKey:MenuItemID"`
 	Quantity    int       `gorm:"not null;default:1"`

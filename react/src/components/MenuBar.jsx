@@ -27,31 +27,47 @@ export default function MenuBar({ tableID, uuid }) {
   }, [cart])
 
   const handleConfirmOrder = async () => {
-    const items = cart.map((item) => ({
-      menu_item_id: item.ID, // menu_item_id ถูกต้องแล้ว
-      notes: item.note || '', // ส่งหมายเหตุถูกต้อง
-      options: Array.isArray(item.selectedOptions)
-        ? item.selectedOptions.map((opt) => ({
-            menu_option_id: opt.menu_option_id || opt.id, // menu_option_id ถูกต้องไหม?
-            option_name: opt.optionName, // เพิ่มชื่อของตัวเลือก (หาก API ต้องการ)
-            option_price: opt.price, // เพิ่มราคาของตัวเลือก (หาก API ต้องการ)
-          }))
-        : [], // ส่งเป็น array ว่างหากไม่มีตัวเลือก
-      quantity: item.quantity, // จำนวนของรายการถูกต้อง
-    }))
+    const items = cart.map((item) => {
+      // ตรวจสอบว่า selectedOptions ถูกต้องหรือไม่
+      const options =
+        item.selectedOptions && Object.keys(item.selectedOptions).length > 0
+          ? Object.keys(item.selectedOptions).map((key) => ({
+              menu_option_id: item.selectedOptions[key].menuOptionID, 
+              option_name: key, 
+              option_price: item.selectedOptions[key].price || 0, // ราคา
+            }))
+          : []
+
+      // ตรวจสอบข้อมูลตัวเลือกก่อนส่ง
+      console.log('Item before sending to API:', {
+        menu_item_id: item.ID,
+        notes: item.note || '',
+        options: options,
+        quantity: item.quantity,
+      })
+
+      return {
+        menu_item_id: item.ID,
+        notes: item.note || '',
+        options: options, // ส่งตัวเลือก (options) ที่เตรียมไว้
+        quantity: item.quantity,
+      }
+    })
 
     const orderData = {
       items,
-      // ?tableID=%v&uuid=%v
-      table_id: tableID, // table_id ถูกต้อง
-      use_promo: [], // หากต้องการข้อมูลโปรโมชันให้เพิ่มใน use_promo
-      uuid: uuid, // uuid ถูกต้อง
+      table_id: tableID,
+      use_promo: [],
+      uuid: uuid,
     }
+
+    // ตรวจสอบข้อมูลที่ส่งก่อนส่งไปยัง API
+    console.log('Order data to be sent:', orderData)
 
     try {
       const response = await axios.post(
-        'http://localhost:8080/api/orders', // URL ของ API
-        orderData, // ข้อมูลออเดอร์
+        'http://localhost:8080/api/orders',
+        orderData,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -63,8 +79,7 @@ export default function MenuBar({ tableID, uuid }) {
       if (response.status === 200) {
         alert('Order placed successfully!')
         setOpenCartModal(false)
-        // เคลียร์ตะกร้าหลังจากสั่งซื้อสำเร็จ
-        useCartStore.getState().clearCart() // เรียกใช้ฟังก์ชัน clearCart ที่ได้เพิ่มเข้าไป
+        useCartStore.getState().clearCart()
       } else {
         alert('Failed to place order!')
       }

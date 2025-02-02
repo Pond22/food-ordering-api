@@ -3284,7 +3284,6 @@
                 }
             }
         },
-<<<<<<< HEAD
         "/api/promotions/image/{id}": {
             "put": {
                 "description": "อัพเดทรูปภาพของโปรโมชั่น รองรับไฟล์ JPG และ PNG ขนาดไม่เกิน 5MB",
@@ -3348,8 +3347,6 @@
                 }
             }
         },
-=======
->>>>>>> develop-frontend
         "/api/promotions/status/{id}": {
             "patch": {
                 "security": [
@@ -5811,7 +5808,6 @@
                     "description": "'network' หรือ 'usb'",
                     "type": "string"
                 },
-<<<<<<< HEAD
                 "updatedAt": {
                     "type": "string"
                 },
@@ -5900,13 +5896,7 @@
                 "quantity": {
                     "type": "integer"
                 },
-=======
->>>>>>> develop-frontend
                 "updatedAt": {
-                    "type": "string"
-                },
-                "vendorID": {
-                    "description": "สำหรับ USB printer",
                     "type": "string"
                 }
             }

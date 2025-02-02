@@ -143,7 +143,7 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 	}
 
 	expiryAt := time.Now().Add(2 * time.Hour)
-	url := fmt.Sprintf("http://localhost:5173/menu2?table=%v&uuid=%v", tableID, UUID)
+	url := fmt.Sprintf("http://localhost:5173/menu?table=%v&uuid=%v", tableID, UUID)
 
 	imageData, err := GenerateQRCodeAsBytes(url)
 	if err != nil {

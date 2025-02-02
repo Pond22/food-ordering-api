@@ -960,7 +960,6 @@ definitions:
       type:
         description: '''network'' หรือ ''usb'''
         type: string
-<<<<<<< HEAD
       updatedAt:
         type: string
       vendorID:
@@ -1020,12 +1019,7 @@ definitions:
         type: integer
       quantity:
         type: integer
-=======
->>>>>>> develop-frontend
       updatedAt:
-        type: string
-      vendorID:
-        description: สำหรับ USB printer
         type: string
     type: object
   models.QRCode:
@@ -3477,7 +3471,6 @@ paths:
       summary: ดึงรายการโปรโมชั่นที่กำลังใช้งาน
       tags:
       - promotions
-<<<<<<< HEAD
   /api/promotions/image/{id}:
     put:
       consumes:
@@ -3520,8 +3513,6 @@ paths:
       summary: อัพเดทรูปภาพโปรโมชั่น
       tags:
       - promotions
-=======
->>>>>>> develop-frontend
   /api/promotions/status/{id}:
     patch:
       consumes:

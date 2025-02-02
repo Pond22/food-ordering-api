@@ -9,7 +9,6 @@ import (
 	"slices"
 	"strconv"
 	"time"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -493,19 +492,11 @@ type ReservationRequest struct {
 	ReservedFor  time.Time `json:"reserved_for"`
 }
 
-type ReservationRequest struct {
-	CustomerName string    `json:"customer_name"`
-	PhoneNumber  string    `json:"phone_number"`
-	GuestCount   int       `json:"guest_count"`
-	ReservedFor  time.Time `json:"reserved_for"`
-}
-
 // @Summary จองโต๊ะ
 // @Description จองโต๊ะโดยโต๊ะต้องอยู่ในถานะพร้อมให้บริการถึงจองได้
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param request body ReservationRequest true "ข้อมูลการจองโต๊ะ"
 // @Param request body ReservationRequest true "ข้อมูลการจองโต๊ะ"
 // @Param id path string true "ID ของกลุ่มโต๊ะนั้นๆ"
 // @Success 200 {object} map[string]interface{} "เค"
@@ -525,26 +516,14 @@ func ReservedTable(c *fiber.Ctx) error {
 	var req ReservationRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "ข้อมูลการจองไม่ถูกต้อง"})
-	tableID := c.Params("id")
-	if tableID == "" {
-		return c.Status(400).JSON(fiber.Map{"error": "กรุณาระบุหมายเลขโต๊ะ"})
-	}
-
-	// รับข้อมูลการจอง
-	var req ReservationRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "ข้อมูลการจองไม่ถูกต้อง"})
 	}
 
 	tx := db.DB.Begin()
 
 	// ตรวจสอบโต๊ะ
-	// ตรวจสอบโต๊ะ
 	var table models.Table
 	if err := tx.Where("id = ?", tableID).First(&table).Error; err != nil {
-	if err := tx.Where("id = ?", tableID).First(&table).Error; err != nil {
 		tx.Rollback()
-		return c.Status(404).JSON(fiber.Map{"error": "ไม่พบโต๊ะที่ระบุ"})
 		return c.Status(404).JSON(fiber.Map{"error": "ไม่พบโต๊ะที่ระบุ"})
 	}
 
@@ -566,25 +545,8 @@ func ReservedTable(c *fiber.Ctx) error {
 	if err := tx.Create(&reservation).Error; err != nil {
 		tx.Rollback()
 		return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถบันทึกการจองได้"})
-		return c.Status(400).JSON(fiber.Map{"error": "โต๊ะไม่ว่าง"})
 	}
 
-	// สร้างข้อมูลการจอง
-	reservation := models.TableReservation{
-		TableID:      uint(table.ID),
-		CustomerName: req.CustomerName,
-		PhoneNumber:  req.PhoneNumber,
-		GuestCount:   req.GuestCount,
-		ReservedFor:  req.ReservedFor,
-		Status:       "active",
-	}
-
-	if err := tx.Create(&reservation).Error; err != nil {
-		tx.Rollback()
-		return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถบันทึกการจองได้"})
-	}
-
-	// อัพเดทสถานะโต๊ะ - รวมถึงโต๊ะที่อยู่ในกลุ่มเดียวกัน
 	// อัพเดทสถานะโต๊ะ - รวมถึงโต๊ะที่อยู่ในกลุ่มเดียวกัน
 	if hasGroupID(table.GroupID) {
 		if err := tx.Model(&models.Table{}).
@@ -592,24 +554,19 @@ func ReservedTable(c *fiber.Ctx) error {
 			Update("status", "reserved").Error; err != nil {
 			tx.Rollback()
 			return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถอัพเดทสถานะโต๊ะรวมได้"})
-			return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถอัพเดทสถานะโต๊ะรวมได้"})
 		}
 	} else {
 		if err := tx.Model(&table).Update("status", "reserved").Error; err != nil {
 			tx.Rollback()
-			return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถอัพเดทสถานะโต๊ะได้"})
 			return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถอัพเดทสถานะโต๊ะได้"})
 		}
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "เกิดข้อผิดพลาดในการบันทึกข้อมูล"})
-		return c.Status(500).JSON(fiber.Map{"error": "เกิดข้อผิดพลาดในการบันทึกข้อมูล"})
 	}
 
 	return c.Status(200).JSON(fiber.Map{
-		"message":        "จองโต๊ะสำเร็จ",
-		"reservation_id": reservation.ID,
 		"message":        "จองโต๊ะสำเร็จ",
 		"reservation_id": reservation.ID,
 	})
@@ -632,20 +589,14 @@ func UnreservedTable(c *fiber.Ctx) error {
 	tableID := c.Params("id")
 	if tableID == "" {
 		return c.Status(400).JSON(fiber.Map{"error": "กรุณาระบุหมายเลขโต๊ะ"})
-	tableID := c.Params("id")
-	if tableID == "" {
-		return c.Status(400).JSON(fiber.Map{"error": "กรุณาระบุหมายเลขโต๊ะ"})
 	}
 
 	tx := db.DB.Begin()
 
 	// ตรวจสอบโต๊ะ
-	// ตรวจสอบโต๊ะ
 	var table models.Table
 	if err := tx.Where("id = ?", tableID).First(&table).Error; err != nil {
-	if err := tx.Where("id = ?", tableID).First(&table).Error; err != nil {
 		tx.Rollback()
-		return c.Status(404).JSON(fiber.Map{"error": "ไม่พบโต๊ะที่ระบุ"})
 		return c.Status(404).JSON(fiber.Map{"error": "ไม่พบโต๊ะที่ระบุ"})
 	}
 
@@ -660,18 +611,8 @@ func UnreservedTable(c *fiber.Ctx) error {
 		Update("status", "cancelled").Error; err != nil {
 		tx.Rollback()
 		return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถยกเลิกการจองได้"})
-		return c.Status(400).JSON(fiber.Map{"error": "โต๊ะนี้ไม่ได้ถูกจอง"})
 	}
 
-	// อัพเดทสถานะการจอง
-	if err := tx.Model(&models.TableReservation{}).
-		Where("table_id = ? AND status = ?", tableID, "active").
-		Update("status", "cancelled").Error; err != nil {
-		tx.Rollback()
-		return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถยกเลิกการจองได้"})
-	}
-
-	// อัพเดทสถานะโต๊ะ - รวมถึงโต๊ะที่อยู่ในกลุ่มเดียวกัน
 	// อัพเดทสถานะโต๊ะ - รวมถึงโต๊ะที่อยู่ในกลุ่มเดียวกัน
 	if hasGroupID(table.GroupID) {
 		if err := tx.Model(&models.Table{}).
@@ -679,23 +620,19 @@ func UnreservedTable(c *fiber.Ctx) error {
 			Update("status", "available").Error; err != nil {
 			tx.Rollback()
 			return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถอัพเดทสถานะโต๊ะรวมได้"})
-			return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถอัพเดทสถานะโต๊ะรวมได้"})
 		}
 	} else {
 		if err := tx.Model(&table).Update("status", "available").Error; err != nil {
 			tx.Rollback()
-			return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถอัพเดทสถานะโต๊ะได้"})
 			return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถอัพเดทสถานะโต๊ะได้"})
 		}
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "เกิดข้อผิดพลาดในการบันทึกข้อมูล"})
-		return c.Status(500).JSON(fiber.Map{"error": "เกิดข้อผิดพลาดในการบันทึกข้อมูล"})
 	}
 
 	return c.Status(200).JSON(fiber.Map{
-		"message": "ยกเลิกการจองสำเร็จ",
 		"message": "ยกเลิกการจองสำเร็จ",
 	})
 }

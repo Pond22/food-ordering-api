@@ -47,8 +47,6 @@ type createPromo_req struct {
 	Description string    `json:"description"`
 	StartDate   time.Time `json:"start_date" form:"2006-01-02 15:04:05Z07:00"`
 	EndDate     time.Time `json:"end_date" form:"2006-01-02 15:04:05Z07:00"`
-	StartDate   time.Time `json:"start_date" form:"2006-01-02 15:04:05Z07:00"`
-	EndDate     time.Time `json:"end_date" form:"2006-01-02 15:04:05Z07:00"`
 	Price       float64   `json:"price" binding:"required"`
 	Items       []struct {
 		MenuItemID uint `json:"menu_item_id" binding:"required"`
@@ -99,7 +97,6 @@ type SuccessResponse struct {
 func CreatePromotion(c *fiber.Ctx) error {
 	var req createPromo_req
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": err})
 		return c.Status(400).JSON(fiber.Map{"error": err})
 	}
 
@@ -169,17 +166,11 @@ func CreatePromotion(c *fiber.Ctx) error {
 // @Failure 403 {object} ErrorResponse "ไม่มีสิทธิ์เข้าถึง"
 // @Failure 500 {object} ErrorResponse "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์"
 // @Router /api/promotions/Active [get]
-// @Router /api/promotions/Active [get]
 func GetActivePromotions(c *fiber.Ctx) error {
 	var promotions []models.Promotion
 	now := time.Now()
 
 	if err := db.DB.Preload("Items").
-		Preload("Items.MenuItem").
-		Preload("Items.MenuItem.Category").
-		Preload("Items.MenuItem.OptionGroups").
-		Preload("Items.MenuItem.OptionGroups.Options").
-		Where("is_active = ? AND start_date <= ? AND end_date >= ? AND deleted_at IS NULL", true, now, now).Find(&promotions).Error; err != nil {
 		Preload("Items.MenuItem").
 		Preload("Items.MenuItem.Category").
 		Preload("Items.MenuItem.OptionGroups").
@@ -290,7 +281,6 @@ func UpdatePromotion(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"message": "Promotion updated successfully"})
-	return c.JSON(fiber.Map{"message": "Promotion updated successfully"})
 }
 
 // @Summary ลบโปรโมชั่น (Soft Delete)
@@ -322,7 +312,6 @@ func DeletePromotion(c *fiber.Ctx) error {
 	}
 
 	// Then soft delete the promotion itself
-	// Then soft delete the promotion itself
 	if err := tx.Model(&promo).Update("deleted_at", time.Now()).Error; err != nil {
 		tx.Rollback()
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to delete promotion"})
@@ -351,13 +340,7 @@ func GetPromotionByID(c *fiber.Ctx) error {
 	promoID := c.Params("id")
 
 	fmt.Println(promoID)
-	fmt.Println(promoID)
 	var promotion models.Promotion
-	if err := db.DB.Preload("Items.MenuItem").
-		Preload("Items.MenuItem.Category").
-		Preload("Items.MenuItem.OptionGroups").
-		Preload("Items.MenuItem.OptionGroups.Options").
-		Where("id = ?", promoID).First(&promotion).Error; err != nil {
 	if err := db.DB.Preload("Items.MenuItem").
 		Preload("Items.MenuItem.Category").
 		Preload("Items.MenuItem.OptionGroups").
