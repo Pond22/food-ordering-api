@@ -209,7 +209,8 @@ func CreateOrder(c *fiber.Ctx) error {
 			"error": "Failed to update order total",
 		})
 	}
-	// 1. ดึงข้อมูล Order ที่สมบูรณ์
+
+	// 6. ดึงข้อมูล Order ที่สมบูรณ์
 	var completeOrder models.Order
 	if err := tx.Preload("Items.MenuItem.Category").
 		Preload("Items.Options.MenuOption").
@@ -220,69 +221,67 @@ func CreateOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	// 2. จัดกลุ่มรายการอาหารตามหมวดหมู่
-	categoryItems := make(map[string][]models.OrderItem)
+	// 7. จัดกลุ่มรายการอาหารตาม category ID
+	categoryItems := make(map[uint][]models.OrderItem)
 	for _, item := range completeOrder.Items {
-		categoryName := item.MenuItem.Category.Name
-		categoryItems[categoryName] = append(categoryItems[categoryName], item)
+		categoryID := item.MenuItem.CategoryID
+		categoryItems[categoryID] = append(categoryItems[categoryID], item)
 	}
 
-	// 3. ดึงข้อมูลเครื่องพิมพ์ทั้งหมด
-	var printers []models.Printer
-	if err := tx.Preload("Categories").Find(&printers).Error; err != nil {
-		tx.Rollback()
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to fetch printers",
-		})
-	}
-
-	// 4. สร้าง map ของเครื่องพิมพ์ตามหมวดหมู่
-	printerByCategory := make(map[string]*models.Printer) // map[categoryName]*Printer
-	var mainPrinter *models.Printer
-
-	for i := range printers {
-		printer := &printers[i]
-		if printer.Name == "main" {
-			mainPrinter = printer
-			continue
+	// 8. สร้าง print jobs สำหรับแต่ละหมวดหมู่
+	for categoryID, items := range categoryItems {
+		// ดึงเครื่องพิมพ์ทั้งหมดที่ถูกกำหนดให้พิมพ์หมวดหมู่นี้โดยตรง
+		var categoryPrinters []models.Printer
+		if err := tx.Table("printers").
+			Joins("JOIN printer_categories ON printers.id = printer_categories.printer_id").
+			Where("printer_categories.category_id = ?", categoryID).
+			Find(&categoryPrinters).Error; err != nil {
+			tx.Rollback()
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to fetch printers for category",
+			})
 		}
-		for _, category := range printer.Categories {
-			printerByCategory[category.Name] = printer
-		}
-	}
 
-	// 5. สร้าง print jobs
-	for categoryName, items := range categoryItems {
-		// หา printer ที่จะใช้
-		printer := printerByCategory[categoryName]
-		if printer == nil {
-			// ถ้าไม่มีเครื่องพิมพ์ที่กำหนด ใช้เครื่องพิมพ์หลัก
-			if mainPrinter == nil {
+		// ถ้าไม่มีเครื่องพิมพ์สำหรับหมวดหมู่นี้ ใช้เครื่องพิมพ์หลัก
+		if len(categoryPrinters) == 0 {
+			var mainPrinter models.Printer
+			if err := tx.Where("name = ?", "main").First(&mainPrinter).Error; err != nil {
 				tx.Rollback()
 				return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-					"error": "No printer available for category: " + categoryName,
+					"error": "No printer available for category ID: " + fmt.Sprint(categoryID),
 				})
 			}
-			printer = mainPrinter
+			categoryPrinters = []models.Printer{mainPrinter}
+		}
+
+		// ดึงข้อมูลหมวดหมู่เพื่อใช้ในการสร้างเนื้อหา
+		var category models.Category
+		if err := tx.First(&category, categoryID).Error; err != nil {
+			tx.Rollback()
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to fetch category info",
+			})
 		}
 
 		// สร้างเนื้อหาที่จะพิมพ์
-		content := createOrderPrintContent(completeOrder, categoryName, items)
+		content := createOrderPrintContent(completeOrder, category.Name, items)
 
-		// สร้าง print job
-		printJob := models.PrintJob{
-			PrinterID: printer.ID, // ใช้ ID แทน IP
-			OrderID:   &completeOrder.ID,
-			Content:   content,
-			Status:    "pending",
-			JobType:   "order",
-		}
+		// สร้าง print job สำหรับทุกเครื่องพิมพ์ที่กำหนดให้พิมพ์หมวดหมู่นี้
+		for _, printer := range categoryPrinters {
+			printJob := models.PrintJob{
+				PrinterID: printer.ID,
+				OrderID:   &completeOrder.ID,
+				Content:   content,
+				Status:    "pending",
+				JobType:   "order",
+			}
 
-		if err := tx.Create(&printJob).Error; err != nil {
-			tx.Rollback()
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to create print job",
-			})
+			if err := tx.Create(&printJob).Error; err != nil {
+				tx.Rollback()
+				return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+					"error": fmt.Sprintf("Failed to create print job for printer %s", printer.Name),
+				})
+			}
 		}
 	}
 
@@ -776,16 +775,30 @@ func CancelOrderItem(c *fiber.Ctx) error {
 
 	// หาเครื่องพิมพ์ที่เกี่ยวข้องตามหมวดหมู่ของเมนูอาหารในออเดอร์
 	var printers []models.Printer
-	err := db.DB.Joins("JOIN printer_categories ON printers.id = printer_categories.printer_id").
-		Where("printer_categories.category_id IN (?)",
-			db.DB.Table("order_items").Select("menu_item_id").Where("order_id = ?", order.ID)).
+	err := db.DB.Distinct("printers.*").
+		Joins("JOIN printer_categories ON printers.id = printer_categories.printer_id").
+		Joins("JOIN order_items ON order_items.order_id = ?", order.ID).
+		Joins("JOIN menu_items ON menu_items.id = order_items.menu_item_id").
+		Where("printer_categories.category_id = menu_items.category_id").
 		Find(&printers).Error
 
-	if err != nil || len(printers) == 0 {
+	if err != nil {
 		tx.Rollback()
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "No printers available for this order's categories",
+			"error": fmt.Sprintf("Failed to find printers: %v", err),
 		})
+	}
+
+	// If no category-specific printers found, fall back to main printer
+	if len(printers) == 0 {
+		var mainPrinter models.Printer
+		if err := tx.Where("name = ?", "main").First(&mainPrinter).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "No printers available and could not find main printer",
+			})
+		}
+		printers = append(printers, mainPrinter)
 	}
 
 	printContentString := strings.Join(printContents, "\n")

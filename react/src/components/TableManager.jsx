@@ -410,7 +410,7 @@ const TableManager = () => {
 
      // ดึงข้อมูล QR code จาก API
      const qrResponse = await axios.get(
-       `http://localhost:8080/api/qr/${table.ID}` // ส่ง table.ID ไปแทน
+       `http://localhost:8080/api/qr/${table.ID}` 
      )
 
      // เก็บข้อมูล QR code ที่ได้รับจาก API
@@ -515,6 +515,7 @@ const TableManager = () => {
           {status === 'occupied' && (
             <>
               <button onClick={handleCheckBillClick}>เช็คบิล</button>
+              <div>uuid:{uuid}</div>
               
             </>
           )}
@@ -574,7 +575,7 @@ const TableManager = () => {
                   : ''
               }${
                 table.Status === 'occupied'
-                  ? 'bg-yellow-100 border-orange-500'
+                  ? 'bg-red-100 border-orange-500'
                   : ''
               }`}
             >

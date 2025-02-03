@@ -314,7 +314,7 @@ const PaymentTables = () => {
           </div>
         </div>
 
-            {/* ค่าใช้จ่ายเพิ่มเติม */}
+        {/* ค่าใช้จ่ายเพิ่มเติม */}
         <div className="bg-white rounded-2xl p-6 mb-6 shadow-md">
           <h2 className="text-lg font-medium mb-4">
             เลือกประเภทค่าใช้จ่ายเพิ่มเติม
@@ -360,6 +360,17 @@ const PaymentTables = () => {
             >
               <Wallet className="w-5 h-5 mr-3" />
               <span>QR Payment</span>
+            </button>
+            <button
+              onClick={() => setSelectedPayment('cash')}
+              className={`w-full flex items-center p-4 rounded-xl border ${
+                selectedPayment === 'cash'
+                  ? 'border-black bg-gray-50'
+                  : 'border-gray-200'
+              }`}
+            >
+              <Wallet className="w-5 h-5 mr-3" />
+              <span>ชำระด้วยเงินสด</span>
             </button>
           </div>
         </div>
@@ -443,6 +454,8 @@ const PaymentTables = () => {
             </p>
           </div>
         )}
+
+        
       </main>
 
       <div className="flex justify-center">

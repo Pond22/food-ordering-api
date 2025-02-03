@@ -186,68 +186,7 @@ const Printer = () => {
       <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">เครื่องพิมพ์ที่ตั้งค่าไว้</h2>
-          <button
-            onClick={() => setShowAddPrinter(true)}
-            className="flex items-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-          >
-            <Plus className="w-5 h-5 mr-1" />
-            เพิ่มเครื่องพิมพ์
-          </button>
         </div>
-
-        {showAddPrinter && (
-          <form
-            onSubmit={handleAddPrinter}
-            className="mb-4 p-4 border rounded-lg"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  ชื่อเครื่องพิมพ์
-                </label>
-                <input
-                  type="text"
-                  className="w-full p-2 border rounded-md"
-                  value={newPrinter.name}
-                  onChange={(e) =>
-                    setNewPrinter({ ...newPrinter, name: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  IP Address
-                </label>
-                <input
-                  type="text"
-                  className="w-full p-2 border rounded-md"
-                  value={newPrinter.ip}
-                  onChange={(e) =>
-                    setNewPrinter({ ...newPrinter, ip: e.target.value })
-                  }
-                  required
-                  pattern="^(\d{1,3}\.){3}\d{1,3}$"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end space-x-2">
-              <button
-                type="button"
-                onClick={() => setShowAddPrinter(false)}
-                className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
-              >
-                ยกเลิก
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                เพิ่มเครื่องพิมพ์
-              </button>
-            </div>
-          </form>
-        )}
 
         <div className="overflow-x-auto">
           <table className="w-full">

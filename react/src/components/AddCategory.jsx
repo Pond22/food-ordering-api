@@ -376,8 +376,8 @@ const AddCategory = () => {
                 <tr>
                   <th className="p-4 text-center">ID</th>
                   <th className="p-4 text-center">ชื่อ (ภาษาไทย)</th>
-                  <th className="p-4 text-center">ชื่อ (ภาษาจีน)</th>
                   <th className="p-4 text-center">ชื่อ (ภาษาอังกฤษ)</th>
+                  <th className="p-4 text-center">ชื่อ (ภาษาจีน)</th>
                   <th className="p-4 text-center">จัดการ</th>
                 </tr>
               </thead>
@@ -386,8 +386,8 @@ const AddCategory = () => {
                   <tr key={category.ID} className="border-b hover:bg-gray-50">
                     <td className="p-4 text-center">{category.ID}</td>
                     <td className="p-4 text-center">{category.Name}</td>
-                    <td className="p-4 text-center">{category.NameCh}</td>
                     <td className="p-4 text-center">{category.NameEn}</td>
+                    <td className="p-4 text-center">{category.NameCh}</td>
                     <td className="p-4 text-center">
                       <button
                         onClick={() => handleEditCategory(category)}
@@ -612,24 +612,6 @@ const AddCategory = () => {
 
               <div>
                 <label
-                  htmlFor="categoryNameCH"
-                  className="block text-gray-700 font-medium mb-2"
-                >
-                  ชื่อหมวดหมู่ (ภาษาจีน)
-                </label>
-                <input
-                  id="categoryNameCH"
-                  type="text"
-                  value={categoryNameCH}
-                  onChange={(e) => setCategoryNameCH(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="ใส่ชื่อหมวดหมู่ (ภาษาจีน)"
-                  required
-                />
-              </div>
-
-              <div>
-                <label
                   htmlFor="categoryNameEN"
                   className="block text-gray-700 font-medium mb-2"
                 >
@@ -642,6 +624,24 @@ const AddCategory = () => {
                   onChange={(e) => setCategoryNameEN(e.target.value)}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="ใส่ชื่อหมวดหมู่ (ภาษาอังกฤษ)"
+                  required
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="categoryNameCH"
+                  className="block text-gray-700 font-medium mb-2"
+                >
+                  ชื่อหมวดหมู่ (ภาษาจีน)
+                </label>
+                <input
+                  id="categoryNameCH"
+                  type="text"
+                  value={categoryNameCH}
+                  onChange={(e) => setCategoryNameCH(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="ใส่ชื่อหมวดหมู่ (ภาษาจีน)"
                   required
                 />
               </div>
@@ -697,23 +697,6 @@ const AddCategory = () => {
               </div>
               <div>
                 <label
-                  htmlFor="categoryNameCH"
-                  className="block text-gray-700 font-medium mb-2"
-                >
-                  ชื่อหมวดหมู่ (ภาษาจีน)
-                </label>
-                <input
-                  id="categoryNameCH"
-                  type="text"
-                  value={categoryNameCH}
-                  onChange={(e) => setCategoryNameCH(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="ใส่ชื่อหมวดหมู่ (ภาษาจีน)"
-                  required
-                />
-              </div>
-              <div>
-                <label
                   htmlFor="categoryNameEN"
                   className="block text-gray-700 font-medium mb-2"
                 >
@@ -729,6 +712,24 @@ const AddCategory = () => {
                   required
                 />
               </div>
+              <div>
+                <label
+                  htmlFor="categoryNameCH"
+                  className="block text-gray-700 font-medium mb-2"
+                >
+                  ชื่อหมวดหมู่ (ภาษาจีน)
+                </label>
+                <input
+                  id="categoryNameCH"
+                  type="text"
+                  value={categoryNameCH}
+                  onChange={(e) => setCategoryNameCH(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="ใส่ชื่อหมวดหมู่ (ภาษาจีน)"
+                  required
+                />
+              </div>
+
               <div>
                 <button
                   type="submit"

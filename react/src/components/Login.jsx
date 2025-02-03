@@ -183,14 +183,14 @@ const Login = () => {
                 href="#"
                 className="text-xs sm:text-sm text-gray-600 hover:text-red-600 transition duration-300"
               >
-                ลืมรหัสผ่าน?
+                {/* ลืมรหัสผ่าน? */}
               </a>
             </div>
           </form>
         </div>
 
         <div className="text-center text-gray-300 mt-3 sm:mt-4 text-xs sm:text-sm relative z-10">
-          © 2024 Restaurant Management System
+          {/* © 2024 Restaurant Management System */}
         </div>
       </div>
     </div>
