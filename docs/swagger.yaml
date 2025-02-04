@@ -459,6 +459,10 @@ definitions:
           - quantity
           type: object
         type: array
+      max_selections:
+        type: integer
+      min_selections:
+        type: integer
       name:
         type: string
       nameCh:
@@ -566,6 +570,60 @@ definitions:
         type: string
     required:
     - status
+    type: object
+  api_v2.MergedPaymentRequest:
+    properties:
+      discounts:
+        items:
+          $ref: '#/definitions/api_v2.PaymentDiscountRequest'
+        type: array
+      extra_charges:
+        items:
+          $ref: '#/definitions/api_v2.PaymentExtraChargeRequest'
+        type: array
+      payment_method:
+        type: string
+      service_charge:
+        type: number
+      staff_id:
+        type: integer
+      table_ids:
+        items:
+          type: integer
+        minItems: 2
+        type: array
+    required:
+    - payment_method
+    - staff_id
+    - table_ids
+    type: object
+  api_v2.PaymentDiscountRequest:
+    properties:
+      discount_type_id:
+        type: integer
+      reason:
+        type: string
+      value:
+        type: number
+    required:
+    - discount_type_id
+    - value
+    type: object
+  api_v2.PaymentExtraChargeRequest:
+    properties:
+      amount:
+        type: number
+      charge_type_id:
+        type: integer
+      note:
+        type: string
+      quantity:
+        minimum: 1
+        type: integer
+    required:
+    - amount
+    - charge_type_id
+    - quantity
     type: object
   models.AdditionalChargeType:
     properties:
@@ -851,6 +909,13 @@ definitions:
         type: integer
       price:
         type: number
+      promotionUsage:
+        allOf:
+        - $ref: '#/definitions/models.PromotionUsage'
+        description: เพิ่มความสัมพันธ์
+      promotionUsageID:
+        description: เพิ่มฟิลด์ใหม่
+        type: integer
       quantity:
         type: integer
       servedAt:
@@ -991,6 +1056,10 @@ definitions:
         items:
           $ref: '#/definitions/models.PromotionItem'
         type: array
+      maxSelections:
+        type: integer
+      minSelections:
+        type: integer
       name:
         type: string
       nameCh:
@@ -1002,6 +1071,9 @@ definitions:
         type: number
       startDate:
         type: string
+      totalItems:
+        description: จำนวนรายการทั้งหมดในโปรโมชั่น
+        type: integer
       updatedAt:
         type: string
     type: object
@@ -1021,6 +1093,24 @@ definitions:
         type: integer
       updatedAt:
         type: string
+    type: object
+  models.PromotionUsage:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      order:
+        $ref: '#/definitions/models.Order'
+      orderID:
+        type: integer
+      promotion:
+        $ref: '#/definitions/models.Promotion'
+      promotionID:
+        type: integer
+      saveAmount:
+        description: จำนวนเงินที่ประหยัดได้
+        type: number
     type: object
   models.QRCode:
     properties:
@@ -4031,6 +4121,30 @@ paths:
       summary: ยกเลืกจองโต๊ะ
       tags:
       - Table
+  /api/v2/payment/merge:
+    post:
+      consumes:
+      - application/json
+      description: รวมบิลและชำระเงินสำหรับหลายโต๊ะพร้อมกัน
+      parameters:
+      - description: ข้อมูลการชำระเงิน
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api_v2.MergedPaymentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดใบเสร็จที่รวมแล้ว
+          schema:
+            $ref: '#/definitions/models.Receipt'
+      security:
+      - BearerAuth: []
+      summary: ชำระเงินรวมหลายโต๊ะ
+      tags:
+      - Payment_V2
   /order:
     get:
       description: เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ
