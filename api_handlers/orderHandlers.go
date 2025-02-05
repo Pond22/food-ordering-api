@@ -79,7 +79,7 @@ func CreateOrder(c *fiber.Ctx) error {
 		UUID:    req.UUID,
 		TableID: int(req.TableID),
 		Status:  "pending",
-		Total:   0, // จะคำนวณในภายหลัง
+		Total:   0,
 	}
 
 	if err := tx.Create(&order).Error; err != nil {
@@ -89,19 +89,17 @@ func CreateOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	// 3. สร้าง OrderItems
+	// 3. จัดการรายการสั่งอาหารปกติ
 	var totalAmount float64 = 0
 	for _, item := range req.Items {
-		// ดึงข้อมูลเมนู
 		var menuItem models.MenuItem
 		if err := tx.First(&menuItem, item.MenuItemID).Error; err != nil {
 			tx.Rollback()
 			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-				"error": "Menu item not found",
+				"error": fmt.Sprintf("Menu item ID %d not found", item.MenuItemID),
 			})
 		}
 
-		// สร้าง OrderItem
 		orderItem := models.OrderItem{
 			OrderID:    order.ID,
 			MenuItemID: item.MenuItemID,
@@ -118,13 +116,13 @@ func CreateOrder(c *fiber.Ctx) error {
 			})
 		}
 
-		// เพิ่ม Options (ถ้ามี)
+		// บันทึก Options
 		for _, opt := range item.Options {
 			var menuOption models.MenuOption
 			if err := tx.First(&menuOption, opt.MenuOptionID).Error; err != nil {
 				tx.Rollback()
 				return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-					"error": "Menu option not found",
+					"error": fmt.Sprintf("Menu option ID %d not found", opt.MenuOptionID),
 				})
 			}
 
@@ -148,18 +146,18 @@ func CreateOrder(c *fiber.Ctx) error {
 		totalAmount += float64(menuItem.Price) * float64(item.Quantity)
 	}
 
-	// 4. จัดการโปรโมชั่น (ถ้ามี)
+	// 4. จัดการโปรโมชั่น
 	if len(req.UsePromo) > 0 {
-		for _, promo := range req.UsePromo {
+		for _, promoReq := range req.UsePromo {
 			var promotion models.Promotion
-			if err := tx.Preload("Items.MenuItem").First(&promotion, promo.PromotionID).Error; err != nil {
+			if err := tx.Preload("Items.MenuItem").First(&promotion, promoReq.PromotionID).Error; err != nil {
 				tx.Rollback()
 				return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 					"error": "Promotion not found",
 				})
 			}
 
-			// ตรวจสอบว่าโปรโมชั่นยังใช้งานได้
+			// ตรวจสอบการใช้งานโปรโมชั่น
 			now := time.Now()
 			if !promotion.IsActive || now.Before(promotion.StartDate) || now.After(promotion.EndDate) {
 				tx.Rollback()
@@ -168,11 +166,11 @@ func CreateOrder(c *fiber.Ctx) error {
 				})
 			}
 
-			// สร้าง PromotionUsage ก่อน
+			// สร้าง PromotionUsage
 			promoUsage := models.PromotionUsage{
 				PromotionID: promotion.ID,
 				OrderID:     order.ID,
-				SaveAmount:  calculatePromotionSaving(&promotion), // คำนวณส่วนลดที่ได้รับ
+				SaveAmount:  0, // จะคำนวณภายหลัง
 			}
 
 			if err := tx.Create(&promoUsage).Error; err != nil {
@@ -182,27 +180,89 @@ func CreateOrder(c *fiber.Ctx) error {
 				})
 			}
 
-			// สร้าง OrderItem จากรายการในโปรโมชั่น
-			pricePerItem := promotion.Price / float64(len(promotion.Items)) // กระจายราคาต่อรายการ
-			for _, promoItem := range promotion.Items {
-				orderItem := models.OrderItem{
-					OrderID:          order.ID,
-					MenuItemID:       promoItem.MenuItemID,
-					Quantity:         promoItem.Quantity,
-					Price:            pricePerItem,
-					Status:           "pending",
-					PromotionUsageID: &promoUsage.ID, // เชื่อมกับ PromotionUsage
-				}
-
-				if err := tx.Create(&orderItem).Error; err != nil {
+			// กรณีโปรโมชั่นแบบธรรมดา (fixed set)
+			if promotion.MaxSelections == 0 && promotion.MinSelections == 0 {
+				// ไม่ต้องส่ง MenuItemIDs
+				if len(promoReq.MenuItemIDs) > 0 {
 					tx.Rollback()
-					return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-						"error": "Failed to create order item",
+					return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+						"error": "This promotion does not require item selection",
 					})
 				}
-			}
 
-			totalAmount += promotion.Price
+				// สร้าง OrderItem จากรายการในโปรโมชั่นทั้งหมด
+				for _, promoItem := range promotion.Items {
+					orderItem := models.OrderItem{
+						OrderID:          order.ID,
+						MenuItemID:       promoItem.MenuItemID,
+						Quantity:         promoItem.Quantity,
+						Price:            promotion.Price / float64(len(promotion.Items)),
+						Status:           "pending",
+						PromotionUsageID: &promoUsage.ID,
+					}
+
+					if err := tx.Create(&orderItem).Error; err != nil {
+						tx.Rollback()
+						return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+							"error": "Failed to create promotion order item",
+						})
+					}
+				}
+
+				totalAmount += promotion.Price
+			} else {
+				// กรณีโปรโมชั่นแบบเลือกได้
+				if len(promoReq.MenuItemIDs) < promotion.MinSelections ||
+					len(promoReq.MenuItemIDs) > promotion.MaxSelections {
+					tx.Rollback()
+					return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+						"error": fmt.Sprintf("Invalid number of selections. Must select between %d and %d items",
+							promotion.MinSelections, promotion.MaxSelections),
+					})
+				}
+
+				// ตรวจสอบว่าเมนูที่เลือกอยู่ในโปรโมชั่น
+				for _, menuItemID := range promoReq.MenuItemIDs {
+					found := false
+					for _, promoItem := range promotion.Items {
+						if promoItem.MenuItemID == menuItemID {
+							found = true
+							break
+						}
+					}
+
+					if !found {
+						tx.Rollback()
+						return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+							"error": fmt.Sprintf("Menu item ID %d is not in promotion", menuItemID),
+						})
+					}
+				}
+
+				// คำนวณราคาต่อรายการ
+				pricePerItem := promotion.Price / float64(len(promoReq.MenuItemIDs))
+
+				// สร้าง OrderItem สำหรับรายการที่เลือก
+				for _, menuItemID := range promoReq.MenuItemIDs {
+					orderItem := models.OrderItem{
+						OrderID:          order.ID,
+						MenuItemID:       menuItemID,
+						Quantity:         1,
+						Price:            pricePerItem,
+						Status:           "pending",
+						PromotionUsageID: &promoUsage.ID,
+					}
+
+					if err := tx.Create(&orderItem).Error; err != nil {
+						tx.Rollback()
+						return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+							"error": "Failed to create promotion order item",
+						})
+					}
+				}
+
+				totalAmount += promotion.Price
+			}
 		}
 	}
 
@@ -990,10 +1050,23 @@ func updateOrdersTotalByUUIDAndTableID(tx *gorm.DB, uuid string, tableID uint) e
 // }
 
 // Helper function สำหรับคำนวณส่วนลด
-func calculatePromotionSaving(promotion *models.Promotion) float64 {
-	var normalPrice float64
-	for _, item := range promotion.Items {
-		normalPrice += float64(item.MenuItem.Price) * float64(item.Quantity)
+func calculatePromotionSaving(promotion *models.Promotion, selectedItemIDs []uint) float64 {
+	var normalPrice float64 = 0
+	for _, id := range selectedItemIDs {
+		for _, item := range promotion.Items {
+			if item.MenuItemID == id {
+				normalPrice += float64(item.MenuItem.Price)
+				break
+			}
+		}
 	}
 	return normalPrice - promotion.Price
 }
+
+// func calculatePromotionSaving(promotion *models.Promotion, selectedCount int) float64 {
+// 	var normalPrice float64 = 0
+// 	for i := 0; i < selectedCount; i++ {
+// 			normalPrice += float64(promotion.Items[i].MenuItem.Price)
+// 	}
+// 	return normalPrice - promotion.Price
+// }

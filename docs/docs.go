@@ -4303,6 +4303,45 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/payment/merge": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "รวมบิลและชำระเงินสำหรับหลายโต๊ะพร้อมกัน",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment_V2"
+                ],
+                "summary": "ชำระเงินรวมหลายโต๊ะ",
+                "parameters": [
+                    {
+                        "description": "ข้อมูลการชำระเงิน",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_v2.MergedPaymentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดใบเสร็จที่รวมแล้ว",
+                        "schema": {
+                            "$ref": "#/definitions/models.Receipt"
+                        }
+                    }
+                }
+            }
+        },
         "/order": {
             "get": {
                 "description": "เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ url ของแต่ละโต๊ะจะสามารถเข้าได้ผ่าน qr_code เท่านั้นจากฟังก์ชัน",
@@ -5078,6 +5117,12 @@ const docTemplate = `{
                         }
                     }
                 },
+                "max_selections": {
+                    "type": "integer"
+                },
+                "min_selections": {
+                    "type": "integer"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -5230,6 +5275,85 @@ const docTemplate = `{
                         "served",
                         "cancelled"
                     ]
+                }
+            }
+        },
+        "api_v2.MergedPaymentRequest": {
+            "type": "object",
+            "required": [
+                "payment_method",
+                "staff_id",
+                "table_ids"
+            ],
+            "properties": {
+                "discounts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api_v2.PaymentDiscountRequest"
+                    }
+                },
+                "extra_charges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api_v2.PaymentExtraChargeRequest"
+                    }
+                },
+                "payment_method": {
+                    "type": "string"
+                },
+                "service_charge": {
+                    "type": "number"
+                },
+                "staff_id": {
+                    "type": "integer"
+                },
+                "table_ids": {
+                    "type": "array",
+                    "minItems": 2,
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "api_v2.PaymentDiscountRequest": {
+            "type": "object",
+            "required": [
+                "discount_type_id",
+                "value"
+            ],
+            "properties": {
+                "discount_type_id": {
+                    "type": "integer"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "number"
+                }
+            }
+        },
+        "api_v2.PaymentExtraChargeRequest": {
+            "type": "object",
+            "required": [
+                "amount",
+                "charge_type_id",
+                "quantity"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "charge_type_id": {
+                    "type": "integer"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer",
+                    "minimum": 1
                 }
             }
         },
@@ -5869,6 +5993,12 @@ const docTemplate = `{
                         "$ref": "#/definitions/models.PromotionItem"
                     }
                 },
+                "maxSelections": {
+                    "type": "integer"
+                },
+                "minSelections": {
+                    "type": "integer"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -5884,6 +6014,10 @@ const docTemplate = `{
                 },
                 "startDate": {
                     "type": "string"
+                },
+                "totalItems": {
+                    "description": "จำนวนรายการทั้งหมดในโปรโมชั่น",
+                    "type": "integer"
                 },
                 "updatedAt": {
                     "type": "string"

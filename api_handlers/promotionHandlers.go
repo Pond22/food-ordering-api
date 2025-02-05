@@ -52,6 +52,8 @@ type createPromo_req struct {
 		MenuItemID uint `json:"menu_item_id" binding:"required"`
 		Quantity   int  `json:"quantity" binding:"required,min=1"`
 	} `json:"items" binding:"required"`
+	MaxSelections int `json:"max_selections,omitempty"`
+	MinSelections int `json:"min_selections,omitempty"`
 }
 
 type updatePromo_req struct {
@@ -100,18 +102,28 @@ func CreatePromotion(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": err})
 	}
 
+	// if req.MaxSelections == 0 {
+	// 	req.MaxSelections = len(req.Items)
+	// }
+	// if req.MinSelections == 0 {
+	// 	req.MinSelections = len(req.Items)
+	// }
+
 	tx := db.DB.Begin()
 
 	// สร้างโปรโมชั่น
 	promo := models.Promotion{
-		Name:        req.Name,
-		NameEn:      req.NameEn,
-		NameCh:      req.NameCh,
-		Description: req.Description,
-		StartDate:   req.StartDate,
-		EndDate:     req.EndDate,
-		Price:       req.Price, // เพิ่มราคาโปรโมชั่น
-		IsActive:    true,
+		Name:          req.Name,
+		NameEn:        req.NameEn,
+		NameCh:        req.NameCh,
+		Description:   req.Description,
+		StartDate:     req.StartDate,
+		EndDate:       req.EndDate,
+		Price:         req.Price, // เพิ่มราคาโปรโมชั่น
+		IsActive:      true,
+		MaxSelections: req.MaxSelections,
+		MinSelections: req.MinSelections,
+		TotalItems:    len(req.Items),
 	}
 
 	if err := tx.Create(&promo).Error; err != nil {

@@ -220,4 +220,5 @@ func SetupRoutes(app *fiber.App) {
 	// 	}
 	// }
 	SetupUserRoutes(app)
+	SetupRoutesV2(app)
 }

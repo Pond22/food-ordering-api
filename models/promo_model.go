@@ -23,6 +23,9 @@ type Promotion struct {
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 	DeletedAt     gorm.DeletedAt `json:"-" swaggerignore:"true"`
+	MaxSelections int            `gorm:"not null;default:0"`
+	MinSelections int            `gorm:"not null;default:0"`
+	TotalItems    int            `gorm:"not null"` // จำนวนรายการทั้งหมดในโปรโมชั่น
 }
 
 type PromotionItem struct {
