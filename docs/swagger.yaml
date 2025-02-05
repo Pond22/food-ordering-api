@@ -851,6 +851,13 @@ definitions:
         type: integer
       price:
         type: number
+      promotionUsage:
+        allOf:
+        - $ref: '#/definitions/models.PromotionUsage'
+        description: เพิ่มความสัมพันธ์
+      promotionUsageID:
+        description: เพิ่มฟิลด์ใหม่
+        type: integer
       quantity:
         type: integer
       servedAt:
@@ -1021,6 +1028,24 @@ definitions:
         type: integer
       updatedAt:
         type: string
+    type: object
+  models.PromotionUsage:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      order:
+        $ref: '#/definitions/models.Order'
+      orderID:
+        type: integer
+      promotion:
+        $ref: '#/definitions/models.Promotion'
+      promotionID:
+        type: integer
+      saveAmount:
+        description: จำนวนเงินที่ประหยัดได้
+        type: number
     type: object
   models.QRCode:
     properties:

@@ -7,7 +7,7 @@ export default function Menu() {
   const [searchParams] = useSearchParams()
 
   // ดึงค่า table และ uuid จาก URL
-  const tableID = parseInt(searchParams.get('table'),10)
+  const tableID = parseInt(searchParams.get('tableID'),10)
   const uuid = searchParams.get('uuid')
   console.log(tableID,'+', uuid)
 

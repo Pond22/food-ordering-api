@@ -5652,6 +5652,18 @@
                 "price": {
                     "type": "number"
                 },
+                "promotionUsage": {
+                    "description": "เพิ่มความสัมพันธ์",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.PromotionUsage"
+                        }
+                    ]
+                },
+                "promotionUsageID": {
+                    "description": "เพิ่มฟิลด์ใหม่",
+                    "type": "integer"
+                },
                 "quantity": {
                     "type": "integer"
                 },
@@ -5898,6 +5910,33 @@
                 },
                 "updatedAt": {
                     "type": "string"
+                }
+            }
+        },
+        "models.PromotionUsage": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "order": {
+                    "$ref": "#/definitions/models.Order"
+                },
+                "orderID": {
+                    "type": "integer"
+                },
+                "promotion": {
+                    "$ref": "#/definitions/models.Promotion"
+                },
+                "promotionID": {
+                    "type": "integer"
+                },
+                "saveAmount": {
+                    "description": "จำนวนเงินที่ประหยัดได้",
+                    "type": "number"
                 }
             }
         },
