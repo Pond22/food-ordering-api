@@ -311,7 +311,7 @@ type ReceiptCharge struct {
 type Receipt struct {
 	ID      uint   `gorm:"primaryKey"`
 	UUID    string `gorm:"not null;index"`
-	TableID int    `gorm:"not null"`
+	TableID string `gorm:"type:text"`
 	// Orders        []Order `gorm:"foreignKey:ReceiptID"`
 	Orders        []Order `gorm:"foreignKey:ReceiptID"`
 	OrderID       *uint   `gorm:"index"`

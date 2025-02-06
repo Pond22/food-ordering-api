@@ -902,6 +902,27 @@ func CancelOrderItem(c *fiber.Ctx) error {
 		})
 	}
 
+	// ตรวจสอบว่าทุกรายการในออเดอร์ถูกยกเลิกหรือไม่
+	var nonCancelledCount int64
+	if err := tx.Model(&models.OrderItem{}).
+		Where("order_id = ? AND status != ?", order.ID, "cancelled").
+		Count(&nonCancelledCount).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to check order items status",
+		})
+	}
+
+	// ถ้าทุกรายการถูกยกเลิก ให้อัพเดทสถานะของออเดอร์เป็น cancelled
+	if nonCancelledCount == 0 {
+		if err := tx.Model(&order).Update("status", "cancelled").Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to update order status",
+			})
+		}
+	}
+
 	// สร้าง print jobs
 	if len(printContents) > 0 { // ตอนนี้จะรวมทั้งรายการปกติและโปรโมชั่น
 		var printers []models.Printer

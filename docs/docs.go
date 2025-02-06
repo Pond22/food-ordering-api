@@ -4975,10 +4975,10 @@ const docTemplate = `{
         "api_handlers.UpdateChargeTypeRequest": {
             "type": "object",
             "properties": {
-                "default_amount": {
+                "defaultAmount": {
                     "type": "number"
                 },
-                "is_active": {
+                "isActive": {
                     "type": "boolean"
                 },
                 "name": {
@@ -5143,6 +5143,10 @@ const docTemplate = `{
         "api_handlers.move_req": {
             "type": "object",
             "properties": {
+                "force_move": {
+                    "description": "true = ยอมรับความจุน้อยกว่า ยืดหยุ่่นท่องไว้",
+                    "type": "boolean"
+                },
                 "from_table_id": {
                     "type": "integer"
                 },
@@ -5319,18 +5323,15 @@ const docTemplate = `{
         "api_v2.PaymentDiscountRequest": {
             "type": "object",
             "required": [
-                "discount_type_id",
-                "value"
+                "discount_type_id"
             ],
             "properties": {
                 "discount_type_id": {
                     "type": "integer"
                 },
                 "reason": {
+                    "description": "Value          float64 ` + "`" + `json:\"value\" binding:\"required\"` + "`" + `",
                     "type": "string"
-                },
-                "value": {
-                    "type": "number"
                 }
             }
         },
@@ -6163,7 +6164,7 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "tableID": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "total": {
                     "type": "number"
