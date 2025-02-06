@@ -56,7 +56,7 @@ export default function MenuBar({ tableID, uuid }) {
 
     const orderData = {
       items,
-      table_id: tableID,
+      table_id: 14,
       use_promo: [],
       uuid: uuid,
     }

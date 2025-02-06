@@ -130,65 +130,66 @@ const ChargeTypeManagement = () => {
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+  e.preventDefault()
 
-    // ข้อมูลที่ต้องการบันทึกหรือแก้ไข
-    const updatedChargeType = {
-      name: formData.name, // ชื่อประเภทค่าใช้จ่าย
-      default_amount: Number(formData.defaultAmount), // ใช้ default_amount สำหรับ PUT API
-      isActive: formData.isActive, // ใช้ is_active
-    }
+  // ข้อมูลที่ต้องการบันทึกหรือแก้ไข
+  const updatedChargeType = {
+    name: formData.name, // ชื่อประเภทค่าใช้จ่าย
+    defaultAmount: formData.defaultAmount, // ใช้ defaultAmount สำหรับ POST หรือ PUT API
+    isActive: formData.isActive, // ใช้ isActive
+  }
 
-    const method = editingChargeType ? 'PUT' : 'POST' // กำหนดวิธีการ (POST สำหรับเพิ่ม, PUT สำหรับแก้ไข)
-    const url = editingChargeType
-      ? `http://localhost:8080/api/payment/charge-types/${editingChargeType.ID}`
-      : 'http://localhost:8080/api/payment/charge-types'
+  const method = editingChargeType ? 'PUT' : 'POST' // กำหนดวิธีการ (POST สำหรับเพิ่ม, PUT สำหรับแก้ไข)
+  const url = editingChargeType
+    ? `http://localhost:8080/api/payment/charge-types/${editingChargeType.ID}` // ถ้าเป็นการแก้ไขข้อมูล
+    : 'http://localhost:8080/api/payment/charge-types' // ถ้าเป็นการเพิ่มข้อมูลใหม่
 
-    try {
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(updatedChargeType),
+  try {
+    const response = await fetch(url, {
+      method: method,
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(updatedChargeType),
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+
+      // อัปเดตข้อมูลใน state
+      setChargeTypes((prev) => {
+        if (editingChargeType) {
+          // ถ้าเป็นการแก้ไขข้อมูล ให้แทนที่ข้อมูลเดิม
+          return prev.map((ct) =>
+            ct.ID === editingChargeType.ID ? data : ct
+          )
+        }
+        // ถ้าเป็นการเพิ่มข้อมูลใหม่ ให้เพิ่มเข้าไป
+        return [...prev, data]
       })
 
-      if (response.ok) {
-        const data = await response.json()
+      // อัปเดตข้อมูลใน filteredChargeTypes
+      setFilteredChargeTypes((prev) => {
+        if (editingChargeType) {
+          return prev.map((ct) =>
+            ct.ID === editingChargeType.ID ? data : ct
+          )
+        }
+        return [...prev, data]
+      })
 
-        // อัปเดตข้อมูลใน state
-        setChargeTypes((prev) => {
-          if (editingChargeType) {
-            // ถ้าเป็นการแก้ไขข้อมูล ให้แทนที่ข้อมูลเดิม
-            return prev.map((ct) =>
-              ct.ID === editingChargeType.ID ? data : ct
-            )
-          }
-          // ถ้าเป็นการเพิ่มข้อมูลใหม่ ให้เพิ่มเข้าไป
-          return [...prev, data]
-        })
-
-        // อัปเดตข้อมูลใน filteredChargeTypes
-        setFilteredChargeTypes((prev) => {
-          if (editingChargeType) {
-            return prev.map((ct) =>
-              ct.ID === editingChargeType.ID ? data : ct
-            )
-          }
-          return [...prev, data]
-        })
-
-        setIsModalOpen(false) // ปิด Modal
-        resetForm() // รีเซ็ตฟอร์ม
-      } else {
-        alert('ไม่สามารถบันทึกข้อมูลประเภทค่าใช้จ่าย')
-      }
-    } catch (error) {
-      console.error('Error submitting charge type:', error)
-      alert('เกิดข้อผิดพลาดในการบันทึกข้อมูลประเภทค่าใช้จ่าย')
+      setIsModalOpen(false) // ปิด Modal
+      resetForm() // รีเซ็ตฟอร์ม
+    } else {
+      alert('ไม่สามารถบันทึกข้อมูลประเภทค่าใช้จ่าย')
     }
+  } catch (error) {
+    console.error('Error submitting charge type:', error)
+    alert('เกิดข้อผิดพลาดในการบันทึกข้อมูลประเภทค่าใช้จ่าย')
   }
+}
+
 
   // ฟังก์ชันสำหรับการค้นหาข้อมูล
   const handleSearch = (e) => {

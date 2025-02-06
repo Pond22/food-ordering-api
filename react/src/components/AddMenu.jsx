@@ -850,7 +850,8 @@ const MenuManagement = () => {
                                         className="flex justify-between items-center"
                                       >
                                         <span className="font-mg text-gray-700">
-                                          • {option.ID}{option.Name} | {option.NameEn} |{' '}
+                                          • {option.ID}
+                                          {option.Name} | {option.NameEn} |{' '}
                                           {option.NameCh}
                                         </span>
                                         <span className="text-green-600 text-sm">
@@ -1064,7 +1065,7 @@ const MenuManagement = () => {
       {/* Modal สำหรับแก้ไขเมนูอาหาร */}
       {showEditMenuModal && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-lg w-6/12 ml-12 h-5/6 overflow-y-auto">
+          <div className="bg-white p-6 rounded-lg sm:w-8/12 md:w-8/12 lg:w-6/12 ml-12 h-screen overflow-y-auto">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">แก้ไขข้อมูลเมนู</h2>
               <button
@@ -1207,7 +1208,7 @@ const MenuManagement = () => {
             {menuDetails.optionGroups.length > 0 ? (
               menuDetails.optionGroups.map((group, groupIndex) => (
                 <div key={groupIndex}>
-                  <div className="border p-2 pb-8 ">
+                  <div className="border border-black p-2 pb-8 mt-2">
                     <label>รหัสกลุ่มตัวเลือก : {group.ID}</label>
                     <button
                       className="text-red-500"
@@ -1216,8 +1217,10 @@ const MenuManagement = () => {
                       ลบกลุ่ม
                     </button>
 
-                    <div className="mt-4">ชื่อกลุ่มตัวเลือกภายในเมนู</div>
-                    <div className="flex px-4 border">
+                    <div className="mt-4 bg-gray-300 p-2">
+                      ชื่อกลุ่มตัวเลือกภายในเมนู
+                    </div>
+                    <div className="flex px-2 border border-gray-300">
                       <div className="mt-4 mb-4">
                         <label>ชื่อกลุ่มตัวเลือก (ไทย)</label>
                         <input
@@ -1267,7 +1270,7 @@ const MenuManagement = () => {
                         />
                       </div>
                       <div className="mt-4">
-                        <label>จำนวนที่เลือกได้สูงสุด</label>
+                        <label>จำนวนที่เลือกได้</label>
                         <input
                           type="number"
                           value={group.MaxSelections || ''}
@@ -1281,7 +1284,7 @@ const MenuManagement = () => {
                               optionGroups: updatedGroups,
                             })
                           }}
-                          className="border p-2 w-full mt-2"
+                          className="border p-2 w-10 "
                         />
                       </div>
                       <div className="mt-4">
@@ -1308,21 +1311,14 @@ const MenuManagement = () => {
                         />
                       </div>
                     </div>
-                    {/* ปุ่มเพิ่ม Option */}
-                    <div className="mt-4">
-                      <button
-                        className="bg-blue-500 text-white px-4 py-2 rounded-lg"
-                        onClick={() => handleAddOption(groupIndex)} // เรียกใช้ฟังก์ชันในการเพิ่ม Option
-                      >
-                        เพิ่มตัวเลือก
-                      </button>
-                    </div>
 
                     {/* ฟอร์มสำหรับแก้ไข Option ใน Option Group */}
                     {group.options.length > 0 ? (
                       group.options.map((option, optionIndex) => (
                         <div key={optionIndex}>
-                          <div className="mt-4">ชื่อตัวเลือกภายในเมนู</div>
+                          <div className="mt-4 bg-gray-200 p-1">
+                            ชื่อตัวเลือกภายในเมนู
+                          </div>
                           <button
                             className="text-red-500 text-sm hover:underline"
                             onClick={() => {
@@ -1339,7 +1335,7 @@ const MenuManagement = () => {
                             ลบตัวเลือกนี้
                           </button>
 
-                          <div className="flex px-4 border">
+                          <div className="flex px-4 border border-black/50">
                             <div className="my-2 mx-2">
                               <label>ชื่อตัวเลือก (ไทย)</label>
                               <input
@@ -1427,6 +1423,15 @@ const MenuManagement = () => {
                     ) : (
                       <p>ไม่มีตัวเลือกในกลุ่มนี้</p>
                     )}
+                    {/* ปุ่มเพิ่ม Option */}
+                    <div className="mt-4">
+                      <button
+                        className="bg-blue-500 text-white px-4 py-2 rounded-lg"
+                        onClick={() => handleAddOption(groupIndex)} // เรียกใช้ฟังก์ชันในการเพิ่ม Option
+                      >
+                        เพิ่มตัวเลือก
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))
@@ -1604,8 +1609,8 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded-lg w-6/12 ml-12 h-5/6 overflow-y-auto">
+    <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50 py-4">
+      <div className="bg-white p-6 rounded-lg lg:w-6/12 sm:w-8/12 md:8/12 ml-12 h-screen overflow-y-auto ">
         <div className="flex justify-between">
           <h2 className="text-xl font-bold mb-4">เพิ่มเมนูอาหาร</h2>
           <button onClick={onClose} className="  right-2 text-red-500">
@@ -1710,13 +1715,10 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
 
           {/* กลุ่มตัวเลือก */}
           <div className="mb-4">
-            <button type="button" onClick={handleAddOptionGroup}>
-              เพิ่มกลุ่มตัวเลือก
-            </button>
-
             {options.map((group, groupIndex) => (
-              <div key={groupIndex}>
-                <label className="block mb-2">
+              <div key={groupIndex} className="border border-black p-2 mt-2">
+                <h1 className="text-xl bg-gray-200 p-2">กลุ่มตัวเลือก</h1>
+                <label className="block mb-2 ">
                   จำนวนตัวเลือกสูงสุด
                   <input
                     type="number"
@@ -1733,7 +1735,7 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
                   />
                 </label>
                 <label className="block mb-2">
-                  จำเป็นต้องเลือก?
+                  บังคับให้เลือกตัวเลือกหรือไม่?
                   <input
                     type="checkbox"
                     checked={group.is_required}
@@ -1783,12 +1785,19 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
                 {/* ตัวเลือกภายในกลุ่ม */}
                 <button
                   type="button"
+                  className="bg-green-500 text-white rounded-md p-2 mt-2"
                   onClick={() => handleAddOption(groupIndex)}
                 >
                   เพิ่มตัวเลือกในกลุ่มนี้
                 </button>
                 {group.options.map((option, optionIndex) => (
-                  <div key={optionIndex}>
+                  <div
+                    key={optionIndex}
+                    className="border border-gray-300 p-2 mt-2"
+                  >
+                    <h1 className="text-md bg-gray-200/70 p-2">
+                      ตัวเลือกในกลุ่ม
+                    </h1>
                     <input
                       type="text"
                       placeholder="ชื่อตัวเลือก"
@@ -1828,6 +1837,8 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
                         )
                       }
                     />
+
+                    <p>ราคา</p>
                     <input
                       type="number"
                       placeholder="ราคา"
@@ -1842,23 +1853,32 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
                       }
                     />
                     <button
+                      className="bg-red-500 text-white rounded-md p-2 mt-2 ml-2"
                       type="button"
                       onClick={() =>
                         handleRemoveOption(groupIndex, optionIndex)
                       }
                     >
-                      ลบตัวเลือก
+                      ลบตัวเลือกนี้
                     </button>
                   </div>
                 ))}
                 <button
                   type="button"
+                  className="bg-red-500 text-white rounded-md p-2 mt-2"
                   onClick={() => handleRemoveOptionGroup(groupIndex)}
                 >
-                  ลบกลุ่มตัวเลือก
+                  ลบกลุ่มตัวเลือกนี้
                 </button>
               </div>
             ))}
+            <button
+              type="button"
+              onClick={handleAddOptionGroup}
+              className="bg-blue-500 p-2 rounded-md text-white mt-2"
+            >
+              เพิ่มกลุ่มตัวเลือก
+            </button>
           </div>
 
           {/* ปุ่มเพิ่มเมนู */}
