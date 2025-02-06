@@ -19,12 +19,15 @@ type PrinterConnection struct {
 }
 
 type PrinterInfo struct {
-	IP         string `json:"ip"`
-	Port       int    `json:"port"`
+	Type       string `json:"type"`           // "network" หรือ "usb"
+	IP         string `json:"ip,omitempty"`   // สำหรับ network printer
+	Port       int    `json:"port,omitempty"` // เปลี่ยนจาก *int เป็น int
 	Name       string `json:"name"`
 	Department string `json:"department"`
 	Status     string `json:"status"`
 	LastSeen   string `json:"last_seen"`
+	VendorID   string `json:"vendor_id,omitempty"`  // สำหรับ USB printer
+	ProductID  string `json:"product_id,omitempty"` // สำหรับ USB printer
 }
 
 type ClientMessage struct {
@@ -136,7 +139,13 @@ func handlePrinterUpdate(c *websocket.Conn, msg ClientMessage) {
 	conn.Printers = make(map[string]bool)
 
 	for _, printer := range msg.Printers {
-		conn.Printers[printer.IP] = true
+		if printer.Type == "network" {
+			conn.Printers[printer.IP] = true
+		} else if printer.Type == "usb" {
+			// สำหรับ USB printer ใช้ vendor_id และ product_id เป็น key
+			key := "USB_" + printer.VendorID + "_" + printer.ProductID
+			conn.Printers[key] = true
+		}
 	}
 	connMutex.Unlock()
 
@@ -148,25 +157,66 @@ func updatePrinters(printers []PrinterInfo) {
 		lastSeen, _ := time.Parse("2006-01-02 15:04:05", p.LastSeen)
 
 		var printer models.Printer
-		result := db.DB.Where("ip_address = ?", p.IP).First(&printer)
+		var result error
 
-		if result.Error != nil {
+		if p.Type == "usb" {
+			result = db.DB.Where("type = ? AND vendor_id = ? AND product_id = ?",
+				"usb", p.VendorID, p.ProductID).First(&printer).Error
+
+			log.Printf("Looking for USB printer: VID=%s, PID=%s", p.VendorID, p.ProductID)
+		} else {
+			result = db.DB.Where("type = ? AND ip_address = ?",
+				"network", p.IP).First(&printer).Error
+
+			log.Printf("Looking for Network printer: IP=%s", p.IP)
+		}
+
+		if result != nil {
+			// สร้างเครื่องพิมพ์ใหม่
 			printer = models.Printer{
+				Type:       p.Type,
 				Name:       p.Name,
-				IPAddress:  p.IP,
-				Port:       p.Port,
 				Department: p.Department,
 				Status:     p.Status,
 				LastSeen:   lastSeen,
 			}
-			db.DB.Create(&printer)
+
+			if p.Type == "usb" {
+				printer.VendorID = p.VendorID
+				printer.ProductID = p.ProductID
+				log.Printf("Creating new USB printer: VID=%s, PID=%s", p.VendorID, p.ProductID)
+			} else {
+				printer.IPAddress = p.IP
+				printer.Port = p.Port // ใช้ค่า int โดยตรง
+				log.Printf("Creating new Network printer: IP=%s", p.IP)
+			}
+
+			if err := db.DB.Create(&printer).Error; err != nil {
+				log.Printf("Error creating printer: %v", err)
+				continue
+			}
 		} else {
-			db.DB.Model(&printer).Updates(map[string]interface{}{
+			// อัพเดทข้อมูลที่มีอยู่
+			updates := map[string]interface{}{
 				"name":       p.Name,
 				"department": p.Department,
 				"status":     p.Status,
 				"last_seen":  lastSeen,
-			})
+			}
+
+			if p.Type == "usb" {
+				updates["vendor_id"] = p.VendorID
+				updates["product_id"] = p.ProductID
+				log.Printf("Updating USB printer: VID=%s, PID=%s", p.VendorID, p.ProductID)
+			} else {
+				updates["port"] = p.Port // ใช้ค่า int โดยตรง
+				log.Printf("Updating Network printer: IP=%s", p.IP)
+			}
+
+			if err := db.DB.Model(&printer).Updates(updates).Error; err != nil {
+				log.Printf("Error updating printer: %v", err)
+				continue
+			}
 		}
 	}
 }

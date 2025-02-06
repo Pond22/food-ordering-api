@@ -8,7 +8,7 @@ import (
 	"food-ordering-api/db"
 	"food-ordering-api/models"
 	"image"
-	"image/draw"
+	"image/png"
 	"log"
 	"net/http"
 	"os"
@@ -18,6 +18,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/freetype/truetype"
+	"golang.org/x/image/draw"
 	"golang.org/x/image/font"
 	"golang.org/x/image/math/fixed"
 	"gorm.io/gorm"
@@ -156,6 +157,13 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 		})
 	}
 
+	// ตรวจสอบว่ามี category IDs ส่งมาหรือไม่
+	if len(req.CategoryIDs) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Category IDs are required",
+		})
+	}
+
 	tx := db.DB.Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -163,6 +171,7 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 		}
 	}()
 
+	// ตรวจสอบว่ามีเครื่องพิมพ์อยู่จริง
 	var printer models.Printer
 	if err := tx.First(&printer, printerID).Error; err != nil {
 		tx.Rollback()
@@ -171,12 +180,12 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 		})
 	}
 
-	// ตรวจสอบและดึงหมวดหมู่ที่ระบุ
+	// ตรวจสอบว่าหมวดหมู่ทั้งหมดที่ส่งมามีอยู่จริง
 	var categories []models.Category
 	if err := tx.Find(&categories, req.CategoryIDs).Error; err != nil {
 		tx.Rollback()
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid category IDs",
+			"error": "Failed to fetch categories",
 		})
 	}
 
@@ -187,16 +196,42 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 		})
 	}
 
-	// อัพเดทความสัมพันธ์
-	if err := tx.Model(&printer).Association("Categories").Replace(&categories); err != nil {
+	// ดึงความสัมพันธ์ที่มีอยู่เดิม
+	var existingRelations []struct {
+		PrinterID  uint
+		CategoryID uint
+	}
+	if err := tx.Table("printer_categories").
+		Where("printer_id = ?", printer.ID).
+		Find(&existingRelations).Error; err != nil {
 		tx.Rollback()
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to update printer categories",
+			"error": "Failed to fetch existing relations",
 		})
 	}
 
+	// สร้าง map เพื่อเช็คความสัมพันธ์ที่มีอยู่แล้ว
+	existingMap := make(map[uint]bool)
+	for _, rel := range existingRelations {
+		existingMap[rel.CategoryID] = true
+	}
+
+	// เพิ่มเฉพาะความสัมพันธ์ใหม่ที่ยังไม่มี
+	for _, catID := range req.CategoryIDs {
+		if !existingMap[catID] {
+			if err := tx.Exec("INSERT INTO printer_categories (printer_id, category_id) VALUES (?, ?)",
+				printer.ID, catID).Error; err != nil {
+				tx.Rollback()
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "Failed to assign categories",
+				})
+			}
+		}
+	}
+
 	// โหลดข้อมูลที่อัพเดทแล้ว
-	if err := tx.Preload("Categories").First(&printer, printerID).Error; err != nil {
+	var updatedPrinter models.Printer
+	if err := tx.Preload("Categories").First(&updatedPrinter, printerID).Error; err != nil {
 		tx.Rollback()
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch updated printer data",
@@ -209,7 +244,7 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(printer)
+	return c.JSON(updatedPrinter)
 }
 
 // @Summary ดึงรายการหมวดหมู่ของเครื่องพิมพ์
@@ -351,12 +386,23 @@ func prepareOrderPrintContent(job models.PrintJob) ([]byte, error) {
 func prepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
 	var content bytes.Buffer
 
+	tableIDStrings := strings.Split(job.Receipt.TableID, ",")
+
+	// แปลงเป็นสตริงที่อ่านง่าย
+	var tableIDDisplay string
+	if len(tableIDStrings) > 1 {
+		lastIndex := len(tableIDStrings) - 1
+		tableIDDisplay = strings.Join(tableIDStrings[:lastIndex], ", ") + " และ " + tableIDStrings[lastIndex]
+	} else if len(tableIDStrings) == 1 {
+		tableIDDisplay = tableIDStrings[0]
+	}
+
 	if job.Receipt != nil {
 		// หัวข้อใบเสร็จ
 		headerLines := []string{
 			"***** ใบเสร็จรับเงิน *****",
 			"Receipt #" + fmt.Sprintf("%d", job.Receipt.ID),
-			"โต๊ะ: " + fmt.Sprintf("%d", job.Receipt.TableID),
+			"โต๊ะ: " + tableIDDisplay,
 			"----------------------------------------",
 			fmt.Sprintf("วันที่-เวลา: %s", time.Now().Format("02/01/2006 15:04:05")),
 			"----------------------------------------",
@@ -474,6 +520,45 @@ func prepareCancelPrintContent(job models.PrintJob) ([]byte, error) {
 	return content.Bytes(), nil
 }
 
+func prepareQRCodePrintContent(job models.PrintJob) ([]byte, error) {
+	var content bytes.Buffer
+
+	// เพิ่มส่วนหัว
+	headerLines := []string{
+		"===== QR Code สำหรับโต๊ะ =====",
+		fmt.Sprintf("วันที่-เวลา: %s", time.Now().Format("02/01/2006 15:04:05")),
+		"========================",
+	}
+
+	for _, line := range headerLines {
+		content.WriteString(cleanText(line) + "\n")
+	}
+
+	// เพิ่มบรรทัดว่างสำหรับ spacing ก่อน QR Code
+	content.WriteString("\n\n")
+
+	// ตรวจสอบว่ามี QR Code ใน job content หรือไม่
+	if len(job.Content) > 0 {
+		content.Write(job.Content) // เขียน PNG bytes โดยตรง
+	} else {
+		// กรณีไม่มีข้อมูล QR Code
+		content.WriteString("[ไม่พบ QR Code]")
+	}
+
+	// เพิ่มส่วนท้าย
+	footerLines := []string{
+		"\n\n========================",
+		"โปรดสแกน QR Code เพื่อเข้าสู่ระบบ",
+		"========================",
+	}
+
+	for _, line := range footerLines {
+		content.WriteString(cleanText(line) + "\n")
+	}
+
+	return content.Bytes(), nil
+}
+
 type PrintJobResponse struct {
 	ID        uint            `json:"id"`
 	PrinterID uint            `json:"printer_id"`
@@ -501,21 +586,55 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 	vendorID := c.Query("vendor_id")
 	productID := c.Query("product_id")
 
-	// ค้นหาเครื่องพิมพ์
 	var printer models.Printer
 	var err error
 
-	if printerIP != "" {
-		err = db.DB.Where("ip_address = ?", printerIP).First(&printer).Error
-	} else {
+	if vendorID != "" && productID != "" {
+		// กรณีเครื่องพิมพ์ USB
+		// log.Printf("Looking for USB printer - VID: %s, PID: %s", vendorID, productID)
 		err = db.DB.Where("type = ? AND vendor_id = ? AND product_id = ?",
 			"usb", vendorID, productID).First(&printer).Error
+	} else if printerIP != "" {
+		// กรณีเครื่องพิมพ์เครือข่าย
+		// log.Printf("Looking for Network printer - IP: %s", printerIP)
+
+		// ถ้า printerIP เริ่มต้นด้วย USB_ ให้ค้นหาจาก vendor_id และ product_id
+		if strings.HasPrefix(printerIP, "USB_") {
+			parts := strings.Split(printerIP[4:], "_")
+			if len(parts) == 2 {
+				vid, pid := parts[0], parts[1]
+				err = db.DB.Where("type = ? AND vendor_id = ? AND product_id = ?",
+					"usb", vid, pid).First(&printer).Error
+			} else {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"error": "Invalid USB printer identifier format",
+				})
+			}
+		} else {
+			// ค้นหาจาก IP address สำหรับ network printer
+			err = db.DB.Where("type = ? AND ip_address = ?",
+				"network", printerIP).First(&printer).Error
+		}
+	} else {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Missing printer identification parameters",
+		})
 	}
 
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "Printer not found",
-		})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Printf("Printer not found: %v", err)
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error":   "Printer not found",
+				"details": err.Error(),
+			})
+		} else {
+			log.Printf("Database error: %v", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Database error",
+				"details": err.Error(),
+			})
+		}
 	}
 
 	// ดึงงานพิมพ์ที่รอดำเนินการ
@@ -535,8 +654,10 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 		Find(&jobs).Error
 
 	if err != nil {
+		log.Printf("Error fetching print jobs: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to fetch print jobs",
+			"error":   "Failed to fetch print jobs",
+			"details": err.Error(),
 		})
 	}
 
@@ -557,24 +678,21 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 			}
 		case "cancelation":
 			preparedContent, err = prepareCancelPrintContent(job)
+		case "qr_code":
+			preparedContent = job.Content
 		default:
-			log.Printf("Skipping job %d due to unknown job type: %s", job.ID, job.JobType)
-			continue
+			preparedContent = job.Content
 		}
 
 		if err != nil {
 			log.Printf("Failed to prepare content for job %d: %v", job.ID, err)
 			continue
 		}
-
-		// แปลงเป็น bitmap
 		bitmapImage, err := convertToBitmap(preparedContent)
 		if err != nil {
-			log.Printf("Failed to convert job %d to bitmap: %v", job.ID, err)
+			log.Printf("Failed to convert job %d to bitmap %v", job.ID, err)
 			continue
 		}
-
-		// สร้าง response
 		response := PrintJobResponse{
 			ID:        job.ID,
 			PrinterID: printer.ID,
@@ -587,8 +705,11 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 			Printer: PrinterResponse{
 				ID:         printer.ID,
 				Name:       printer.Name,
+				Type:       printer.Type,
 				IPAddress:  printer.IPAddress,
 				Port:       printer.Port,
+				VendorID:   printer.VendorID,
+				ProductID:  printer.ProductID,
 				Department: printer.Department,
 				Status:     printer.Status,
 				Categories: printer.Categories,
@@ -621,6 +742,10 @@ func findAppropiatePrinter(menuItem models.MenuItem) (*models.Printer, error) {
 
 // ฟังก์ชันแปลงเนื้อหาเป็น bitmap
 func convertToBitmap(content []byte) ([]byte, error) {
+
+	if isPNG(content) {
+		return convertPNGToBitmap(content)
+	}
 	// กำหนดค่าพื้นฐาน
 	width := 576
 	dpi := 203.0
@@ -804,6 +929,11 @@ func UpdatePrintJobStatus(c *fiber.Ctx) error {
 		})
 	}
 
+	// if req.Status == "failed" {
+	// 	job.Status = "pending"
+	// } else {
+	// 	job.Status = req.Status
+	// }
 	job.Status = req.Status
 	if err := db.DB.Save(&job).Error; err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -926,4 +1056,71 @@ func GetPrinterCategoriesById(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(printer.Categories)
+}
+
+func isPNG(data []byte) bool {
+	// PNG signature
+	pngSignature := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
+	return len(data) > 8 && bytes.Equal(data[:8], pngSignature)
+}
+
+func convertPNGToBitmap(pngData []byte) ([]byte, error) {
+	// อ่านรูป PNG
+	img, err := png.Decode(bytes.NewReader(pngData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode PNG: %v", err)
+	}
+
+	// กำหนดขนาด
+	width := 576
+	height := img.Bounds().Dy() * width / img.Bounds().Dx()
+
+	// สร้างภาพ bitmap ใหม่
+	bitmapImg := image.NewRGBA(image.Rect(0, 0, width, height))
+
+	// ใช้ nearest neighbor scaling เพื่อรักษาคุณภาพ QR Code
+	draw.NearestNeighbor.Scale(bitmapImg, bitmapImg.Bounds(), img, img.Bounds(), draw.Over, nil)
+
+	var buf bytes.Buffer
+
+	// Initialize printer
+	buf.Write([]byte{0x1B, 0x40})       // Initialize
+	buf.Write([]byte{0x1D, 0x21, 0x00}) // Normal size
+	buf.Write([]byte{0x1B, 0x4D, 0x00}) // Font A
+	buf.Write([]byte{0x1B, 0x33, 60})   // Line spacing
+	buf.Write([]byte{0x1D, 0x7C, 0x08}) // Highest density
+
+	// Set bitmap mode
+	buf.Write([]byte{0x1D, 0x76, 0x30, 0x00})
+
+	// ขนาด bitmap
+	widthBytes := (width + 7) / 8
+	buf.WriteByte(byte(widthBytes & 0xFF))
+	buf.WriteByte(byte(widthBytes >> 8))
+	buf.WriteByte(byte(height & 0xFF))
+	buf.WriteByte(byte(height >> 8))
+
+	// แปลงเป็น bitmap ด้วยการใช้ threshold สูง
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x += 8 {
+			var b byte
+			for bit := 0; bit < 8; bit++ {
+				if x+bit < width {
+					r, g, b_, _ := bitmapImg.At(x+bit, y).RGBA()
+
+					// สำหรับ QR Code ใช้ threshold ต่ำลง เพื่อให้ได้ภาพคมชัด
+					brightness := (r*299 + g*587 + b_*114) / 1000
+					if brightness < 0x5FFF { // ลดลงจากเดิม
+						b |= 1 << (7 - bit)
+					}
+				}
+			}
+			buf.WriteByte(b)
+		}
+	}
+
+	// Feed and cut
+	buf.Write([]byte{0x1D, 0x56, 0x41, 0x03}) // Partial cut
+
+	return buf.Bytes(), nil
 }

@@ -99,7 +99,7 @@ const MenuList = () => {
                     </li>
                   ))}
                 </ul>
-                <button onClick={() => alert('Checkout')}>Checkout</button>
+                <button onClick={() => alert("Checkout")}>Checkout</button>
               </div>
             )}
           </div>
@@ -111,7 +111,7 @@ const MenuList = () => {
             <a
               key={index}
               href={`#${category}`} // ใช้ชื่อหมวดหมู่เป็น href
-              className={activeLink === category ? styles.active : ''}
+              className={activeLink === category ? styles.active : ""}
               onClick={() => handleCategoryClick(category)} // เรียกใช้ฟังก์ชันเมื่อคลิก
             >
               {category} {/* แสดงชื่อหมวดหมู่ */}

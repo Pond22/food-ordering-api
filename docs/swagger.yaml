@@ -367,9 +367,9 @@ definitions:
     type: object
   api_handlers.UpdateChargeTypeRequest:
     properties:
-      default_amount:
+      defaultAmount:
         type: number
-      is_active:
+      isActive:
         type: boolean
       name:
         type: string
@@ -459,6 +459,10 @@ definitions:
           - quantity
           type: object
         type: array
+      max_selections:
+        type: integer
+      min_selections:
+        type: integer
       name:
         type: string
       nameCh:
@@ -476,6 +480,9 @@ definitions:
     type: object
   api_handlers.move_req:
     properties:
+      force_move:
+        description: true = ยอมรับความจุน้อยกว่า ยืดหยุ่่นท่องไว้
+        type: boolean
       from_table_id:
         type: integer
       to_table_id:
@@ -566,6 +573,58 @@ definitions:
         type: string
     required:
     - status
+    type: object
+  api_v2.MergedPaymentRequest:
+    properties:
+      discounts:
+        items:
+          $ref: '#/definitions/api_v2.PaymentDiscountRequest'
+        type: array
+      extra_charges:
+        items:
+          $ref: '#/definitions/api_v2.PaymentExtraChargeRequest'
+        type: array
+      payment_method:
+        type: string
+      service_charge:
+        type: number
+      staff_id:
+        type: integer
+      table_ids:
+        items:
+          type: integer
+        minItems: 2
+        type: array
+    required:
+    - payment_method
+    - staff_id
+    - table_ids
+    type: object
+  api_v2.PaymentDiscountRequest:
+    properties:
+      discount_type_id:
+        type: integer
+      reason:
+        description: Value          float64 `json:"value" binding:"required"`
+        type: string
+    required:
+    - discount_type_id
+    type: object
+  api_v2.PaymentExtraChargeRequest:
+    properties:
+      amount:
+        type: number
+      charge_type_id:
+        type: integer
+      note:
+        type: string
+      quantity:
+        minimum: 1
+        type: integer
+    required:
+    - amount
+    - charge_type_id
+    - quantity
     type: object
   models.AdditionalChargeType:
     properties:
@@ -851,6 +910,13 @@ definitions:
         type: integer
       price:
         type: number
+      promotionUsage:
+        allOf:
+        - $ref: '#/definitions/models.PromotionUsage'
+        description: เพิ่มความสัมพันธ์
+      promotionUsageID:
+        description: เพิ่มฟิลด์ใหม่
+        type: integer
       quantity:
         type: integer
       servedAt:
@@ -966,6 +1032,87 @@ definitions:
         description: สำหรับ USB printer
         type: string
     type: object
+  models.Promotion:
+    properties:
+      createdAt:
+        type: string
+      description:
+        type: string
+      descriptionCh:
+        type: string
+      descriptionEn:
+        type: string
+      endDate:
+        type: string
+      id:
+        type: integer
+      image:
+        description: รูปโปร
+        items:
+          type: integer
+        type: array
+      isActive:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/models.PromotionItem'
+        type: array
+      maxSelections:
+        type: integer
+      minSelections:
+        type: integer
+      name:
+        type: string
+      nameCh:
+        type: string
+      nameEn:
+        type: string
+      price:
+        description: เพิ่มฟิลด์ราคา
+        type: number
+      startDate:
+        type: string
+      totalItems:
+        description: จำนวนรายการทั้งหมดในโปรโมชั่น
+        type: integer
+      updatedAt:
+        type: string
+    type: object
+  models.PromotionItem:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      menuItem:
+        $ref: '#/definitions/models.MenuItem'
+      menuItemID:
+        type: integer
+      promotionID:
+        type: integer
+      quantity:
+        type: integer
+      updatedAt:
+        type: string
+    type: object
+  models.PromotionUsage:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      order:
+        $ref: '#/definitions/models.Order'
+      orderID:
+        type: integer
+      promotion:
+        $ref: '#/definitions/models.Promotion'
+      promotionID:
+        type: integer
+      saveAmount:
+        description: จำนวนเงินที่ประหยัดได้
+        type: number
+    type: object
   models.QRCode:
     properties:
       created_at:
@@ -1025,7 +1172,7 @@ definitions:
         description: ยอดรวมทุก order
         type: number
       tableID:
-        type: integer
+        type: string
       total:
         type: number
       updatedAt:
@@ -3415,6 +3562,48 @@ paths:
       summary: ดึงรายการโปรโมชั่นที่กำลังใช้งาน
       tags:
       - promotions
+  /api/promotions/image/{id}:
+    put:
+      consumes:
+      - multipart/form-data
+      description: อัพเดทรูปภาพของโปรโมชั่น รองรับไฟล์ JPG และ PNG ขนาดไม่เกิน 5MB
+      parameters:
+      - description: ID ของโปรโมชั่น
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: รูปภาพโปรโมชั่น
+        in: formData
+        name: image
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดของโปรโมชั่นที่อัพเดทรูปภาพแล้ว
+          schema:
+            $ref: '#/definitions/models.Promotion'
+        "400":
+          description: ข้อมูลไม่ถูกต้อง
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "404":
+          description: ไม่พบโปรโมชั่นที่ระบุ
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+        "500":
+          description: เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์
+          schema:
+            $ref: '#/definitions/api_handlers.ErrorResponse'
+      summary: อัพเดทรูปภาพโปรโมชั่น
+      tags:
+      - promotions
   /api/promotions/status/{id}:
     patch:
       consumes:
@@ -3933,6 +4122,30 @@ paths:
       summary: ยกเลืกจองโต๊ะ
       tags:
       - Table
+  /api/v2/payment/merge:
+    post:
+      consumes:
+      - application/json
+      description: รวมบิลและชำระเงินสำหรับหลายโต๊ะพร้อมกัน
+      parameters:
+      - description: ข้อมูลการชำระเงิน
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api_v2.MergedPaymentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายละเอียดใบเสร็จที่รวมแล้ว
+          schema:
+            $ref: '#/definitions/models.Receipt'
+      security:
+      - BearerAuth: []
+      summary: ชำระเงินรวมหลายโต๊ะ
+      tags:
+      - Payment_V2
   /order:
     get:
       description: เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ

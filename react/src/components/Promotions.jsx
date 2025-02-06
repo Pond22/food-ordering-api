@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
-import { Plus, X, Ellipsis, Trash2, Edit, Search } from 'lucide-react'
+import { Plus, X, Ellipsis, Trash2, Edit, Image } from 'lucide-react'
 
 const Promotions = () => {
   const [promotionData, setPromotionData] = useState({
@@ -26,7 +26,8 @@ const Promotions = () => {
   const [selectedPromotionId, setSelectedPromotionId] = useState(null) // State สำหรับเก็บ ID โปรโมชั่นที่เลือก
   const [showConfirm, setShowConfirm] = useState(false)
   const [selectedPromotion, setSelectedPromotion] = useState(null)
-
+  const [isImageUploadPopupOpen, setIsImageUploadPopupOpen] = useState(false) // สถานะของ popup อัปเดตรูป
+  const [selectedImage, setSelectedImage] = useState(null) // ตัวแปรเก็บรูปภาพที่เลือก
   const [promotionsActive, setPromotionsActive] = useState([])
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('') // ฟิลด์ค้นหา
@@ -268,6 +269,61 @@ const Promotions = () => {
     setIsEditPopupOpen(true)
   }
 
+  // ฟังก์ชันเปิด/ปิด popup อัปเดตรูป
+  const toggleImageUploadPopup = () => {
+    setIsImageUploadPopupOpen(!isImageUploadPopupOpen)
+  }
+
+  // ฟังก์ชันเลือกไฟล์ภาพ
+  const handleImageChange = (e) => {
+    const file = e.target.files[0]
+
+    // ตรวจสอบประเภทไฟล์
+    if (file && (file.type === 'image/jpeg' || file.type === 'image/png')) {
+      // ตรวจสอบขนาดไฟล์ไม่เกิน 5MB
+      if (file.size <= 5 * 1024 * 1024) {
+        setSelectedImage(file)
+      } else {
+        alert('ขนาดไฟล์เกิน 5MB')
+      }
+    } else {
+      alert('กรุณาเลือกไฟล์ JPG หรือ PNG เท่านั้น')
+    }
+  }
+
+  // ฟังก์ชันอัปโหลดรูปภาพ
+  const handleImageUpload = async () => {
+    if (!selectedImage) {
+      alert('กรุณาเลือกไฟล์รูปภาพ')
+      return
+    }
+
+    const formData = new FormData()
+    formData.append('image', selectedImage)
+
+    try {
+      const response = await axios.put(
+        `http://localhost:8080/api/promotions/image/${selectedPromotionId}`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      )
+
+      if (response.status === 200) {
+        alert('อัปเดตรูปภาพสำเร็จ')
+        setIsImageUploadPopupOpen(false) // ปิด popup หลังอัปโหลดเสร็จ
+      } else {
+        alert('เกิดข้อผิดพลาดในการอัปเดตรูปภาพ')
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      alert('เกิดข้อผิดพลาดในการอัปเดตรูปภาพ')
+    }
+  }
+
   const confirmDelete = (id) => {
     if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบโปรโมชั่นนี้?')) {
       handleDelete(id)
@@ -369,6 +425,7 @@ const Promotions = () => {
               <tr className="text-white bg-blue-500">
                 <th className=" px-4 py-2">สถานะ</th>
                 <th className=" px-4 py-2 w-1/12">รหัสโปรโมชั่น</th>
+                <th className=" px-4 py-2 w-3/12">รูปโปรโมชั่น</th>
                 <th className=" px-4 py-2">ชื่อโปรโมชั่น</th>
                 <th className=" px-4 py-2 w-2/12">ชื่อโปรโมชั่น</th>
                 <th className=" px-4 py-2 w-3/12">สินค้าที่ร่วมรายการ</th>
@@ -413,6 +470,17 @@ const Promotions = () => {
                     </label>
                   </td>
                   <td className="text-center border p-2">{promotion.ID}</td>
+                  <td className="text-center border p-2">
+                    {promotion.Image && promotion.Image.length > 0 ? (
+                      <img
+                        src={`data:image/png;base64,${promotion.Image}`}
+                        alt={promotion.Name}
+                        className="w-50 h-25 "
+                      />
+                    ) : (
+                      'ไม่มีรูป'
+                    )}
+                  </td>
                   <td className="pl-2 border">
                     <div>TH: {promotion.Name}</div>
                     <div>EN: {promotion.NameEn}</div>
@@ -427,7 +495,7 @@ const Promotions = () => {
                     {promotion.Items && promotion.Items.length > 0 ? (
                       promotion.Items.map((item, idx) => (
                         <div key={idx}>
-                          {item.MenuItem?.Name || 'ไม่มีชื่อสินค้า'} (ราคา:{' '}
+                          •{item.MenuItem?.Name || 'ไม่มีชื่อสินค้า'} (ราคา:{' '}
                           {item.MenuItem?.Price || 0}, จำนวน:{' '}
                           {item.Quantity || 0})
                         </div>
@@ -468,7 +536,18 @@ const Promotions = () => {
                                   className=" "
                                 >
                                   <Edit className="inline w-4 h-4 mr-2" />
-                                  แก้ไข
+                                  แก้ไขโปรโมชัน
+                                </button>
+                              </div>
+                              <div className="hover:bg-gray-100 ">
+                                <button
+                                  onClick={() => {
+                                    setSelectedPromotionId(promotion.ID) // กำหนด ID ของโปรโมชั่นที่ต้องการอัปเดตรูป
+                                    toggleImageUploadPopup() // เปิด popup อัปเดตรูป
+                                  }}
+                                >
+                                  <Image className="inline w-4 h-4 mr-2" />
+                                  อัปโหลดรูปภาพ
                                 </button>
                               </div>
                               <div className="hover:bg-gray-100">
@@ -490,6 +569,34 @@ const Promotions = () => {
               ))}
             </tbody>
           </table>
+        )}
+
+        {/* // Popup อัปเดตรูป */}
+        {isImageUploadPopupOpen && (
+          <div className="fixed inset-0 flex justify-center items-center bg-gray-500 bg-opacity-50">
+            <div className="bg-white p-6 rounded shadow-lg">
+              <h2 className="text-xl mb-4">อัปเดตรูปภาพโปรโมชั่น</h2>
+              <input
+                type="file"
+                onChange={handleImageChange}
+                className="mb-4"
+              />
+              <div className="flex justify-end">
+                <button
+                  onClick={toggleImageUploadPopup}
+                  className="px-4 py-2 bg-gray-400 text-white rounded mr-2"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  onClick={handleImageUpload}
+                  className="px-4 py-2 bg-blue-500 text-white rounded"
+                >
+                  อัปโหลด
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {activeTab === 'Promo_All' && (
@@ -541,7 +648,10 @@ const Promotions = () => {
                         <ul>
                           {promotion.Items.map((item, index) => (
                             <li key={index}>
-                              {item.MenuItem.Name} (Quantity: {item.Quantity})
+                              <span>
+                                •{item.MenuItem.Name} (Quantity: {item.Quantity}
+                                )
+                              </span>
                             </li>
                           ))}
                         </ul>

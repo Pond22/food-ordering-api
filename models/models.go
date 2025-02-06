@@ -177,19 +177,21 @@ type Order struct {
 
 // FE-4 การจัดการออเดอร์
 type OrderItem struct {
-	ID         uint     `gorm:"primaryKey"`
-	OrderID    uint     `gorm:"not null"`
-	Order      Order    `gorm:"foreignKey:OrderID"`
-	MenuItemID uint     `gorm:"not null"`
-	MenuItem   MenuItem `gorm:"foreignKey:MenuItemID"`
-	Quantity   int      `gorm:"not null"`
-	Price      float64  `gorm:"not null"`
-	Notes      string
-	Status     string            `gorm:"not null;default:'pending'"` // pending, served, cancelled
-	ServedAt   *time.Time        // เวลาที่เสิร์ฟอาหาร
-	Options    []OrderItemOption `gorm:"foreignKey:OrderItemID"` // เพิ่ม relation กับ options
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID               uint     `gorm:"primaryKey"`
+	OrderID          uint     `gorm:"not null"`
+	Order            Order    `gorm:"foreignKey:OrderID"`
+	MenuItemID       uint     `gorm:"not null"`
+	MenuItem         MenuItem `gorm:"foreignKey:MenuItemID"`
+	Quantity         int      `gorm:"not null"`
+	Price            float64  `gorm:"not null"`
+	Notes            string
+	Status           string            `gorm:"not null;default:'pending'"` // pending, served, cancelled
+	ServedAt         *time.Time        // เวลาที่เสิร์ฟอาหาร
+	Options          []OrderItemOption `gorm:"foreignKey:OrderItemID"` // เพิ่ม relation กับ options
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	PromotionUsageID *uint           `gorm:"index"`                       // เพิ่มฟิลด์ใหม่
+	PromotionUsage   *PromotionUsage `gorm:"foreignKey:PromotionUsageID"` // เพิ่มความสัมพันธ์
 }
 
 // FE-4 การจัดการออเดอร์
@@ -309,7 +311,7 @@ type ReceiptCharge struct {
 type Receipt struct {
 	ID      uint   `gorm:"primaryKey"`
 	UUID    string `gorm:"not null;index"`
-	TableID int    `gorm:"not null"`
+	TableID string `gorm:"type:text"`
 	// Orders        []Order `gorm:"foreignKey:ReceiptID"`
 	Orders        []Order `gorm:"foreignKey:ReceiptID"`
 	OrderID       *uint   `gorm:"index"`

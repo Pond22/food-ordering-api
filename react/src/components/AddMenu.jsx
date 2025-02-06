@@ -1217,8 +1217,8 @@ const MenuManagement = () => {
                       ลบกลุ่ม
                     </button>
 
-                    <div className="mt-4 bg-gray-300 p-2">ชื่อกลุ่มตัวเลือกภายในเมนู</div>
-                    <div className="flex px-2 border border-gray-300">
+                    <div className="mt-4">ชื่อกลุ่มตัวเลือกภายในเมนู</div>
+                    <div className="flex px-4 border">
                       <div className="mt-4 mb-4">
                         <label>ชื่อกลุ่มตัวเลือก (ไทย)</label>
                         <input
@@ -1314,7 +1314,7 @@ const MenuManagement = () => {
                     {group.options.length > 0 ? (
                       group.options.map((option, optionIndex) => (
                         <div key={optionIndex}>
-                          <div className="mt-4 bg-gray-200 p-1">ชื่อตัวเลือกภายในเมนู</div>
+                          <div className="mt-4">ชื่อตัวเลือกภายในเมนู</div>
                           <button
                             className="text-red-500 text-sm hover:underline"
                             onClick={() => {
@@ -1787,11 +1787,7 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
                   เพิ่มตัวเลือกในกลุ่มนี้
                 </button>
                 {group.options.map((option, optionIndex) => (
-                  <div
-                    key={optionIndex}
-                    className="border border-gray-300 p-2 mt-2"
-                  >
-                    <h1 className="text-md bg-gray-200/70 p-2">ตัวเลือกในกลุ่ม</h1>
+                  <div key={optionIndex}>
                     <input
                       type="text"
                       placeholder="ชื่อตัวเลือก"

@@ -22,6 +22,7 @@ require (
 	github.com/hennedo/escpos v0.0.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/kenshaw/escpos v0.0.0-20221114190919-df06b682a8fc // indirect
+	github.com/lib/pq v1.10.9 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/narongdejsrn/go-thaiwordcut v0.0.0-20190610123805-0a152d1829c4 // indirect
@@ -31,8 +32,6 @@ require (
 	github.com/savsgio/gotils v0.0.0-20230208104028-c358bd845dee // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/swaggo/files/v2 v2.0.0 // indirect
-	github.com/veer66/mapkha v0.0.0-20180827014328-4c22c721f2c6 // indirect
-	github.com/veer66/wordcut v0.0.0-20210804135703-808ee62f8819 // indirect
 	golang.org/x/image v0.23.0 // indirect
 	golang.org/x/net v0.30.0 // indirect
 	golang.org/x/tools v0.22.0 // indirect
@@ -64,8 +63,8 @@ require (
 	github.com/valyala/fasthttp v1.57.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
 	golang.org/x/crypto v0.28.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
+	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/sys v0.27.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/text v0.22.0 // indirect
 	gorm.io/gorm v1.25.10
 )

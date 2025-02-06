@@ -325,6 +325,7 @@ func MergeTables(c *fiber.Ctx) error {
 type move_req struct {
 	FromTableID uint `json:"from_table_id"`
 	ToTableID   uint `json:"to_table_id"`
+	ForceMove   bool `json:"force_move,omitempty"` // true = ยอมรับความจุน้อยกว่า ยืดหยุ่่นท่องไว้
 }
 
 // @Summary ย้ายโต๊ะ
@@ -347,6 +348,11 @@ func MoveTable(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request format"})
 	}
 
+	if req.FromTableID == req.ToTableID { //อย่าหาย้ายไปโต๊ะเดิม
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Cannot move table to itself",
+		})
+	}
 	tx := db.DB.Begin()
 
 	// 1. ตรวจสอบโต๊ะต้นทาง
@@ -375,6 +381,16 @@ func MoveTable(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Destination table is not available"})
 	}
 
+	// ตรวจสอบความจุโต๊ะปลายทางแบบยืดหยุ่น
+	if toTable.Capacity < fromTable.Capacity && !req.ForceMove {
+		tx.Rollback()
+		return c.Status(400).JSON(fiber.Map{
+			"error":                "Destination table capacity is too small. Set force_move=true to override",
+			"current_capacity":     fromTable.Capacity,
+			"destination_capacity": toTable.Capacity,
+		})
+	}
+
 	// 3. ดึง QR code ที่กำลังใช้งานของโต๊ะต้นทาง
 	var currentQR models.QRCode
 	if err := tx.Where("table_id = ? AND is_active = ?", fromTable.ID, true).First(&currentQR).Error; err != nil {
@@ -399,11 +415,25 @@ func MoveTable(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to update QR code table reference"})
 	}
 
-	//เหลือทำให้มันจัดการออเดอร์ของโต๊ะ
-	//
-	//
-	//
-	//--------------------------
+	// ย้ายเฉพาะออเดอร์ของ QR code ปัจจุบัน
+	if err := tx.Model(&models.Order{}).
+		Where("table_id = ? AND uuid = ? AND status != ?",
+			fromTable.ID,
+			currentQR.UUID,
+			"cancelled").
+		Update("table_id", toTable.ID).Error; err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to update orders",
+		})
+	}
+
+	var updatedFromTable, updatedToTable models.Table
+	var updatedQR models.QRCode
+
+	tx.First(&updatedFromTable, fromTable.ID)
+	tx.First(&updatedToTable, toTable.ID)
+	tx.First(&updatedQR, currentQR.ID)
 
 	if err := tx.Commit().Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to commit changes"})
@@ -411,9 +441,9 @@ func MoveTable(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"message":    "Table moved successfully",
-		"from_table": fromTable,
-		"to_table":   toTable,
-		"qr_code":    currentQR,
+		"from_table": updatedFromTable,
+		"to_table":   updatedToTable,
+		"qr_code":    updatedQR,
 	})
 }
 

@@ -6,6 +6,7 @@ import (
 	"food-ordering-api/db"
 	"food-ordering-api/models"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -108,7 +109,7 @@ func ProcessPayment(c *fiber.Ctx) error {
 	// 4. สร้างใบเสร็จ
 	receipt := models.Receipt{
 		UUID:          req.UUID,
-		TableID:       int(req.TableID),
+		TableID:       strconv.Itoa(int(req.TableID)),
 		SubTotal:      subTotal,
 		ServiceCharge: req.ServiceCharge,
 		PaymentMethod: req.PaymentMethod,
@@ -119,8 +120,10 @@ func ProcessPayment(c *fiber.Ctx) error {
 	// 5. บันทึกใบเสร็จ
 	if err := tx.Create(&receipt).Error; err != nil {
 		tx.Rollback()
+		fmt.Println("Error creating receipt:", err) // Debug log
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to create receipt",
+			"error":  "Failed to create receipt",
+			"detail": err.Error(), // ส่งรายละเอียดของ error ออกมา
 		})
 	}
 
@@ -233,6 +236,26 @@ func ProcessPayment(c *fiber.Ctx) error {
 		}
 	}
 
+	// อัพเดทสถานะโต๊ะเป็น available หลังจากชำระเงิน
+	if err := tx.Model(&models.Table{}).
+		Where("id = ?", req.TableID).
+		Update("status", "available").Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update table status",
+		})
+	}
+
+	// อัพเดทสถานะ QR Code เป็น inactive
+	if err := tx.Model(&models.QRCode{}).
+		Where("uuid = ? AND table_id = ?", req.UUID, req.TableID).
+		Update("is_active", false).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update QR code status",
+		})
+	}
+
 	// 10. Commit transaction
 	if err := tx.Commit().Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -331,10 +354,9 @@ type UpdateDiscountTypeRequest struct {
 
 type UpdateChargeTypeRequest struct {
 	Name          string   `json:"name,omitempty"`
-	DefaultAmount *float64 `json:"default_amount,omitempty"`
-	IsActive      *bool    `json:"is_active,omitempty"`
+	DefaultAmount *float64 `json:"defaultAmount,omitempty"`
+	IsActive      *bool    `json:"isActive,omitempty"`
 }
-
 type CreateDiscountTypeRequest struct {
 	Name     string  `json:"name" binding:"required"`
 	Type     string  `json:"type" binding:"required,oneof=percentage amount"` // รับได้แค่ percentage หรือ amount
