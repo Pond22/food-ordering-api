@@ -2854,6 +2854,27 @@ paths:
       summary: อัพเดทสถานะออเดอร์
       tags:
       - Order_ใหม่
+  /api/orders/table/{uuid}:
+    get:
+      description: ดึงรายการออเดอร์ที่ยังไม่เสร็จสิ้น (pending, preparing, ready)
+      parameters:
+      - description: uuid
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api_handlers.OrderResponse'
+            type: array
+      summary: ดึงรายการออเดอร์ที่กำลังดำเนินการ
+      tags:
+      - Order_ใหม่
   /api/payment/charge-types:
     get:
       description: ดึงรายการประเภทค่าใช้จ่ายเพิ่มเติมทั้งหมด ทั้งที่เปิดและปิดใช้งาน

@@ -711,6 +711,76 @@ func GetActiveOrders(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
+// @Summary ดึงรายการออเดอร์ที่กำลังดำเนินการ
+// @Description ดึงรายการออเดอร์ที่ยังไม่เสร็จสิ้น (pending, preparing, ready)
+// @Produce json
+// @Param uuid path string true "uuid"
+// @Success 200 {array} OrderResponse
+// @Router /api/orders/table/{uuid} [get]
+// @Tags Order_ใหม่
+func GetOrdersByid(c *fiber.Ctx) error {
+	var orders []models.Order
+	uuid := c.Params("uuid")
+
+	if uuid == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "uuid require",
+		})
+	}
+
+	if err := db.DB.Preload("Items").
+		Preload("Items.MenuItem").
+		Preload("Items.Options").
+		Where("status IN ? AND uuid = ?", []string{"pending", "preparing", "ready"}, uuid).
+		Find(&orders).Error; err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch active orders",
+		})
+	}
+
+	var response []OrderResponse
+	for _, order := range orders {
+		orderResp := OrderResponse{
+			ID:      order.ID,
+			UUID:    order.UUID,
+			TableID: order.TableID,
+			Status:  order.Status,
+			Total:   order.Total,
+		}
+
+		for _, item := range order.Items {
+			orderItem := OrderItemResponse{
+				ID:         item.ID,
+				MenuItemID: item.MenuItemID,
+				MenuItem: MenuItemResponseMin{
+					ID:    item.MenuItem.ID,
+					Name:  item.MenuItem.Name,
+					Price: item.MenuItem.Price,
+				},
+				Quantity: item.Quantity,
+				Price:    item.Price,
+				Notes:    item.Notes,
+				Status:   item.Status,
+			}
+
+			// เพิ่ม Options ถ้ามี
+			for _, opt := range item.Options {
+				orderItem.Options = append(orderItem.Options, OrderItemOptionResponse{
+					ID:    opt.ID,
+					Name:  opt.MenuOption.Name,
+					Price: opt.Price,
+				})
+			}
+
+			orderResp.Items = append(orderResp.Items, orderItem)
+		}
+
+		response = append(response, orderResp)
+	}
+
+	return c.JSON(response)
+}
+
 // @Summary ดึงรายละเอียดออเดอร์
 // @Description ดึงรายละเอียดของออเดอร์ตาม ID
 // @Produce json

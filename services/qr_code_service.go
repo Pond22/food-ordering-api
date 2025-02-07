@@ -107,7 +107,7 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 	}
 
 	var existingQR models.QRCode
-	result := db.DB.Where("table_id = ? AND is_active = ?", actualTableID, true).First(&existingQR)
+	result := db.DB.Where("tableID = ? AND is_active = ?", actualTableID, true).First(&existingQR)
 	if result.Error == nil {
 		return c.Status(400).JSON(fiber.Map{
 			"error": "table_id นี้มีคิวอาร์กำลังใช้งานอยู่",
@@ -131,7 +131,7 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 
 	// สร้าง QR Code
 	expiryAt := time.Now().Add(2 * time.Hour)
-	url := fmt.Sprintf("http://localhost:5173/menu?table=%v&uuid=%v", tableID, UUID)
+	url := fmt.Sprintf("http://localhost:5173/menu?tableID=%v&uuid=%v", tableID, UUID)
 
 	// สร้าง QR Code image
 	qrCode, err := qrcode.New(url, qrcode.Medium)

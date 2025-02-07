@@ -2315,6 +2315,38 @@
                 }
             }
         },
+        "/api/orders/table/{uuid}": {
+            "get": {
+                "description": "ดึงรายการออเดอร์ที่ยังไม่เสร็จสิ้น (pending, preparing, ready)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Order_ใหม่"
+                ],
+                "summary": "ดึงรายการออเดอร์ที่กำลังดำเนินการ",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "uuid",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api_handlers.OrderResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/orders/{id}": {
             "get": {
                 "description": "ดึงรายละเอียดของออเดอร์ตาม ID",
