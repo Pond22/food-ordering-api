@@ -46,9 +46,9 @@ const TableManager = () => {
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false)
 
   const navigate = useNavigate()
-  const handleCheckBillClick = () => {
-    // เมื่อกดปุ่มจะนำทางไปยังหน้า PaymentTables
-    navigate('/payment-tables')
+  const handleCheckBillClick = (tableID, uuid) => {
+    // เมื่อกดปุ่มจะนำทางไปยังหน้า PaymentTables พร้อมส่งค่า tableID และ uuid
+    navigate('/payment-tables', { state: { tableID, uuid } })
   }
 
   // Fetch tables from API and sort by ID
@@ -476,19 +476,26 @@ const TableManager = () => {
         `http://localhost:8080/api/qr/${table.ID}` // ส่ง table.ID ไปแทน
       )
 
+      // ตรวจสอบว่า qrResponse.data มีข้อมูลที่จำเป็น
+      if (!qrResponse.data || !qrResponse.data.uuid) {
+        alert('ไม่พบข้อมูล UUID ของโต๊ะ')
+        return
+      }
+
       // เก็บข้อมูล QR code ที่ได้รับจาก API
       setQrData(qrResponse.data)
 
       // ดึง uuid และเก็บไว้ใน state
       setUuid(qrResponse.data.uuid)
 
-      return qrResponse.data
+      return qrResponse.data // ส่งคืนข้อมูล QR code
     } catch (error) {
       console.error('Error fetching QR code:', error)
       alert('เกิดข้อผิดพลาดในการดึง QR code')
       return null
     }
   }
+
 
   // Table rendering
   const renderTableActionButtons = (table) => {
@@ -577,7 +584,9 @@ const TableManager = () => {
           )}
           {status === 'occupied' && (
             <>
-              <button onClick={handleCheckBillClick}>เช็คบิล</button>
+              <button onClick={() => handleCheckBillClick(table.ID, uuid)}>
+                เช็คบิล
+              </button>
               <button onClick={() => handleMoveTable(table.ID)}>
                 ย้ายโต๊ะ
               </button>

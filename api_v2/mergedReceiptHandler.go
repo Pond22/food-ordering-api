@@ -5,6 +5,7 @@ import (
 	"food-ordering-api/db"
 	"food-ordering-api/models"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -21,12 +22,16 @@ type MergedPaymentRequest struct {
 	StaffID       uint                        `json:"staff_id" binding:"required"`
 }
 
+//	type PaymentDiscountRequest struct {
+//		DiscountTypeID uint    `json:"discount_type_id" binding:"required"`
+//		Value          float64 `json:"value" binding:"required"`
+//		Reason         string  `json:"reason,omitempty"`
+//	}
 type PaymentDiscountRequest struct {
-	DiscountTypeID uint    `json:"discount_type_id" binding:"required"`
-	Value          float64 `json:"value" binding:"required"`
-	Reason         string  `json:"reason,omitempty"`
+	DiscountTypeID uint `json:"discount_type_id" binding:"required"`
+	// Value          float64 `json:"value" binding:"required"`
+	Reason string `json:"reason,omitempty"`
 }
-
 type PaymentExtraChargeRequest struct {
 	ChargeTypeID uint    `json:"charge_type_id" binding:"required"`
 	Amount       float64 `json:"amount" binding:"required"`
@@ -60,7 +65,7 @@ func CreateMergedReceipt(c *fiber.Ctx) error {
 		if err := tx.Preload("Items", "status != ?", "cancelled").
 			Preload("Items.MenuItem").
 			Preload("Items.Options.MenuOption").
-			Where("table_id = ? AND status NOT IN (?, ?) AND receipt_id IS NULL",
+			Where("table_id = ? AND status NOT IN (?, ?) AND receipt_id IS NULL", //ไม่ต้องกลัวออเดอร์เก่าหรืออันที่มไ่เกียวข้องติดมาเพราะถ้าทำงานตามจริงออเดอร์ก่อนหน้าจะเป็น completed ไม่ก็ cancelled และออเดอร์ที่จ่ายตังแล้ส receipt_id จะไม่ว่าง
 				tableID, "completed", "cancelled").
 			Find(&orders).Error; err != nil {
 			tx.Rollback()
@@ -83,11 +88,11 @@ func CreateMergedReceipt(c *fiber.Ctx) error {
 	for _, order := range allOrders {
 		subTotal += order.Total
 	}
-
-	// 3. สร้างใบเสร็จ
+	//ขอบคุณ AI มา ณ ที่นี้
+	tableIDsStr := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(req.TableIDs)), ","), "[]")
 	receipt := models.Receipt{
 		UUID:          uuid.New().String(),
-		TableID:       int(req.TableIDs[0]),
+		TableID:       tableIDsStr,
 		SubTotal:      subTotal,
 		ServiceCharge: req.ServiceCharge,
 		PaymentMethod: req.PaymentMethod,
@@ -115,11 +120,19 @@ func CreateMergedReceipt(c *fiber.Ctx) error {
 
 		var discountAmount float64
 		if discountType.Type == "percentage" {
-			discountAmount = (subTotal * discount.Value) / 100
+			discountAmount = (subTotal * discountType.Value) / 100
 		} else {
-			discountAmount = discount.Value
+			discountAmount = discountType.Value
 		}
 		totalDiscount += discountAmount
+
+		// var discountAmount float64
+		// if discountType.Type == "percentage" { ของเดิม
+		// 	discountAmount = (subTotal * discount.Value) / 100
+		// } else {
+		// 	discountAmount = discount.Value
+		// }
+		// totalDiscount += discountAmount
 
 		receiptDiscount := models.ReceiptDiscount{
 			ReceiptID:      receipt.ID,
@@ -205,6 +218,17 @@ func CreateMergedReceipt(c *fiber.Ctx) error {
 			tx.Rollback()
 			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 				"error": "ไม่สามารถอัพเดทสถานะโต๊ะได้",
+			})
+		}
+	}
+
+	for _, tableID := range req.TableIDs {
+		if err := tx.Model(&models.QRCode{}).
+			Where("table_id = ? AND is_active = ?", tableID, true).
+			Update("is_active", false).Error; err != nil {
+			tx.Rollback()
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"error": "ไม่สามารถอัพเดทสถานะ QR code ได้",
 			})
 		}
 	}
