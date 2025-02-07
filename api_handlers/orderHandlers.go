@@ -292,9 +292,15 @@ func CreateOrder(c *fiber.Ctx) error {
 		categoryItems[categoryID] = append(categoryItems[categoryID], item)
 	}
 
-	// 8. สร้าง print jobs สำหรับแต่ละหมวดหมู่
+	// 8. สร้าง print jobs โดยจัดกลุ่มตามเครื่องพิมพ์
+	printerJobs := make(map[uint][]struct {
+		CategoryID uint
+		Items      []models.OrderItem
+	})
+
+	// จัดกลุ่มรายการตามเครื่องพิมพ์
 	for categoryID, items := range categoryItems {
-		// ดึงเครื่องพิมพ์ทั้งหมดที่ถูกกำหนดให้พิมพ์หมวดหมู่นี้โดยตรง
+		// ดึงเครื่องพิมพ์ที่รองรับหมวดหมู่นี้
 		var categoryPrinters []models.Printer
 		if err := tx.Table("printers").
 			Joins("JOIN printer_categories ON printers.id = printer_categories.printer_id").
@@ -318,34 +324,60 @@ func CreateOrder(c *fiber.Ctx) error {
 			categoryPrinters = []models.Printer{mainPrinter}
 		}
 
-		// ดึงข้อมูลหมวดหมู่เพื่อใช้ในการสร้างเนื้อหา
-		var category models.Category
-		if err := tx.First(&category, categoryID).Error; err != nil {
+		// เพิ่มรายการลงในกลุ่มของแต่ละเครื่องพิมพ์
+		for _, printer := range categoryPrinters {
+			printerJobs[printer.ID] = append(printerJobs[printer.ID], struct {
+				CategoryID uint
+				Items      []models.OrderItem
+			}{
+				CategoryID: categoryID,
+				Items:      items,
+			})
+		}
+	}
+
+	// สร้าง print job สำหรับแต่ละเครื่องพิมพ์
+	for printerID, jobs := range printerJobs {
+		var printer models.Printer
+		if err := tx.First(&printer, printerID).Error; err != nil {
 			tx.Rollback()
 			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to fetch category info",
+				"error": "Failed to fetch printer info",
 			})
 		}
 
-		// สร้างเนื้อหาที่จะพิมพ์
-		content := createOrderPrintContent(completeOrder, category.Name, items)
-
-		// สร้าง print job สำหรับทุกเครื่องพิมพ์ที่กำหนดให้พิมพ์หมวดหมู่นี้
-		for _, printer := range categoryPrinters {
-			printJob := models.PrintJob{
-				PrinterID: printer.ID,
-				OrderID:   &completeOrder.ID,
-				Content:   content,
-				Status:    "pending",
-				JobType:   "order",
-			}
-
-			if err := tx.Create(&printJob).Error; err != nil {
+		// รวมรายการทั้งหมดสำหรับเครื่องพิมพ์นี้
+		var allItems []models.OrderItem
+		var categoryNames []string
+		for _, job := range jobs {
+			allItems = append(allItems, job.Items...)
+			var category models.Category
+			if err := tx.First(&category, job.CategoryID).Error; err != nil {
 				tx.Rollback()
 				return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-					"error": fmt.Sprintf("Failed to create print job for printer %s", printer.Name),
+					"error": "Failed to fetch category info",
 				})
 			}
+			categoryNames = append(categoryNames, category.Name)
+		}
+
+		// สร้างเนื้อหาที่จะพิมพ์
+		content := createOrderPrintContent(completeOrder, strings.Join(categoryNames, ", "), allItems)
+
+		// สร้าง print job
+		printJob := models.PrintJob{
+			PrinterID: printer.ID,
+			OrderID:   &completeOrder.ID,
+			Content:   content,
+			Status:    "pending",
+			JobType:   "order",
+		}
+
+		if err := tx.Create(&printJob).Error; err != nil {
+			tx.Rollback()
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"error": fmt.Sprintf("Failed to create print job for printer %s", printer.Name),
+			})
 		}
 	}
 
@@ -1154,10 +1186,212 @@ func calculatePromotionSaving(promotion *models.Promotion, selectedItemIDs []uin
 	return normalPrice - promotion.Price
 }
 
-// func calculatePromotionSaving(promotion *models.Promotion, selectedCount int) float64 {
-// 	var normalPrice float64 = 0
-// 	for i := 0; i < selectedCount; i++ {
-// 			normalPrice += float64(promotion.Items[i].MenuItem.Price)
-// 	}
-// 	return normalPrice - promotion.Price
+// func FinalizeOrderItems(c *fiber.Ctx) error {
+//     var req finalize_items_req
+//     if err := c.BodyParser(&req); err != nil {
+//         return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+//             "error": "ข้อมูลไม่ถูกต้อง",
+//         })
+//     }
+
+//     tx := db.DB.Begin()
+
+//     // ตรวจสอบพนักงาน
+//     var staff Users
+//     if err := tx.First(&staff, req.StaffID).Error; err != nil {
+//         tx.Rollback()
+//         return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+//             "error": "ไม่พบข้อมูลพนักงาน",
+//         })
+//     }
+
+//     // ดึงข้อมูลออเดอร์
+//     var orders []Order
+//     if err := tx.Where("table_id = ? AND status NOT IN (?, ?)",
+//         req.TableID, "completed", "cancelled").
+//         Preload("Items.MenuItem").
+//         Preload("Items.Options.MenuOption").
+//         Find(&orders).Error; err != nil {
+//         tx.Rollback()
+//         return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+//             "error": "ไม่พบออเดอร์ของโต๊ะนี้",
+//         })
+//     }
+
+//     // ดึงข้อมูล OrderItems ที่จะยกเลิก
+//     var orderItems []OrderItem
+//     if err := tx.Where("id IN ?", getOrderItemIDs(req.Items)).
+//         Preload("PromotionUsage.Promotion").
+//         Preload("MenuItem").
+//         Find(&orderItems).Error; err != nil {
+//         tx.Rollback()
+//         return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+//             "error": "ไม่พบรายการอาหารที่ต้องการยกเลิก",
+//         })
+//     }
+
+//     // แยกรายการตาม PromotionUsage
+//     promoUsageMap := make(map[uint][]OrderItem)
+//     var normalItems []OrderItem
+//     var printContents []string
+
+//     for _, item := range orderItems {
+//         if item.PromotionUsageID != nil {
+//             promoUsageMap[*item.PromotionUsageID] = append(promoUsageMap[*item.PromotionUsageID], item)
+//         } else {
+//             normalItems = append(normalItems, item)
+//         }
+//     }
+
+//     // จัดการรายการโปรโมชั่น
+//     for promoUsageID, items := range promoUsageMap {
+//         var totalPromoItems int64
+//         if err := tx.Model(&OrderItem{}).
+//             Where("promotion_usage_id = ?", promoUsageID).
+//             Count(&totalPromoItems).Error; err != nil {
+//             tx.Rollback()
+//             return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+//                 "error": "ไม่สามารถตรวจสอบรายการโปรโมชั่นได้",
+//             })
+//         }
+
+//         if int64(len(items)) < totalPromoItems {
+//             tx.Rollback()
+//             return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+//                 "error": "ต้องยกเลิกรายการในโปรโมชั่นทั้งหมดพร้อมกัน",
+//             })
+//         }
+
+//         for _, item := range items {
+//             printContents = append(printContents,
+//                 fmt.Sprintf("%s|%d (โปรโมชั่น %s)",
+//                     item.MenuItem.Name,
+//                     item.Quantity,
+//                     item.PromotionUsage.Promotion.Name))
+//         }
+
+//         // อัพเดทสถานะรายการในโปรโมชั่น
+//         if err := tx.Model(&OrderItem{}).
+//             Where("promotion_usage_id = ?", promoUsageID).
+//             Updates(map[string]interface{}{
+//                 "status": "cancelled",
+//                 "quantity": 0,
+//             }).Error; err != nil {
+//             tx.Rollback()
+//             return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+//                 "error": "ไม่สามารถยกเลิกรายการโปรโมชั่นได้",
+//             })
+//         }
+//     }
+
+//     // จัดการรายการปกติ
+//     for _, reqItem := range req.Items {
+//         var orderItem OrderItem
+//         if err := tx.Where("id = ?", reqItem.OrderItemID).
+//             Preload("MenuItem").
+//             First(&orderItem).Error; err != nil {
+//             tx.Rollback()
+//             return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+//                 "error": fmt.Sprintf("ไม่พบรายการอาหารรหัส %d", reqItem.OrderItemID),
+//             })
+//         }
+
+//         if reqItem.Quantity > orderItem.Quantity {
+//             tx.Rollback()
+//             return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+//                 "error": fmt.Sprintf("จำนวนที่ยกเลิกมากกว่าจำนวนที่สั่ง สำหรับรายการ %d", reqItem.OrderItemID),
+//             })
+//         }
+
+//         if orderItem.Quantity == reqItem.Quantity {
+//             orderItem.Status = "cancelled"
+//             orderItem.Quantity = 0
+//         } else {
+//             orderItem.Quantity -= reqItem.Quantity
+//         }
+
+//         if err := tx.Save(&orderItem).Error; err != nil {
+//             tx.Rollback()
+//             return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+//                 "error": "ไม่สามารถอัพเดทรายการอาหารได้",
+//             })
+//         }
+
+//         printContents = append(printContents, fmt.Sprintf("%s|%d", orderItem.MenuItem.Name, reqItem.Quantity))
+//     }
+
+//     // อัพเดทยอดรวมของทุกออเดอร์
+//     for _, order := range orders {
+//         var total float64
+//         if err := tx.Model(&OrderItem{}).
+//             Where("order_id = ? AND status != ?", order.ID, "cancelled").
+//             Select("COALESCE(SUM(price * quantity), 0)").
+//             Scan(&total).Error; err != nil {
+//             tx.Rollback()
+//             return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+//                 "error": "ไม่สามารถคำนวณยอดรวมได้",
+//             })
+//         }
+
+//         if err := tx.Model(&order).Update("total", total).Error; err != nil {
+//             tx.Rollback()
+//             return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+//                 "error": "ไม่สามารถอัพเดทยอดรวมได้",
+//             })
+//         }
+//     }
+
+//     // ส่งการแจ้งเตือนไปยังครัว
+//     if len(printContents) > 0 {
+//         var printers []Printer
+//         if err := tx.Where("department IN ?", []string{"kitchen", "bar"}).Find(&printers).Error; err != nil {
+//             tx.Rollback()
+//             return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+//                 "error": "ไม่สามารถค้นหาเครื่องพิมพ์ได้",
+//             })
+//         }
+
+//         printContentString := fmt.Sprintf("ยกเลิกรายการก่อนชำระเงิน\nโต๊ะ: %d\nเหตุผล: %s\n\n%s",
+//             req.TableID, req.Reason, strings.Join(printContents, "\n"))
+
+//         for _, printer := range printers {
+//             printJob := PrintJob{
+//                 PrinterID:         printer.ID,
+//                 Status:            "pending",
+//                 JobType:           "cancelation",
+//                 CancelledQuantity: len(req.Items),
+//                 Content:           []byte(printContentString),
+//                 CreatedAt:         time.Now(),
+//             }
+
+//             if err := tx.Create(&printJob).Error; err != nil {
+//                 tx.Rollback()
+//                 return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+//                     "error": fmt.Sprintf("ไม่สามารถสร้างงานพิมพ์สำหรับเครื่องพิมพ์ %s", printer.Name),
+//                 })
+//             }
+//         }
+//     }
+
+//     if err := tx.Commit().Error; err != nil {
+//         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+//             "error": "ไม่สามารถบันทึกข้อมูลได้",
+//         })
+//     }
+
+//     return c.JSON(fiber.Map{
+//         "message": "ยกเลิกรายการอาหารสำเร็จ",
+//     })
+// }
+
+// type finalize_items_req struct {
+//     TableID  uint               `json:"table_id"`
+//     StaffID  uint              `json:"staff_id"`
+//     Reason   string            `json:"reason"`
+//     Items    []CancelItemDetail `json:"items"`
+// }
+
+// type CancelItemDetail struct {
+//     OrderItemID uint `json:"order_item_id"`
+//     Quantity    int  `json:"quantity"`
 // }

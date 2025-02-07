@@ -14,26 +14,24 @@ import (
 )
 
 type PaymentRequest struct {
-	UUID          string                      `json:"uuid" binding:"required"`     // UUID ของ QR Code
-	TableID       uint                        `json:"table_id" binding:"required"` // ID ของโต๊ะ
+	UUID          string                      `json:"uuid" binding:"required"`
+	TableID       uint                        `json:"table_id" binding:"required"`
 	PaymentMethod string                      `json:"payment_method" binding:"required"`
 	ServiceCharge float64                     `json:"service_charge"`
 	Discounts     []PaymentDiscountRequest    `json:"discounts,omitempty"`
 	ExtraCharges  []PaymentExtraChargeRequest `json:"extra_charges,omitempty"`
-	StaffID       uint                        `json:"staff_id,omitempty"`
+	StaffID       uint                        `json:"staff_id" binding:"required"`
 }
 
 type PaymentDiscountRequest struct {
-	DiscountTypeID uint    `json:"discount_type_id" binding:"required"`
-	Value          float64 `json:"value" binding:"required"`
-	Reason         string  `json:"reason,omitempty"`
+	DiscountTypeID uint   `json:"discount_type_id" binding:"required"`
+	Reason         string `json:"reason,omitempty"`
 }
 
 type PaymentExtraChargeRequest struct {
-	ChargeTypeID uint    `json:"charge_type_id" binding:"required"`
-	Amount       float64 `json:"amount" binding:"required"`
-	Quantity     int     `json:"quantity" binding:"required,min=1"`
-	Note         string  `json:"note,omitempty"`
+	ChargeTypeID uint   `json:"charge_type_id" binding:"required"`
+	Quantity     int    `json:"quantity" binding:"required,min=1"`
+	Note         string `json:"note,omitempty"`
 }
 
 // @Summary ชำระเงิน
@@ -111,7 +109,7 @@ func ProcessPayment(c *fiber.Ctx) error {
 		UUID:          req.UUID,
 		TableID:       strconv.Itoa(int(req.TableID)),
 		SubTotal:      subTotal,
-		ServiceCharge: req.ServiceCharge,
+		ServiceCharge: (subTotal * req.ServiceCharge) / 100, // Calculate as percentage
 		PaymentMethod: req.PaymentMethod,
 		StaffID:       req.StaffID,
 		CreatedAt:     time.Now(),
@@ -120,10 +118,8 @@ func ProcessPayment(c *fiber.Ctx) error {
 	// 5. บันทึกใบเสร็จ
 	if err := tx.Create(&receipt).Error; err != nil {
 		tx.Rollback()
-		fmt.Println("Error creating receipt:", err) // Debug log
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":  "Failed to create receipt",
-			"detail": err.Error(), // ส่งรายละเอียดของ error ออกมา
+			"error": "Failed to create receipt",
 		})
 	}
 
@@ -151,16 +147,14 @@ func ProcessPayment(c *fiber.Ctx) error {
 			})
 		}
 
-		// คำนวณส่วนลด
 		var discountAmount float64
 		if discountType.Type == "percentage" {
-			discountAmount = (subTotal * discount.Value) / 100
+			discountAmount = (subTotal * discountType.Value) / 100
 		} else {
-			discountAmount = discount.Value
+			discountAmount = discountType.Value
 		}
 		totalDiscount += discountAmount
 
-		// บันทึกส่วนลดในใบเสร็จ
 		receiptDiscount := models.ReceiptDiscount{
 			ReceiptID:      receipt.ID,
 			DiscountTypeID: discount.DiscountTypeID,
@@ -189,14 +183,13 @@ func ProcessPayment(c *fiber.Ctx) error {
 			})
 		}
 
-		chargeAmount := charge.Amount * float64(charge.Quantity)
+		chargeAmount := chargeType.DefaultAmount * float64(charge.Quantity)
 		totalExtraCharge += chargeAmount
 
-		// บันทึกค่าใช้จ่ายเพิ่มเติมในใบเสร็จ
 		receiptCharge := models.ReceiptCharge{
 			ReceiptID:    receipt.ID,
 			ChargeTypeID: charge.ChargeTypeID,
-			Amount:       charge.Amount,
+			Amount:       chargeType.DefaultAmount,
 			Quantity:     charge.Quantity,
 			StaffID:      req.StaffID,
 			Note:         charge.Note,
@@ -214,7 +207,7 @@ func ProcessPayment(c *fiber.Ctx) error {
 	// 8. อัพเดทยอดรวมในใบเสร็จ
 	receipt.DiscountTotal = totalDiscount
 	receipt.ChargeTotal = totalExtraCharge
-	receipt.Total = subTotal - totalDiscount + totalExtraCharge + req.ServiceCharge
+	receipt.Total = subTotal + receipt.ServiceCharge - totalDiscount + totalExtraCharge
 
 	if err := tx.Save(&receipt).Error; err != nil {
 		tx.Rollback()

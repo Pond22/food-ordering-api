@@ -33,10 +33,10 @@ type PaymentDiscountRequest struct {
 	Reason string `json:"reason,omitempty"`
 }
 type PaymentExtraChargeRequest struct {
-	ChargeTypeID uint    `json:"charge_type_id" binding:"required"`
-	Amount       float64 `json:"amount" binding:"required"`
-	Quantity     int     `json:"quantity" binding:"required,min=1"`
-	Note         string  `json:"note,omitempty"`
+	ChargeTypeID uint `json:"charge_type_id" binding:"required"`
+	// Amount       float64 `json:"amount" binding:"required"`
+	Quantity int    `json:"quantity" binding:"required,min=1"`
+	Note     string `json:"note,omitempty"`
 }
 
 // @Summary ชำระเงินรวมหลายโต๊ะ
@@ -53,6 +53,40 @@ func CreateMergedReceipt(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"error": "ข้อมูลไม่ถูกต้อง",
+		})
+	}
+	// ตรวจสอบ TableIDs ซ้ำ
+	tableMap := make(map[uint]bool)
+	for _, tableID := range req.TableIDs {
+		if tableMap[tableID] {
+			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+				"error": "พบรหัสโต๊ะซ้ำกัน",
+			})
+		}
+		tableMap[tableID] = true
+	}
+
+	// ตรวจสอบว่าโต๊ะมีอยู่จริง
+	for _, tableID := range req.TableIDs {
+		var table models.Table
+		if err := db.DB.First(&table, tableID).Error; err != nil {
+			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+				"error": fmt.Sprintf("ไม่พบโต๊ะรหัส %d", tableID),
+			})
+		}
+	}
+
+	var activeQRs []models.QRCode
+	if err := db.DB.Where("table_id IN ? AND is_active = ?", req.TableIDs, true).Find(&activeQRs).Error; err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"error": "ไม่สามารถตรวจสอบ QR codes ได้",
+		})
+	}
+
+	var staff models.Users
+	if err := db.DB.First(&staff, req.StaffID).Error; err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"error": "ไม่พบพนักงาน",
 		})
 	}
 
@@ -76,10 +110,16 @@ func CreateMergedReceipt(c *fiber.Ctx) error {
 		allOrders = append(allOrders, orders...)
 	}
 
-	if len(allOrders) == 0 {
-		tx.Rollback()
+	if len(allOrders) == 0 && len(activeQRs) > 0 {
+		if err := tx.Model(&models.QRCode{}).Where("id IN ?", activeQRs).Update("is_active", false).Error; err != nil {
+			tx.Rollback()
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"error": "ไม่สามารถอัพเดทสถานะ QR codes ได้",
+			})
+		}
+		tx.Commit()
 		return c.Status(http.StatusNotFound).JSON(fiber.Map{
-			"error": "ไม่พบออเดอร์ที่ยังไม่ได้ชำระ",
+			"error": "ไม่พบออเดอร์ที่ยังไม่ได้ชำระ และได้ยกเลิก QR codes แล้ว",
 		})
 	}
 
@@ -162,13 +202,13 @@ func CreateMergedReceipt(c *fiber.Ctx) error {
 			})
 		}
 
-		chargeAmount := charge.Amount * float64(charge.Quantity)
+		chargeAmount := chargeType.DefaultAmount * float64(charge.Quantity)
 		totalExtraCharge += chargeAmount
 
 		receiptCharge := models.ReceiptCharge{
 			ReceiptID:    receipt.ID,
 			ChargeTypeID: charge.ChargeTypeID,
-			Amount:       charge.Amount,
+			Amount:       chargeType.DefaultAmount,
 			Quantity:     charge.Quantity,
 			StaffID:      req.StaffID,
 			Note:         charge.Note,
@@ -222,15 +262,13 @@ func CreateMergedReceipt(c *fiber.Ctx) error {
 		}
 	}
 
-	for _, tableID := range req.TableIDs {
-		if err := tx.Model(&models.QRCode{}).
-			Where("table_id = ? AND is_active = ?", tableID, true).
-			Update("is_active", false).Error; err != nil {
-			tx.Rollback()
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-				"error": "ไม่สามารถอัพเดทสถานะ QR code ได้",
-			})
-		}
+	if err := tx.Model(&models.QRCode{}).
+		Where("table_id IN ? AND is_active = ?", req.TableIDs, true).
+		Update("is_active", false).Error; err != nil {
+		tx.Rollback()
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"error": "ไม่สามารถอัพเดทสถานะ QR code ได้",
+		})
 	}
 
 	if err := tx.Commit().Error; err != nil {

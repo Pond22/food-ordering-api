@@ -2208,6 +2208,60 @@
                 }
             }
         },
+        "/api/orders/billable/{uuid}": {
+            "get": {
+                "description": "ดึงรายการอาหารที่มีสถานะ served และ pending สำหรับการคิดเงิน",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "ดึงรายการอาหารที่ต้องคิดเงินตาม UUID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID ของโต๊ะ",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายการอาหารที่ต้องคิดเงิน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบข้อมูล",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการดึงข้อมูล",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/orders/items/cancel": {
             "post": {
                 "description": "ยกเลิกรายการอาหารในออเดอร์ตามจำนวนที่กำหนด",
@@ -3875,60 +3929,6 @@
                 }
             }
         },
-        "/api/table/orders/{id}": {
-            "get": {
-                "description": "ดึงข้อมูลออเดอร์ของโต๊ะที่ระบุทั้งที่ยังไม่เสร็จและเสร็จสมบูรณ์",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Table"
-                ],
-                "summary": "ดึงออเดอร์เมนูอาหารและราคาสุทธิของโต๊ะ",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "ID โต๊ะ",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "ข้อมูลออเดอร์ของโต๊ะ",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "กรุณาระบุหมายเลขโต๊ะ",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "404": {
-                        "description": "ไม่มีออเดอร์สำหรับโต๊ะนี้",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "ไม่สามารถดึงข้อมูลออเดอร์ได้",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
         "/api/table/reservedTable/{id}": {
             "post": {
                 "security": [
@@ -4756,8 +4756,7 @@
         "api_handlers.PaymentDiscountRequest": {
             "type": "object",
             "required": [
-                "discount_type_id",
-                "value"
+                "discount_type_id"
             ],
             "properties": {
                 "discount_type_id": {
@@ -4765,23 +4764,16 @@
                 },
                 "reason": {
                     "type": "string"
-                },
-                "value": {
-                    "type": "number"
                 }
             }
         },
         "api_handlers.PaymentExtraChargeRequest": {
             "type": "object",
             "required": [
-                "amount",
                 "charge_type_id",
                 "quantity"
             ],
             "properties": {
-                "amount": {
-                    "type": "number"
-                },
                 "charge_type_id": {
                     "type": "integer"
                 },
@@ -4798,6 +4790,7 @@
             "type": "object",
             "required": [
                 "payment_method",
+                "staff_id",
                 "table_id",
                 "uuid"
             ],
@@ -4824,11 +4817,9 @@
                     "type": "integer"
                 },
                 "table_id": {
-                    "description": "ID ของโต๊ะ",
                     "type": "integer"
                 },
                 "uuid": {
-                    "description": "UUID ของ QR Code",
                     "type": "string"
                 }
             }
@@ -5367,14 +5358,10 @@
         "api_v2.PaymentExtraChargeRequest": {
             "type": "object",
             "required": [
-                "amount",
                 "charge_type_id",
                 "quantity"
             ],
             "properties": {
-                "amount": {
-                    "type": "number"
-                },
                 "charge_type_id": {
                     "type": "integer"
                 },
@@ -5382,6 +5369,7 @@
                     "type": "string"
                 },
                 "quantity": {
+                    "description": "Amount       float64 `json:\"amount\" binding:\"required\"`",
                     "type": "integer",
                     "minimum": 1
                 }

@@ -122,7 +122,7 @@ func SetupRoutes(app *fiber.App) {
 
 	table := api.Group("/table")
 	{
-		table.Get("/orders/:id", api_handlers.GetTableOrders)
+		table.Get("/billable/:uuid", api_handlers.GetBillableItems)
 		table.Post("/", api_handlers.Addtable)
 		table.Delete("/:id", api_handlers.DeleteTable)
 		table.Put("/:id", api_handlers.UpdateTable)

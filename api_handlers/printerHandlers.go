@@ -388,7 +388,6 @@ func prepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
 
 	tableIDStrings := strings.Split(job.Receipt.TableID, ",")
 
-	// แปลงเป็นสตริงที่อ่านง่าย
 	var tableIDDisplay string
 	if len(tableIDStrings) > 1 {
 		lastIndex := len(tableIDStrings) - 1
@@ -398,7 +397,6 @@ func prepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
 	}
 
 	if job.Receipt != nil {
-		// หัวข้อใบเสร็จ
 		headerLines := []string{
 			"***** ใบเสร็จรับเงิน *****",
 			"Receipt #" + fmt.Sprintf("%d", job.Receipt.ID),
@@ -412,38 +410,68 @@ func prepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
 			content.WriteString(cleanText(line) + "\n")
 		}
 
-		// แสดงรายการอาหาร
 		content.WriteString("[ รายการอาหาร ]\n")
 		content.WriteString("----------------------------------------\n")
 
-		for i, order := range job.Receipt.Orders {
+		// Group similar items
+		itemGroups := make(map[string]struct {
+			MenuItem models.MenuItem
+			Quantity int
+			Price    float64
+			Options  []models.OrderItemOption
+			Notes    string
+		})
+
+		for _, order := range job.Receipt.Orders {
 			for _, item := range order.Items {
-				// แสดงรายการอาหาร
-				itemLine := fmt.Sprintf("%d. %s", i+1, item.MenuItem.Name)
-				if item.Quantity > 1 {
-					itemLine += fmt.Sprintf(" x%d", item.Quantity)
-				}
-				itemLine += fmt.Sprintf("   ฿%.2f", item.Price)
-				content.WriteString(cleanText(itemLine) + "\n")
-
-				// ตัวเลือกเพิ่มเติม
-				for _, opt := range item.Options {
-					optionLine := fmt.Sprintf("   • %s: %s",
-						cleanText(opt.MenuOption.OptionGroup.Name),
-						cleanText(opt.MenuOption.Name))
-					content.WriteString(optionLine + "\n")
-				}
-
-				// หมายเหตุพิเศษ
-				if item.Notes != "" {
-					content.WriteString(fmt.Sprintf("   [หมายเหตุ: %s]\n", cleanText(item.Notes)))
+				key := fmt.Sprintf("%d-%s", item.MenuItemID, item.Notes)
+				if group, exists := itemGroups[key]; exists {
+					group.Quantity += item.Quantity
+					group.Price += item.Price
+					group.Options = append(group.Options, item.Options...)
+					itemGroups[key] = group
+				} else {
+					itemGroups[key] = struct {
+						MenuItem models.MenuItem
+						Quantity int
+						Price    float64
+						Options  []models.OrderItemOption
+						Notes    string
+					}{
+						MenuItem: item.MenuItem,
+						Quantity: item.Quantity,
+						Price:    item.Price,
+						Options:  item.Options,
+						Notes:    item.Notes,
+					}
 				}
 			}
 		}
 
+		i := 1
+		for _, group := range itemGroups {
+			itemLine := fmt.Sprintf("%d. %s", i, group.MenuItem.Name)
+			if group.Quantity > 1 {
+				itemLine += fmt.Sprintf(" x%d", group.Quantity)
+			}
+			itemLine += fmt.Sprintf("   ฿%.2f", group.Price)
+			content.WriteString(cleanText(itemLine) + "\n")
+
+			for _, opt := range group.Options {
+				optionLine := fmt.Sprintf("   • %s   ฿%.2f",
+					cleanText(opt.MenuOption.Name),
+					opt.Price)
+				content.WriteString(optionLine + "\n")
+			}
+
+			if group.Notes != "" {
+				content.WriteString(fmt.Sprintf("   [หมายเหตุ: %s]\n", cleanText(group.Notes)))
+			}
+			i++
+		}
+
 		content.WriteString("----------------------------------------\n")
 
-		// แสดงผลรวม
 		subTotalLine := fmt.Sprintf("ยอดรวม: ฿%.2f", job.Receipt.SubTotal)
 		discountLine := fmt.Sprintf("ส่วนลด: ฿%.2f", job.Receipt.DiscountTotal)
 		extraChargesLine := fmt.Sprintf("ค่าใช้จ่ายเพิ่มเติม: ฿%.2f", job.Receipt.ChargeTotal)
@@ -464,15 +492,12 @@ func prepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
 			content.WriteString(cleanText(line) + "\n")
 		}
 
-		// ข้อมูลการชำระเงิน
 		paymentInfo := fmt.Sprintf("ชำระโดย: %s", cleanText(job.Receipt.PaymentMethod))
 		content.WriteString(paymentInfo + "\n")
 
-		// ข้อมูลพนักงาน
 		employeeInfo := fmt.Sprintf("พนักงาน: %d", job.Receipt.StaffID)
 		content.WriteString(employeeInfo + "\n")
 
-		// ข้อความขอบคุณ
 		footerLines := []string{
 			"========================================",
 			"ขอบคุณที่ใช้บริการ",
@@ -641,18 +666,35 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 
 	// ดึงงานพิมพ์ที่รอดำเนินการ
 	var jobs []models.PrintJob
-	err = db.DB.Where("printer_id = ? AND status = ?", printer.ID, "pending").
-		Preload("Order").
-		Preload("Order.Items", "status = ?", "pending").
-		Preload("Order.Items.MenuItem").
-		Preload("Order.Items.Options").
-		Preload("Order.Items.Options.MenuOption").
+	// err = db.DB.Where("printer_id = ? AND status = ?", printer.ID, "pending").
+	// 	Preload("Order").
+	// 	Preload("Order.Items", "status = ?", "pending").
+	// 	Preload("Order.Items.MenuItem").
+	// 	Preload("Order.Items.Options").
+	// 	Preload("Order.Items.Options.MenuOption").
+	// 	Preload("Order.Items.Options.MenuOption.OptionGroup").
+	// 	Preload("Receipt").
+	// 	Preload("Receipt.Orders.Items.MenuItem").
+	// 	Preload("Receipt.Discounts.DiscountType").
+	// 	Preload("Receipt.Charges.ChargeType").
+	// 	Order("created_at ASC").
+	// 	Find(&jobs).Error
+
+	query := db.DB.Where("printer_id = ? AND status = ?", printer.ID, "pending").
+		Order("created_at ASC")
+
+	err = query.Preload("Order.Items.MenuItem").
+		Preload("Order.Items", func(db *gorm.DB) *gorm.DB {
+			return db.Where("status = ?", "pending")
+		}).
 		Preload("Order.Items.Options.MenuOption.OptionGroup").
-		Preload("Receipt").
+		Preload("Receipt.Orders.Items", func(db *gorm.DB) *gorm.DB {
+			return db.Where("status != ?", "cancelled")
+		}).
 		Preload("Receipt.Orders.Items.MenuItem").
+		Preload("Receipt.Orders.Items.Options.MenuOption").
 		Preload("Receipt.Discounts.DiscountType").
 		Preload("Receipt.Charges.ChargeType").
-		Order("created_at ASC").
 		Find(&jobs).Error
 
 	if err != nil {

@@ -737,82 +737,105 @@ func ToggleTableStatus(c *fiber.Ctx) error {
 	})
 }
 
-// @Summary ดึงออเดอร์เมนูอาหารและราคาสุทธิของโต๊ะ
-// @Description ดึงข้อมูลออเดอร์ของโต๊ะที่ระบุทั้งที่ยังไม่เสร็จและเสร็จสมบูรณ์
+// @Summary ดึงรายการอาหารที่ต้องคิดเงินตาม UUID
+// @Description ดึงรายการอาหารที่มีสถานะ served และ pending สำหรับการคิดเงิน
 // @Accept json
 // @Produce json
-// @Param id path string true "ID โต๊ะ"
-// @Success 200 {object} map[string]interface{} "ข้อมูลออเดอร์ของโต๊ะ"
-// @Failure 400 {object} map[string]interface{} "กรุณาระบุหมายเลขโต๊ะ"
-// @Failure 404 {object} map[string]interface{} "ไม่มีออเดอร์สำหรับโต๊ะนี้"
-// @Failure 500 {object} map[string]interface{} "ไม่สามารถดึงข้อมูลออเดอร์ได้"
-// @Router /api/table/orders/{id} [get]
-// @Tags Table
-func GetTableOrders(c *fiber.Ctx) error {
-	tableID := c.Params("id")
-	if tableID == "" {
+// @Param uuid path string true "UUID ของโต๊ะ"
+// @Success 200 {object} map[string]interface{} "รายการอาหารที่ต้องคิดเงิน"
+// @Failure 400 {object} map[string]interface{} "ข้อมูลไม่ถูกต้อง"
+// @Failure 404 {object} map[string]interface{} "ไม่พบข้อมูล"
+// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการดึงข้อมูล"
+// @Router /api/orders/billable/{uuid} [get]
+// @Tags Orders
+func GetBillableItems(c *fiber.Ctx) error {
+	uuid := c.Params("uuid")
+	if uuid == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "กรุณาระบุหมายเลขโต๊ะ",
+			"error": "กรุณาระบุ UUID",
 		})
 	}
 
-	var qrCode models.QRCode
-	if err := db.DB.Where("table_id = ?", tableID).First(&qrCode).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "ไม่พบข้อมูล QR Code สำหรับโต๊ะนี้",
-		})
-	}
-
-	var orders []models.Order
-	if err := db.DB.Preload("Items.MenuItem.Category").Preload("Items.Options.MenuOption").Preload("Receipt.Staff").Where("uuid = ? AND (status = ? OR status = ?)", qrCode.UUID, "uncompleted", "completed").Find(&orders).Error; err != nil {
+	// ดึงรายการอาหารที่ต้องคิดเงิน
+	var orderItems []models.OrderItem
+	if err := db.DB.Joins("Order").
+		Joins("MenuItem").
+		Joins("MenuItem.Category").
+		Preload("Options.MenuOption").
+		Where("\"Order\".uuid = ? AND order_items.status IN ?", uuid, []string{"served", "pending"}).
+		Find(&orderItems).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "ไม่สามารถดึงข้อมูลออเดอร์ได้",
+			"error": "ไม่สามารถดึงข้อมูลรายการอาหารได้",
 		})
 	}
 
-	if len(orders) == 0 {
+	if len(orderItems) == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"message": "ไม่มีออเดอร์สำหรับโต๊ะนี้",
+			"message": "ไม่พบรายการอาหารที่ต้องคิดเงินสำหรับ UUID นี้",
 		})
 	}
 
-	orderDetails := []fiber.Map{}
+	var response struct {
+		UUID       string         `json:"uuid"`
+		Items      []BillableItem `json:"items"`
+		GrandTotal float64        `json:"grand_total"`
+	}
+
+	response.UUID = uuid
 	var grandTotal float64
 
-	for _, order := range orders {
-		var orderTotal float64
-		items := []fiber.Map{}
-		for _, item := range order.Items {
-			options := []string{}
-			for _, option := range item.Options {
-				options = append(options, option.MenuOption.Name)
-				orderTotal += option.Price
-			}
-			itemTotal := float64(item.Quantity) * item.Price
-			items = append(items, fiber.Map{
-				"เมนู":     item.MenuItem.Name,
-				"หมวดหมู่": item.MenuItem.Category.Name,
-				"จำนวน":    item.Quantity,
-				"ราคา":     item.Price,
-				"ตัวเลือก": options,
-				"รวม":      itemTotal,
-			})
-			orderTotal += itemTotal
+	// แปลงข้อมูลรายการอาหาร
+	for _, item := range orderItems {
+		billableItem := BillableItem{
+			ID:        item.ID,
+			OrderID:   item.OrderID,
+			Name:      item.MenuItem.Name,
+			Category:  item.MenuItem.Category.Name,
+			Quantity:  item.Quantity,
+			Price:     item.Price,
+			Status:    item.Status,
+			Notes:     item.Notes,
+			CreatedAt: item.CreatedAt,
+			ItemTotal: float64(item.Quantity) * item.Price,
+			Options:   make([]OptionInfo, 0),
 		}
-		orderDetails = append(orderDetails, fiber.Map{
-			"รหัสออเดอร์": order.ID,
-			"สถานะ":       order.Status,
-			"พนักงาน":     order.Receipt.Staff.Name,
-			"รายการ":      items,
-			"รวมทั้งหมด":  orderTotal,
-		})
-		grandTotal += orderTotal
+
+		// เพิ่มข้อมูลตัวเลือกเสริม
+		for _, opt := range item.Options {
+			billableItem.Options = append(billableItem.Options, OptionInfo{
+				Name:     opt.MenuOption.Name,
+				Price:    opt.Price,
+				Quantity: opt.Quantity,
+			})
+			billableItem.ItemTotal += opt.Price * float64(opt.Quantity)
+		}
+
+		response.Items = append(response.Items, billableItem)
+		grandTotal += billableItem.ItemTotal
 	}
 
-	return c.JSON(fiber.Map{
-		"โต๊ะที่":          tableID,
-		"รหัส UUID":        qrCode.UUID,
-		"ออเดอร์":          orderDetails,
-		"ราคาสุทธิทั้งหมด": grandTotal,
-	})
+	response.GrandTotal = grandTotal
+
+	return c.JSON(response)
+}
+
+// โครงสร้างข้อมูลสำหรับการส่งกลับ
+type BillableItem struct {
+	ID        uint         `json:"id"`
+	OrderID   uint         `json:"order_id"`
+	Name      string       `json:"name"`
+	Category  string       `json:"category"`
+	Quantity  int          `json:"quantity"`
+	Price     float64      `json:"price"`
+	Status    string       `json:"status"`
+	Notes     string       `json:"notes"`
+	CreatedAt time.Time    `json:"created_at"`
+	ItemTotal float64      `json:"item_total"`
+	Options   []OptionInfo `json:"options"`
+}
+
+type OptionInfo struct {
+	Name     string  `json:"name"`
+	Price    float64 `json:"price"`
+	Quantity int     `json:"quantity"`
 }
