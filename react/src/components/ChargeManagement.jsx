@@ -286,6 +286,7 @@ const ChargeTypeManagement = () => {
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="text-xl font-bold text-gray-900">
+                      {chargeType.ID}
                       {chargeType.Name}
                     </h3>
                     <p className="mt-2 text-gray-600">

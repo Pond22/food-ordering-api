@@ -12,97 +12,131 @@ import {
 } from 'lucide-react'
 import useCartStore from '../hooks/cart-store'
 
-export default function MenuBar({ tableID, uuid }) {
+export default function MenuBar({tableID ,uuid}) {
   const [openCallModal, setOpenCallModal] = useState(false)
   const [openCartModal, setOpenCartModal] = useState(false)
-  const { cart, increaseQuantity, decreaseQuantity } = useCartStore()
+  const { cart, increaseQuantity, decreaseQuantity } =
+    useCartStore()
 
-  // คำนวณราคาในตะกร้า
+    console.log(tableID, '+', uuid)
+
   const calculateTotal = () => {
-    return cart.reduce((total, item) => total + item.Price * item.quantity, 0)
+    return cart.reduce(
+      (total, item) =>
+        total +
+        item.menuItem.Price * item.quantity +
+        item.options.reduce(
+          (optionTotal, option) => optionTotal + option.price,
+          0
+        ), // รวมราคาของ option
+      0
+    )
   }
 
   useEffect(() => {
     calculateTotal()
   }, [cart])
 
-  const handleConfirmOrder = async () => {
-    const items = cart.map((item) => {
-      // ตรวจสอบว่า selectedOptions ถูกต้องหรือไม่
-      const options =
-        item.selectedOptions && Object.keys(item.selectedOptions).length > 0
-          ? Object.keys(item.selectedOptions).map((key) => ({
-              menu_option_id: item.selectedOptions[key].menuOptionID, 
-              option_name: key, 
-              option_price: item.selectedOptions[key].price || 0, // ราคา
-            }))
-          : []
+  const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0)
 
-      // ตรวจสอบข้อมูลตัวเลือกก่อนส่ง
-      console.log('Item before sending to API:', {
-        menu_item_id: item.ID,
-        notes: item.note || '',
-        options: options,
-        quantity: item.quantity,
+  const confirmOrder = async () => {
+    console.log('Table ID:', tableID)
+    console.log('UUID:', uuid)
+
+    // สร้างข้อมูล order ตามโครงสร้างที่ต้องการ
+    const orderData = cart
+      .map((item) => {
+        // คำนวณราคา รวมของ options ที่เลือก
+        const totalOptionsPrice = item.options.reduce(
+          (acc, option) => acc + option.price,
+          0
+        )
+
+        // ตรวจสอบว่า quantity มากกว่า 0 และราคาของตัวเลือกไม่เป็น 0
+        if (item.quantity > 0) {
+          const orderItem = {
+            menu_item_id: item.menuItem.ID,
+            quantity: item.quantity,
+            notes: item.notes,
+            options: item.options.map((option) => ({
+              menu_option_id: option.menu_option_id,
+              price: option.price,
+            })),
+            total_price:
+              item.menuItem.price * item.quantity + totalOptionsPrice, // คำนวณราคาทั้งหมด
+          }
+
+          // แสดงข้อมูลที่เพิ่มไปในคำขอ log
+          console.log(
+            `Adding item to order: ${item.menuItem.Name}, Quantity: ${item.quantity}, Notes: ${item.notes}`
+          )
+          item.options.forEach((option) => {
+            console.log(`Option: ${option.name}, Price: ${option.price}฿`)
+          })
+
+          return orderItem
+        } else {
+          console.log(
+            `Skipping item: ${item.menuItem.Name}, Quantity: ${item.quantity} or invalid options`
+          )
+          return null
+        }
       })
+      .filter((item) => item !== null) // กรองข้อมูลที่เป็น null (ไม่ถูกต้อง) ออก
 
-      return {
-        menu_item_id: item.ID,
-        notes: item.note || '',
-        options: options, // ส่งตัวเลือก (options) ที่เตรียมไว้
-        quantity: item.quantity,
-      }
-    })
+    // แสดงข้อมูล orderData ทั้งหมดที่สร้างขึ้น
+    console.log('Order Data:', orderData)
 
-    const orderData = {
-      items,
-      table_id: 14,
-      use_promo: [],
-      uuid: uuid,
+    // ตรวจสอบว่า orderData มีข้อมูลหรือไม่
+    if (orderData.length === 0) {
+      console.error('No items in the order!')
+      return
     }
 
-    // ตรวจสอบข้อมูลที่ส่งก่อนส่งไปยัง API
-    console.log('Order data to be sent:', orderData)
-
     try {
-      const response = await axios.post(
-        'http://localhost:8080/api/orders',
-        orderData,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-          },
-        }
-      )
+      const response = await axios.post('http://localhost:8080/api/orders', {
+        table_id: tableID,
+        uuid: uuid,
+        items: orderData, // ส่ง orderData
+      })
 
       if (response.status === 200) {
-        alert('Order placed successfully!')
+        console.log('Order successfully placed!', response.data)
+        // เคลียร์ข้อมูลในตะกร้า
+        useCartStore.getState().clearCart() // เคลียร์ตะกร้าหลังจากการสั่งอาหารสำเร็จ
         setOpenCartModal(false)
-        useCartStore.getState().clearCart()
       } else {
-        alert('Failed to place order!')
+        console.error('Failed to place order', response.data)
+        alert(
+          'Failed to place order: ' + response.data.error || 'Unknown error'
+        )
       }
     } catch (error) {
       if (error.response) {
-        console.error('API Error:', error.response.data)
-        alert('Failed to place order! ' + error.response.data.error)
+        console.error('Error placing order:', error.response.data)
+        alert('Error: ' + error.response.data.error || 'Unknown error')
+      } else if (error.request) {
+        console.error('No response from server:', error.request)
+        alert('No response from server, please try again later.')
       } else {
-        console.error('Error:', error)
-        alert('An error occurred while placing the order.')
+        console.error('Unexpected error:', error.message)
+        alert('An unexpected error occurred. Please try again.')
       }
     }
   }
+
+
+
 
   return (
     <nav className="bg-[#1C2B41] shadow-sm fixed top-0 w-full z-50">
       <div className="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto px-4 py-2">
         <div className="flex flex-col gap-1 justify-center items-start text-white">
-          <span className="text-xl font-semibold whitespace-nowrap bg-gradient-to-t from-yellow-400 to-yellow-600 text-transparent bg-clip-text">
-            Grand Kaze Yakiniku Chang Mai
+          <span className="text-xl font-semibold whitespace-nowrap">
+            EasyOrder
           </span>
-          <span className="text-base font-bold whitespace-nowrap text-red-500">
-            Table : {tableID} | uuid : {uuid}
+          <span className="text-base font-semibold whitespace-nowrap">
+            โต๊ะที่ {tableID}
           </span>
         </div>
         <div className="block w-auto">
@@ -156,13 +190,12 @@ export default function MenuBar({ tableID, uuid }) {
                 <ShoppingCart />
                 <span className="sr-only">Cart</span>
                 <div className="absolute inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full -top-2 -end-2">
-                  {cart.length}
+                  {totalQuantity}
                 </div>
               </button>
               {openCartModal && (
                 <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
                   <div className="bg-white px-2 pt-2 pb-4 border border-gray/50 rounded-xl w-full max-w-xl min-h-full max-h-screen flex flex-col">
-                    {/* Header */}
                     <div className="flex top-0 justify-between items-center">
                       <h4 className="text-xl font-semibold text-black">
                         รายการอาหารที่สั่ง
@@ -187,52 +220,53 @@ export default function MenuBar({ tableID, uuid }) {
                       </button>
                     </div>
                     <hr className="mt-4" />
-                    {/* Scrollable Content */}
+
                     <div className="flex-1 overflow-y-auto py-2">
                       {cart.map((item, i) => (
                         <div
-                          key={item.ID}
+                          key={i}
                           className="flex justify-between items-center gap-2 p-2 border-b last:border-none"
                         >
                           <div className="flex flex-col gap-1">
-                            <h6 className="text-lg font-medium">{item.Name}</h6>
+                            <h6 className="text-lg font-medium">
+                              {item.menuItem.ID}
+                              {item.menuItem.Name}
+                            </h6>
                             <span className="text-sm text-gray-600">
-                              หมายเหตุ : {item.note || '-'}
+                              หมายเหตุ : {item.notes || '-'}
                             </span>
-                            {item.selectedOptions &&
-                              Object.keys(item.selectedOptions).length > 0 && (
-                                <div className="mt-1 text-sm text-gray-600">
-                                  <strong>ตัวเลือก:</strong>
-                                  <ul className="list-disc pl-4">
-                                    {Object.keys(item.selectedOptions).map(
-                                      (groupName, idx) => (
-                                        <li key={idx}>
-                                          <strong>{groupName}: </strong>
-                                          {
-                                            item.selectedOptions[groupName]
-                                              .optionName
-                                          }{' '}
-                                          (+
-                                          {
-                                            item.selectedOptions[groupName]
-                                              .price
-                                          }
-                                          ฿)
-                                        </li>
-                                      )
-                                    )}
-                                  </ul>
+                            <div className="text-sm text-gray-500 mt-1">
+                              {item.options.map((option, index) => (
+                                <div key={index}>
+                                  <span>{option.name}</span> (+{option.price}฿)
+                                  <span className="text-xs text-gray-400">
+                                    (ID: {option.menu_option_id})
+                                  </span>
                                 </div>
-                              )}
+                              ))}
+                            </div>
                           </div>
                           <div className="flex flex-col items-center gap-1">
                             <span className="text-base font-medium">
-                              {item.Price * item.quantity}&nbsp;THB
+                              {(item.menuItem.Price +
+                                item.options.reduce(
+                                  (optionTotal, option) =>
+                                    optionTotal + option.price,
+                                  0
+                                )) *
+                                item.quantity}{' '}
+                              บาท
                             </span>
                             <div className="flex justify-between items-center gap-3">
                               <button
                                 className="bg-gray-200 hover:bg-gray-300 disabled:opacity-70 disabled:hover:bg-gray-200 p-2 rounded-md text-black"
-                                onClick={() => decreaseQuantity(item.ID)}
+                                onClick={() =>
+                                  decreaseQuantity(
+                                    item.menu_item_id,
+                                    item.notes,
+                                    item.options
+                                  )
+                                }
                               >
                                 <Minus className="size-2" />
                               </button>
@@ -241,7 +275,13 @@ export default function MenuBar({ tableID, uuid }) {
                               </span>
                               <button
                                 className="bg-gray-200 hover:bg-gray-300 p-2 rounded-md text-black"
-                                onClick={() => increaseQuantity(item.ID)}
+                                onClick={() =>
+                                  increaseQuantity(
+                                    item.menu_item_id,
+                                    item.notes,
+                                    item.options
+                                  )
+                                }
                               >
                                 <PlusIcon className="size-2" />
                               </button>
@@ -251,17 +291,16 @@ export default function MenuBar({ tableID, uuid }) {
                       ))}
                     </div>
 
-                    {/* Footer */}
                     <div className="flex flex-col gap-4 px-2 pt-4 border-t border-gray-200">
                       <div className="flex justify-between items-center">
                         <span className="text-xl font-bold">รวมทั้งหมด</span>
                         <span className="text-xl font-bold">
-                          {calculateTotal()}&nbsp;THB
+                          {calculateTotal()} บาท
                         </span>
                       </div>
                       <button
                         className="px-4 py-3 w-full rounded-md text-white font-semibold bg-[#4bcc37] hover:bg-[#4aac3b]"
-                        onClick={handleConfirmOrder}
+                        onClick={confirmOrder} // Add the onClick event to trigger the API call
                       >
                         ยืนยันการสั่งอาหาร
                       </button>

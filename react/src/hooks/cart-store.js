@@ -1,108 +1,149 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+const CACHE_TIME = 2 * 60 * 60 * 1000
+
 const useCartStore = create(
   persist(
-    (set) => ({
-      cart: [], // ตะกร้าสินค้า
+    (set, get) => ({
+      cart: [],
+      tableId: null,
+      uuid: null,
 
-      // คำนวณราคาสินค้ารวมตัวเลือก
-      calculateItemPrice: (item, selectedOptions) => {
-        let totalPrice = item.Price || 0
+      setTableData: (newTableId, newUuid) => {
+        const { tableId, uuid, clearCart } = get()
 
-        // คำนวณราคาของตัวเลือกที่เลือก
-        if (selectedOptions) {
-          Object.keys(selectedOptions).forEach((groupName) => {
-            const option = selectedOptions[groupName]
-            totalPrice += option.price || 0 // เพิ่มราคาของตัวเลือก
-          })
+        if (tableId !== newTableId || uuid !== newUuid) {
+          clearCart()
         }
 
-        return totalPrice
+        set({ tableId: newTableId, uuid: newUuid })
       },
 
-      // เพิ่มสินค้าในตะกร้า
       addToCart: (item, quantity, note, selectedOptions) =>
         set((state) => {
-          const itemPrice = state.calculateItemPrice(item, selectedOptions) // คำนวณราคาใหม่ของสินค้า
+          const timestamp = new Date().getTime()
 
-          // ตรวจสอบว่ามีสินค้าในตะกร้าแล้วหรือไม่
-          const existingItem = state.cart.find((i) => i.ID === item.ID)
+          // ตรวจสอบรายการในตะกร้า
+          const existingItem = state.cart.find(
+            (i) =>
+              i.menu_item_id === item.ID &&
+              i.notes === note &&
+              i.options.length === selectedOptions.length &&
+              i.options.every((opt, index) => {
+                return (
+                  opt.menu_option_id ===
+                    selectedOptions[index].menu_option_id &&
+                  opt.name === selectedOptions[index].name &&
+                  opt.price === selectedOptions[index].price
+                )
+              })
+          )
 
+          // ถ้ามีสินค้านี้ในตะกร้าแล้ว ให้เพิ่มจำนวน
           if (existingItem) {
-            // ถ้ามีสินค้ารายการเดิมอยู่แล้ว
             return {
               cart: state.cart.map((i) =>
-                i.ID === item.ID
-                  ? {
-                      ...i,
-                      quantity: i.quantity + quantity,
-                      note,
-                      selectedOptions,
-                      Price: itemPrice, // อัปเดตราคาสินค้า
-                    }
+                i.menu_item_id === item.ID &&
+                i.notes === note &&
+                JSON.stringify(i.options) === JSON.stringify(selectedOptions)
+                  ? { ...i, quantity: i.quantity + quantity, timestamp }
                   : i
               ),
             }
           } else {
-            // ถ้าไม่มีสินค้าในตะกร้า
+            // ถ้าไม่มี ให้เพิ่มสินค้าใหม่ในตะกร้า
             return {
               cart: [
                 ...state.cart,
                 {
-                  ...item,
-                  quantity,
-                  note,
-                  selectedOptions,
-                  Price: itemPrice, // อัปเดตราคาสินค้า
+                  menuItem: item,
+                  menu_item_id: item.ID,
+                  notes: note || '',
+                  options: selectedOptions.map((opt) => ({
+                    menu_option_id: opt.menu_option_id,
+                    name: opt.name,
+                    price: opt.price,
+                  })),
+                  quantity: quantity,
+                  timestamp,
                 },
               ],
             }
           }
         }),
 
-      // เพิ่มจำนวนสินค้าในตะกร้า
-      increaseQuantity: (itemId) =>
+      increaseQuantity: (menuItemId, note, selectedOptions) =>
         set((state) => ({
           cart: state.cart.map((i) =>
-            i.ID === itemId
-              ? {
-                  ...i,
-                  quantity: i.quantity + 1,
-                  Price: state.calculateItemPrice(i),
-                }
+            i.menu_item_id === menuItemId &&
+            i.notes === note &&
+            JSON.stringify(i.options) ===
+              JSON.stringify(
+                selectedOptions.map((opt) => ({
+                  menu_option_id: opt.menu_option_id,
+                  name: opt.name, // เพิ่มชื่อ option
+                  price: opt.price, // เพิ่มราคาของ option
+                }))
+              )
+              ? { ...i, quantity: i.quantity + 1 }
               : i
           ),
         })),
 
-      // ลดจำนวนสินค้าในตะกร้า
-      decreaseQuantity: (itemId) =>
+      decreaseQuantity: (menuItemId, note, selectedOptions) =>
         set((state) => ({
           cart: state.cart
             .map((i) =>
-              i.ID === itemId
-                ? {
-                    ...i,
-                    quantity: i.quantity - 1,
-                    Price: state.calculateItemPrice(i),
-                  }
+              i.menu_item_id === menuItemId &&
+              i.notes === note &&
+              JSON.stringify(i.options) ===
+                JSON.stringify(
+                  selectedOptions.map((opt) => ({
+                    menu_option_id: opt.menu_option_id,
+                    name: opt.name, // เพิ่มชื่อ option
+                    price: opt.price, // เพิ่มราคาของ option
+                  }))
+                )
+                ? { ...i, quantity: i.quantity - 1 }
                 : i
             )
             .filter((i) => i.quantity > 0),
         })),
 
-      // ลบสินค้าออกจากตะกร้า
-      removeFromCart: (itemId) =>
+      removeFromCart: (menuItemId, note, selectedOptions) =>
         set((state) => ({
-          cart: state.cart.filter((i) => i.ID !== itemId),
+          cart: state.cart.filter(
+            (i) =>
+              i.menu_item_id !== menuItemId ||
+              i.notes !== note ||
+              JSON.stringify(i.options) !==
+                JSON.stringify(
+                  selectedOptions.map((opt) => ({
+                    menu_option_id: opt.menu_option_id,
+                    name: opt.name, // เพิ่มชื่อ option
+                    price: opt.price, // เพิ่มราคาของ option
+                  }))
+                )
+          ),
         })),
 
-      // ล้างตะกร้าทั้งหมด
+      checkCartExpiry: () => {
+        const now = new Date().getTime()
+        const updatedCart = get().cart.filter(
+          (item) => now - item.timestamp < CACHE_TIME
+        )
+
+        if (updatedCart.length !== get().cart.length) {
+          set({ cart: updatedCart })
+        }
+      },
+
       clearCart: () => set({ cart: [] }),
     }),
     {
-      name: 'cart-storage', // ชื่อ key ที่เก็บใน localStorage
-      getStorage: () => localStorage, // ระบุว่าใช้ localStorage
+      name: 'cart-storage',
+      getStorage: () => localStorage,
     }
   )
 )
