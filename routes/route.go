@@ -93,14 +93,14 @@ func SetupRoutes(app *fiber.App) {
 
 	// Category Management Routes - ต้องการการยืนยันตัวตน และต้องเป็น manager
 	// categories := api.Group("/categories", utils.AuthRequired(), utils.RoleRequired(models.RoleManager))
-	categories := api.Group("/categories")
+	categories := api.Group("/categories", utils.AuthRequired())
 	{
-		categories.Post("/", api_handlers.CreateCategoryHandler)
+		categories.Post("/", utils.RoleRequired(models.RoleManager), api_handlers.CreateCategoryHandler)
 		categories.Get("/", api_handlers.GetCategoriesHandler)
-		categories.Put("/:id", api_handlers.UpdateCategoryHandler)
-		categories.Delete("/:id", api_handlers.Delete_categoryHandler)
-		categories.Post("/restore_categories/:id", api_handlers.Restore_categoryHandler)
-		categories.Get("/get_delete_categories", api_handlers.Get_Delete_Cat)
+		categories.Put("/:id", utils.RoleRequired(models.RoleManager), api_handlers.UpdateCategoryHandler)
+		categories.Delete("/:id", utils.RoleRequired(models.RoleManager), api_handlers.Delete_categoryHandler)
+		categories.Post("/restore_categories/:id", utils.RoleRequired(models.RoleManager), api_handlers.Restore_categoryHandler)
+		categories.Get("/get_delete_categories", utils.RoleRequired(models.RoleManager), api_handlers.Get_Delete_Cat)
 	}
 
 	// Order Management Routes

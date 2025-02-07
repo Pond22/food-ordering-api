@@ -2211,60 +2211,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/orders/billable/{uuid}": {
-            "get": {
-                "description": "ดึงรายการอาหารที่มีสถานะ served และ pending สำหรับการคิดเงิน",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Orders"
-                ],
-                "summary": "ดึงรายการอาหารที่ต้องคิดเงินตาม UUID",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "UUID ของโต๊ะ",
-                        "name": "uuid",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "รายการอาหารที่ต้องคิดเงิน",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "ข้อมูลไม่ถูกต้อง",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "404": {
-                        "description": "ไม่พบข้อมูล",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "เกิดข้อผิดพลาดในการดึงข้อมูล",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
         "/api/orders/items/cancel": {
             "post": {
                 "description": "ยกเลิกรายการอาหารในออเดอร์ตามจำนวนที่กำหนด",
@@ -3790,6 +3736,60 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "เกิดข้อผิดพลาดในการสร้างโต๊ะ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/table/billable/{uuid}": {
+            "get": {
+                "description": "ดึงรายการอาหารที่มีสถานะ served และ pending สำหรับการคิดเงิน",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Table"
+                ],
+                "summary": "ดึงรายการอาหารที่ต้องคิดเงินตาม UUID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID ของโต๊ะ",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายการอาหารที่ต้องคิดเงิน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบข้อมูล",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการดึงข้อมูล",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -6346,6 +6346,7 @@ const docTemplate = `{
     },
     "securityDefinitions": {
         "BearerAuth": {
+            "description": "Enter the token with the ` + "`" + `Bearer: ` + "`" + ` prefix, e.g. \"Bearer abcde12345\".",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"

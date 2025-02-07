@@ -2775,43 +2775,6 @@ paths:
       summary: ดึงรายการออเดอร์ที่กำลังดำเนินการ
       tags:
       - Order_ใหม่
-  /api/orders/billable/{uuid}:
-    get:
-      consumes:
-      - application/json
-      description: ดึงรายการอาหารที่มีสถานะ served และ pending สำหรับการคิดเงิน
-      parameters:
-      - description: UUID ของโต๊ะ
-        in: path
-        name: uuid
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: รายการอาหารที่ต้องคิดเงิน
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: ข้อมูลไม่ถูกต้อง
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: ไม่พบข้อมูล
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: เกิดข้อผิดพลาดในการดึงข้อมูล
-          schema:
-            additionalProperties: true
-            type: object
-      summary: ดึงรายการอาหารที่ต้องคิดเงินตาม UUID
-      tags:
-      - Orders
   /api/orders/items/cancel:
     post:
       consumes:
@@ -3874,6 +3837,43 @@ paths:
       summary: แก้ไขข้อมูลโต๊ะ
       tags:
       - Table
+  /api/table/billable/{uuid}:
+    get:
+      consumes:
+      - application/json
+      description: ดึงรายการอาหารที่มีสถานะ served และ pending สำหรับการคิดเงิน
+      parameters:
+      - description: UUID ของโต๊ะ
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายการอาหารที่ต้องคิดเงิน
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ข้อมูลไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: ไม่พบข้อมูล
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการดึงข้อมูล
+          schema:
+            additionalProperties: true
+            type: object
+      summary: ดึงรายการอาหารที่ต้องคิดเงินตาม UUID
+      tags:
+      - Table
   /api/table/mergeTable:
     post:
       consumes:
@@ -4218,6 +4218,7 @@ schemes:
 - http
 securityDefinitions:
   BearerAuth:
+    description: 'Enter the token with the `Bearer: ` prefix, e.g. "Bearer abcde12345".'
     in: header
     name: Authorization
     type: apiKey

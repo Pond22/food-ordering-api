@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"errors"
+	"fmt"
 	"food-ordering-api/models"
 	"strconv"
 	"strings"
@@ -87,7 +89,22 @@ func GetUserRole(c *fiber.Ctx) (models.UserRole, error) {
 		return "", err
 	}
 
-	role := models.UserRole((*claims)["role"].(string))
+	roleInterface, exists := (*claims)["role"]
+	if !exists {
+		return "", errors.New("role not found in token")
+	}
+
+	roleStr, ok := roleInterface.(string)
+	if !ok {
+		return "", errors.New("invalid role type in token")
+	}
+
+	// เพิ่มการตรวจสอบค่า role ที่ได้
+	role := models.UserRole(roleStr)
+	if !role.IsValid() {
+		return "", fmt.Errorf("invalid role value: %s", roleStr)
+	}
+
 	return role, nil
 }
 
@@ -98,13 +115,25 @@ func CheckPermission(c *fiber.Ctx, allowedRoles ...models.UserRole) error {
 		return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized access")
 	}
 
+	// เพิ่ม logging เพื่อ debug
+	fmt.Printf("Current user role: %s\n", userRole)
+	fmt.Printf("Allowed roles: %v\n", allowedRoles)
+
+	// ตรวจสอบ role อย่างเข้มงวด
+	isAllowed := false
 	for _, role := range allowedRoles {
 		if userRole == role {
-			return nil
+			isAllowed = true
+			break
 		}
 	}
 
-	return fiber.NewError(fiber.StatusForbidden, "Permission denied")
+	if !isAllowed {
+		return fiber.NewError(fiber.StatusForbidden,
+			fmt.Sprintf("Permission denied. Required roles: %v, Current role: %s", allowedRoles, userRole))
+	}
+
+	return nil
 }
 
 // AuthRequired middleware สำหรับตรวจสอบการ authentication
@@ -121,7 +150,27 @@ func AuthRequired() fiber.Handler {
 // RoleRequired middleware สำหรับตรวจสอบ role
 func RoleRequired(roles ...models.UserRole) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		return CheckPermission(c, roles...)
+		claims, err := GetUserFromToken(c)
+		if err != nil {
+			fmt.Printf("Token error: %v\n", err)
+			return err
+		}
+
+		roleInterface := (*claims)["role"]
+		userRole := models.UserRole(roleInterface.(string))
+
+		fmt.Printf("User role from token: %s\n", userRole)
+		fmt.Printf("Required roles: %v\n", roles)
+
+		// ตรวจสอบ role
+		for _, allowedRole := range roles {
+			if userRole == allowedRole {
+				return c.Next()
+			}
+		}
+
+		return fiber.NewError(fiber.StatusForbidden,
+			fmt.Sprintf("Access denied. Required roles: %v, Current role: %s", roles, userRole))
 	}
 }
 
