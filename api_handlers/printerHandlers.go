@@ -403,6 +403,7 @@ func prepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
 			"***** ใบเสร็จรับเงิน *****",
 			"Receipt #" + fmt.Sprintf("%d", job.Receipt.ID),
 			"โต๊ะ: " + tableIDDisplay,
+			"โต๊ะ: " + tableIDDisplay,
 			"----------------------------------------",
 			fmt.Sprintf("วันที่-เวลา: %s", time.Now().Format("02/01/2006 15:04:05")),
 			"----------------------------------------",
@@ -592,10 +593,12 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 	if vendorID != "" && productID != "" {
 		// กรณีเครื่องพิมพ์ USB
 		// log.Printf("Looking for USB printer - VID: %s, PID: %s", vendorID, productID)
+		// log.Printf("Looking for USB printer - VID: %s, PID: %s", vendorID, productID)
 		err = db.DB.Where("type = ? AND vendor_id = ? AND product_id = ?",
 			"usb", vendorID, productID).First(&printer).Error
 	} else if printerIP != "" {
 		// กรณีเครื่องพิมพ์เครือข่าย
+		// log.Printf("Looking for Network printer - IP: %s", printerIP)
 		// log.Printf("Looking for Network printer - IP: %s", printerIP)
 
 		// ถ้า printerIP เริ่มต้นด้วย USB_ ให้ค้นหาจาก vendor_id และ product_id
