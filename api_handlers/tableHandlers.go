@@ -746,8 +746,8 @@ func ToggleTableStatus(c *fiber.Ctx) error {
 // @Failure 400 {object} map[string]interface{} "ข้อมูลไม่ถูกต้อง"
 // @Failure 404 {object} map[string]interface{} "ไม่พบข้อมูล"
 // @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการดึงข้อมูล"
-// @Router /api/orders/billable/{uuid} [get]
-// @Tags Orders
+// @Router /api/table/billable/{uuid} [get]
+// @Tags Table
 func GetBillableItems(c *fiber.Ctx) error {
 	uuid := c.Params("uuid")
 	if uuid == "" {
@@ -756,7 +756,7 @@ func GetBillableItems(c *fiber.Ctx) error {
 		})
 	}
 
-	// ดึงรายการอาหารที่ต้องคิดเงิน
+	// ดึงรายการอาหารที่ต้องคิดเงินa
 	var orderItems []models.OrderItem
 	if err := db.DB.Joins("Order").
 		Joins("MenuItem").
