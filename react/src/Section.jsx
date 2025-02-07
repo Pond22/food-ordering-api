@@ -20,6 +20,7 @@ import ChargeManagement from './components/ChargeManagement'
 import PaymentTables from './components/PaymentTables'
 import ErrorBoundary from './ErrorBoundary'
 import OrderConfirmation from './components/OrderConfirmation'
+import Reprint from './components/Reprint'
 
 const Section = ({ isLoggedIn, user, handleLogout }) => {
   const location = useLocation()
@@ -224,6 +225,15 @@ const Section = ({ isLoggedIn, user, handleLogout }) => {
               </Link>
 
               <Link
+                to="/reprint"
+                className={`${styles.navLink} ${
+                  location.pathname === '/reprint' ? styles.activeLink : ''
+                }`}
+              >
+                rePrint
+              </Link>
+
+              <Link
                 to="/comfirmation"
                 className={`${styles.navLink} ${
                   location.pathname === '/comfirmation' ? styles.activeLink : ''
@@ -254,6 +264,11 @@ const Section = ({ isLoggedIn, user, handleLogout }) => {
             <Route
               path="/home"
               element={isLoggedIn ? <Home /> : <Navigate to="/login" />}
+            />
+
+            <Route
+              path="/reprint"
+              element={isLoggedIn ? <Reprint /> : <Navigate to="/login" />}
             />
 
             <Route

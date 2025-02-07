@@ -41,32 +41,22 @@ const TableManager = () => {
   const [loading, setLoading] = useState(false) // ใช้ในการโหลดข้อมูล
   const [uuid, setUuid] = useState('')
 
+  
+  const [uuidMap, setUuidMap] = useState({}) // เก็บ UUID ของแต่ละโต๊ะที่มี ID
+
   const [fromTableId, setFromTableId] = useState(null)
   const [toTableId, setToTableId] = useState(null)
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false)
 
   const navigate = useNavigate()
-  const handleCheckBillClick = (tableID, uuid) => {
+  const handleCheckBillClick = (tableID) => {
+    const uuid = uuidMap[tableID] // ดึง UUID ของโต๊ะจาก uuidMap โดยใช้ tableID
     // เมื่อกดปุ่มจะนำทางไปยังหน้า PaymentTables พร้อมส่งค่า tableID และ uuid
     navigate('/payment-tables', { state: { tableID, uuid } })
   }
 
   // Fetch tables from API and sort by ID
   useEffect(() => {
-    const fetchTables = async () => {
-      try {
-        const response = await axios.get('http://localhost:8080/api/tables')
-        // Sorting tables by ID in ascending order
-        const sortedTables = response.data.sort((a, b) => a.ID - b.ID)
-        setTables(sortedTables) // Store sorted tables into state
-      } catch (error) {
-        console.error('Error fetching tables:', error)
-      }
-    }
-
-    fetchTables() // Fetch tables when the component mounts
-
-    // Optionally, you can reconnect the WebSocket here to listen for table updates
     const connectWebSocket = () => {
       try {
         const socket = new WebSocket('ws://localhost:8080/ws/tables')
@@ -82,28 +72,37 @@ const TableManager = () => {
         socket.onmessage = (event) => {
           const message = JSON.parse(event.data)
           if (message.type === 'table_update') {
-            setTables(message.data)
+            setTables(message.data) // อัพเดตข้อมูลของโต๊ะ
+
+            // เก็บ UUID สำหรับแต่ละโต๊ะ
+            const newUuidMap = {}
+            message.data.forEach((table) => {
+              if (table.UUID) {
+                newUuidMap[table.ID] = table.UUID
+              }
+            })
+            setUuidMap(newUuidMap) // อัพเดต uuidMap
           }
         }
 
         socket.onclose = () => {
           console.log('WebSocket connection closed. Attempting reconnect...')
-          setTimeout(connectWebSocket, 5000)
+          setTimeout(connectWebSocket, 5000) // พยายามเชื่อมต่อใหม่หลังจาก 5 วินาที
         }
 
         return socket
       } catch (error) {
         console.error('Failed to connect to WebSocket:', error)
-        setTimeout(connectWebSocket, 5000)
+        setTimeout(connectWebSocket, 5000) // พยายามเชื่อมต่อใหม่ถ้าล้มเหลว
       }
     }
 
     const socket = connectWebSocket()
 
     return () => {
-      socket.close()
+      socket.close() // ปิดการเชื่อมต่อเมื่อคอมโพเนนต์ unmount
     }
-  }, []) // Empty dependency array to run only on mount
+  }, [])
 
   // Check if table name is duplicated
   const checkTableNameConflict = async () => {
@@ -496,7 +495,6 @@ const TableManager = () => {
     }
   }
 
-
   // Table rendering
   const renderTableActionButtons = (table) => {
     const status = table.Status || 'available'
@@ -584,7 +582,7 @@ const TableManager = () => {
           )}
           {status === 'occupied' && (
             <>
-              <button onClick={() => handleCheckBillClick(table.ID, uuid)}>
+              <button onClick={() => handleCheckBillClick(table.ID)}>
                 เช็คบิล
               </button>
               <button onClick={() => handleMoveTable(table.ID)}>
@@ -684,9 +682,8 @@ const TableManager = () => {
         </div>
       )
     )
-
   }
-  
+
   return (
     <div className="h-screen overflow-auto px-4 py-2 ">
       <div className="py-5  bg-gray-800 p-4 mb-2 rounded">
