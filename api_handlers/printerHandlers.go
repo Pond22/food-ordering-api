@@ -403,7 +403,6 @@ func prepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
 			"***** ใบเสร็จรับเงิน *****",
 			"Receipt #" + fmt.Sprintf("%d", job.Receipt.ID),
 			"โต๊ะ: " + tableIDDisplay,
-			"โต๊ะ: " + tableIDDisplay,
 			"----------------------------------------",
 			fmt.Sprintf("วันที่-เวลา: %s", time.Now().Format("02/01/2006 15:04:05")),
 			"----------------------------------------",
