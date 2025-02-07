@@ -150,23 +150,25 @@ export default function MenuList() {
       </defs>
       <rect width="200" height="200" fill="url(#zenSandPattern)"/>
     </svg>
-  `;
+  `
 
-  const encodedPattern = `data:image/svg+xml,${encodeURIComponent(zenSandPattern)}`;
+  const encodedPattern = `data:image/svg+xml,${encodeURIComponent(
+    zenSandPattern
+  )}`
 
   return (
     <div
-      className="mt-[4.5rem] bg-zinc-900  max-w-screen-xl mx-auto"
+      className="mt-[4.5rem] bg-gray-50  max-w-screen-xl mx-auto"
       style={{
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}
     >
-      {/* เลเยอร์พื้นหลักที่มีความละเอียด */}
-      <div className=" inset-0 bg-gradient-to-b from-zinc-800 to-zinc-900 z-0 py-2 px-4 ">
-        {/* เลเยอร์ลายทรายหลัก */}
+      
+      {/* <div className=" inset-0 bg-gradient-to-b from-zinc-800 to-zinc-900 z-0 py-2 px-4 ">
+        
 
-        {/* เลเยอร์เม็ดทรายละเอียด */}
+        
         <div
           className=" inset-0  z-0"
           style={{
@@ -174,14 +176,14 @@ export default function MenuList() {
             backgroundSize: '8px 8px',
           }}
         >
-          {/* เลเยอร์เงาละเอียด */}
+          
           <div
             className=" inset-0 z-0"
             style={{
               backgroundImage: `linear-gradient(45deg, transparent 45%, rgba(255,255,255,0.03) 45%, rgba(255,255,255,0.03) 55%, transparent 55%)`,
               backgroundSize: '4px 4px',
             }}
-          >
+          > */}
             {/* เลเยอร์เงาด้านบนและล่าง */}
             {/* <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/50 z-0"></div> */}
 
@@ -459,8 +461,8 @@ export default function MenuList() {
               })}
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+    //     </div>
+    //   </div>
+    // </div>
   )
 }

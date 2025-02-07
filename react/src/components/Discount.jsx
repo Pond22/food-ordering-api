@@ -216,6 +216,7 @@ const Discount = () => {
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-xl font-bold text-gray-900">
+                  {discountType.ID}
                   {discountType.Name}
                 </h3>
                 <p className="mt-2 text-gray-600">

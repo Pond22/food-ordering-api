@@ -41,10 +41,14 @@ const TableManager = () => {
   const [loading, setLoading] = useState(false) // ใช้ในการโหลดข้อมูล
   const [uuid, setUuid] = useState('')
 
+  const [fromTableId, setFromTableId] = useState(null)
+  const [toTableId, setToTableId] = useState(null)
+  const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false)
+
   const navigate = useNavigate()
-  const handleCheckBillClick = () => {
-    // เมื่อกดปุ่มจะนำทางไปยังหน้า PaymentTables
-    navigate('/payment-tables')
+  const handleCheckBillClick = (tableID, uuid) => {
+    // เมื่อกดปุ่มจะนำทางไปยังหน้า PaymentTables พร้อมส่งค่า tableID และ uuid
+    navigate('/payment-tables', { state: { tableID, uuid } })
   }
 
   // Fetch tables from API and sort by ID
@@ -122,7 +126,7 @@ const TableManager = () => {
       return (
         <div className="mt-4">
           <h4 className="text-base text-black/50 font-semibold">
-            รหัสกลุ่ม : {table.GroupID}
+            {/* รหัสกลุ่ม : {table.GroupID} */}
           </h4>
           {groupedTables.map((groupedTable) => (
             <TableInfo
@@ -265,6 +269,65 @@ const TableManager = () => {
     setIsDeleteDialogOpen(false) // Close the dialog after deletion
   }
 
+  // Open table transfer dialog
+  const handleMoveTable = (tableId) => {
+    setFromTableId(tableId)
+    setIsTransferDialogOpen(true)
+  }
+
+  // Handle table transfer
+  const handleTransferTable = async () => {
+    // ตรวจสอบว่า toTableId ถูกเลือกแล้วหรือไม่
+    if (!toTableId) {
+      alert('กรุณาเลือกโต๊ะปลายทาง')
+      return
+    }
+
+    // ตรวจสอบว่า fromTableId มีค่าหรือไม่
+    if (!fromTableId) {
+      alert('กรุณาเลือกโต๊ะต้นทาง')
+      return
+    }
+
+    try {
+      // ส่งข้อมูลไปยัง API
+      const response = await axios.post(
+        'http://localhost:8080/api/table/moveTable',
+        {
+          from_table_id: fromTableId,
+          to_table_id: toTableId,
+        }
+      )
+
+      // ตรวจสอบสถานะการตอบกลับจาก API
+      if (response.status === 200) {
+        alert('ย้ายโต๊ะสำเร็จ')
+
+        // อัปเดตสถานะของโต๊ะหลังการย้าย
+        setTables((prevTables) =>
+          prevTables.map((table) =>
+            table.ID === fromTableId
+              ? { ...table, Status: 'available' } // โต๊ะต้นทางกลับมาสถานะ "available"
+              : table
+          )
+        )
+
+        setIsTransferDialogOpen(false) // ปิด Dialog
+      } else {
+        alert('ไม่สามารถย้ายโต๊ะได้')
+      }
+    } catch (error) {
+      // แสดงข้อผิดพลาดในกรณีที่เกิดข้อผิดพลาดจากเซิร์ฟเวอร์
+      console.error('Error transferring table:', error)
+
+      if (error.response && error.response.data && error.response.data.error) {
+        alert(`เกิดข้อผิดพลาด: ${error.response.data.error}`)
+      } else {
+        alert('เกิดข้อผิดพลาดในการย้ายโต๊ะ')
+      }
+    }
+  }
+
   const handlePrimaryTableSelection = (table) => {
     setPrimaryTable(table) // เมื่อผู้ใช้เลือกโต๊ะหลัก
   }
@@ -400,32 +463,39 @@ const TableManager = () => {
     }
   }
 
- const fetchQrCode = async (table) => {
-   try {
-     // ตรวจสอบว่า table มี property ID และส่งค่า ID ไปใน URL
-     if (!table || !table.ID) {
-       alert('ข้อมูลโต๊ะไม่ถูกต้อง')
-       return
-     }
+  const fetchQrCode = async (table) => {
+    try {
+      // ตรวจสอบว่า table มี property ID และส่งค่า ID ไปใน URL
+      if (!table || !table.ID) {
+        alert('ข้อมูลโต๊ะไม่ถูกต้อง')
+        return
+      }
 
-     // ดึงข้อมูล QR code จาก API
-     const qrResponse = await axios.get(
-       `http://localhost:8080/api/qr/${table.ID}` // ส่ง table.ID ไปแทน
-     )
+      // ดึงข้อมูล QR code จาก API
+      const qrResponse = await axios.get(
+        `http://localhost:8080/api/qr/${table.ID}` // ส่ง table.ID ไปแทน
+      )
 
-     // เก็บข้อมูล QR code ที่ได้รับจาก API
-     setQrData(qrResponse.data)
+      // ตรวจสอบว่า qrResponse.data มีข้อมูลที่จำเป็น
+      if (!qrResponse.data || !qrResponse.data.uuid) {
+        alert('ไม่พบข้อมูล UUID ของโต๊ะ')
+        return
+      }
 
-     // ดึง uuid และเก็บไว้ใน state
-     setUuid(qrResponse.data.uuid)
+      // เก็บข้อมูล QR code ที่ได้รับจาก API
+      setQrData(qrResponse.data)
 
-     return qrResponse.data
-   } catch (error) {
-     console.error('Error fetching QR code:', error)
-     alert('เกิดข้อผิดพลาดในการดึง QR code')
-     return null
-   }
- }
+      // ดึง uuid และเก็บไว้ใน state
+      setUuid(qrResponse.data.uuid)
+
+      return qrResponse.data // ส่งคืนข้อมูล QR code
+    } catch (error) {
+      console.error('Error fetching QR code:', error)
+      alert('เกิดข้อผิดพลาดในการดึง QR code')
+      return null
+    }
+  }
+
 
   // Table rendering
   const renderTableActionButtons = (table) => {
@@ -514,8 +584,12 @@ const TableManager = () => {
           )}
           {status === 'occupied' && (
             <>
-              <button onClick={handleCheckBillClick}>เช็คบิล</button>
-              
+              <button onClick={() => handleCheckBillClick(table.ID, uuid)}>
+                เช็คบิล
+              </button>
+              <button onClick={() => handleMoveTable(table.ID)}>
+                ย้ายโต๊ะ
+              </button>
             </>
           )}
           {table.GroupID && (
@@ -535,6 +609,84 @@ const TableManager = () => {
       </div>
     )
   }
+  // Render table transfer dialog
+  const renderTransferDialog = () => {
+    const fromTable = tables.find((table) => table.ID === fromTableId)
+    return (
+      isTransferDialogOpen && (
+        <div className="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">
+          <div className="bg-white p-6 rounded-md shadow-lg w-full max-w-4xl">
+            <h2 className="text-xl mb-4 text-center">เลือกโต๊ะปลายทาง</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
+              {tables
+                .filter(
+                  (table) =>
+                    table.ID !== fromTableId && table.Status === 'available'
+                ) // กรองเฉพาะโต๊ะที่มีสถานะเป็น available
+                .map((table) => {
+                  const isToTableSmaller = table.Capacity < fromTable.Capacity // ตรวจสอบจำนวนที่นั่งของโต๊ะปลายทาง
+                  return (
+                    <div
+                      key={table.ID}
+                      className="border p-4 rounded-md hover:bg-gray-100"
+                    >
+                      <button
+                        className={`w-full text-blue-500 ${
+                          isToTableSmaller ? 'font-bold' : ''
+                        }`}
+                        onClick={() => setToTableId(table.ID)}
+                      >
+                        <h3 className="text-lg">{table.Name}</h3>
+                        <p>{table.Status}</p>
+                        <p>{table.Capacity} ที่นั่ง</p>
+                      </button>
+                      {isToTableSmaller && (
+                        <p className="text-red-500 text-sm mt-2">
+                          โต๊ะปลายทางมีที่นั่งน้อยกว่าโต๊ะต้นทาง
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => setIsTransferDialogOpen(false)}
+                className="bg-gray-500 text-white px-4 py-2 rounded-md mr-2"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => {
+                  // ตรวจสอบการยืนยันการย้ายโต๊ะ
+                  if (fromTable && toTableId) {
+                    const toTable = tables.find(
+                      (table) => table.ID === toTableId
+                    )
+                    if (toTable && toTable.Capacity < fromTable.Capacity) {
+                      const confirmTransfer = window.confirm(
+                        'โต๊ะปลายทางมีที่นั่งน้อยกว่าโต๊ะต้นทาง. คุณต้องการย้ายโต๊ะนี้หรือไม่?'
+                      )
+                      if (confirmTransfer) {
+                        handleTransferTable() // เรียกใช้ฟังก์ชั่นการย้ายโต๊ะ
+                      }
+                    } else {
+                      handleTransferTable()
+                    }
+                  }
+                }}
+                className="bg-blue-500 text-white px-4 py-2 rounded-md"
+              >
+                ย้ายโต๊ะ
+              </button>
+            </div>
+          </div>
+        </div>
+      )
+    )
+
+  }
+  
   return (
     <div className="h-screen overflow-auto px-4 py-2 ">
       <div className="py-5  bg-gray-800 p-4 mb-2 rounded">
@@ -589,6 +741,7 @@ const TableManager = () => {
               {renderTableDetails(table)}
             </div>
           ))}
+        {renderTransferDialog()}
       </div>
 
       {/* Reservation Dialog */}

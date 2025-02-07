@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { ChevronLeft, CreditCard, Wallet, Info, Check } from 'lucide-react'
 import axios from 'axios'
 
@@ -10,6 +11,9 @@ const PaymentTables = () => {
   const [promoCode, setPromoCode] = useState('')
   const [promoError, setPromoError] = useState('')
   const [appliedDiscount, setAppliedDiscount] = useState(0)
+  const location = useLocation()
+  const { tableID, uuid } = location.state || {} // default เป็น {} เพื่อป้องกัน error ถ้าไม่มี state
+
   const [cardDetails, setCardDetails] = useState({
     number: '',
     expiry: '',
@@ -229,9 +233,8 @@ const PaymentTables = () => {
         <div className="bg-white rounded-2xl p-6 mb-6 shadow-md">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-medium">Order Summary</h2>
-            <span className="text-sm text-gray-500">
-              Table {orderDetails.tableNo}
-            </span>
+            <span className="text-sm text-gray-500">Table {tableID} </span>
+            <span className="text-sm text-gray-500">Table {uuid} </span>
           </div>
           {orderDetails.items.map((item) => (
             <div key={item.id} className="flex justify-between mb-3">
@@ -314,7 +317,7 @@ const PaymentTables = () => {
           </div>
         </div>
 
-            {/* ค่าใช้จ่ายเพิ่มเติม */}
+        {/* ค่าใช้จ่ายเพิ่มเติม */}
         <div className="bg-white rounded-2xl p-6 mb-6 shadow-md">
           <h2 className="text-lg font-medium mb-4">
             เลือกประเภทค่าใช้จ่ายเพิ่มเติม

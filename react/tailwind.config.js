@@ -8,6 +8,9 @@ module.exports = {
     extend: {
       colors: {
         gold: '#D4AF37', // สีทองมาตรฐาน
+        goldpre: '#DAA520',
+        goldlight:'#E6C65C',
+        blackpremiem: '#2D232A',
       },
     },
   },
