@@ -19,15 +19,15 @@ type PrinterConnection struct {
 }
 
 type PrinterInfo struct {
-	Type       string `json:"type"`           // "network" หรือ "usb"
-	IP         string `json:"ip,omitempty"`   // สำหรับ network printer
-	Port       int    `json:"port,omitempty"` // เปลี่ยนจาก *int เป็น int
-	Name       string `json:"name"`
-	Department string `json:"department"`
-	Status     string `json:"status"`
-	LastSeen   string `json:"last_seen"`
-	VendorID   string `json:"vendor_id,omitempty"`  // สำหรับ USB printer
-	ProductID  string `json:"product_id,omitempty"` // สำหรับ USB printer
+	Type      string `json:"type"`           // "network" หรือ "usb"
+	IP        string `json:"ip,omitempty"`   // สำหรับ network printer
+	Port      int    `json:"port,omitempty"` // เปลี่ยนจาก *int เป็น int
+	Name      string `json:"name"`
+	PaperSize string `json:"paper_size"`
+	Status    string `json:"status"`
+	LastSeen  string `json:"last_seen"`
+	VendorID  string `json:"vendor_id,omitempty"`  // สำหรับ USB printer
+	ProductID string `json:"product_id,omitempty"` // สำหรับ USB printer
 }
 
 type ClientMessage struct {
@@ -174,11 +174,11 @@ func updatePrinters(printers []PrinterInfo) {
 		if result != nil {
 			// สร้างเครื่องพิมพ์ใหม่
 			printer = models.Printer{
-				Type:       p.Type,
-				Name:       p.Name,
-				Department: p.Department,
-				Status:     p.Status,
-				LastSeen:   lastSeen,
+				Type:      p.Type,
+				Name:      p.Name,
+				PaperSize: p.PaperSize,
+				Status:    p.Status,
+				LastSeen:  lastSeen,
 			}
 
 			if p.Type == "usb" {
@@ -199,7 +199,7 @@ func updatePrinters(printers []PrinterInfo) {
 			// อัพเดทข้อมูลที่มีอยู่
 			updates := map[string]interface{}{
 				"name":       p.Name,
-				"department": p.Department,
+				"paper_size": p.PaperSize,
 				"status":     p.Status,
 				"last_seen":  lastSeen,
 			}
