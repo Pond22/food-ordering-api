@@ -22,7 +22,7 @@ import ErrorBoundary from './ErrorBoundary'
 import OrderConfirmation from './components/OrderConfirmation'
 import Reprint from './components/Reprint'
 
-const Section = ({ isLoggedIn, user, handleLogout }) => {
+const Section = ({ isLoggedIn, user, handleLogout, token }) => {
   const location = useLocation()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -349,7 +349,10 @@ const Section = ({ isLoggedIn, user, handleLogout }) => {
               }
             />
 
-            <Route path="/payment-tables" element={<PaymentTables />} />
+            <Route
+              path="/payment-tables"
+              element={<PaymentTables token={token} />}
+            />
           </Routes>
 
           <div className="fixed bottom-4 right-4 z-50">

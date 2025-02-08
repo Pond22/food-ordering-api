@@ -14,9 +14,10 @@ const PaymentTables = () => {
   const location = useLocation()
   const { tableID, uuid } = location.state || {}
 
-  const [billableItems, setBillableItems] = useState([]) // Store billable items
-  const [charges, setCharges] = useState([]) // Store charge types
-  const [discounts, setDiscounts] = useState([]) // Store discount types
+  const [billableItems, setBillableItems] = useState([])
+  const [charges, setCharges] = useState([])
+  const [selectedCharges, setSelectedCharges] = useState([])
+  const [discounts, setDiscounts] = useState([])
   const [selectedDiscounts, setSelectedDiscounts] = useState([
     { discountID: '', value: '' },
   ])
@@ -29,7 +30,6 @@ const PaymentTables = () => {
   })
   const [cardErrors, setCardErrors] = useState({})
 
-  // Fetch billable items
   useEffect(() => {
     const fetchBillableItems = async () => {
       const token = localStorage.getItem('token')
@@ -54,7 +54,6 @@ const PaymentTables = () => {
     if (uuid) fetchBillableItems()
   }, [uuid])
 
-  // Fetch discount types
   useEffect(() => {
     const fetchDiscounts = async () => {
       try {
@@ -75,7 +74,6 @@ const PaymentTables = () => {
     fetchDiscounts()
   }, [])
 
-  // Fetch charge types
   useEffect(() => {
     const fetchCharges = async () => {
       try {
@@ -96,22 +94,60 @@ const PaymentTables = () => {
     fetchCharges()
   }, [])
 
-  // Calculate total (with discount, tip, charges)
   const calculateTotal = () => {
-    const tipAmount =
-      (billableItems.reduce((sum, item) => sum + item.price, 0) *
-        tipPercentage) /
-      100
+    const subtotal = calculateSubtotal()
+    const tipAmount = (subtotal * tipPercentage) / 100
+    const vatAmount = calculateVAT()
+
+    const totalDiscount = selectedDiscounts.reduce((sum, discount) => {
+      if (discount.value) {
+        const discountAmount =
+          discount.discountID &&
+          discounts.find((d) => d.ID === discount.discountID)
+            ? discounts.find((d) => d.ID === discount.discountID).Type ===
+              'percentage'
+              ? (subtotal * parseFloat(discount.value)) / 100
+              : parseFloat(discount.value)
+            : 0
+        return sum + discountAmount
+      }
+      return sum
+    }, 0)
+
+    const totalCharges = selectedCharges.reduce((sum, charge) => {
+      if (charge.value) {
+        const chargeAmount =
+          charge.chargeID && charges.find((c) => c.ID === charge.chargeID)
+            ? parseFloat(charge.value)
+            : 0
+        return sum + chargeAmount
+      }
+      return sum
+    }, 0)
+
     const total =
-      billableItems.reduce((sum, item) => sum + item.price, 0) +
-      tipAmount -
-      appliedDiscount
+      subtotal + tipAmount + vatAmount - totalDiscount + totalCharges
+
     return Math.max(0, total)
   }
 
-  // Add discount
+  const calculateSubtotal = () => {
+    return billableItems.reduce((sum, item) => sum + item.price, 0)
+  }
+
+  const calculateVAT = () => {
+    const subtotal = calculateSubtotal()
+    return subtotal * 0.07
+  }
+
   const addDiscount = () => {
     setSelectedDiscounts([...selectedDiscounts, { discountID: '', value: '' }])
+  }
+
+  const removeDiscount = (index) => {
+    setSelectedDiscounts((prevDiscounts) =>
+      prevDiscounts.filter((_, i) => i !== index)
+    )
   }
 
   const handleDiscountChange = (index, field, value) => {
@@ -120,17 +156,62 @@ const PaymentTables = () => {
     setSelectedDiscounts(updatedDiscounts)
   }
 
+  const handleChargeChange = (index, field, value) => {
+    const newSelectedCharges = [...selectedCharges]
+    newSelectedCharges[index][field] = value
+    setSelectedCharges(newSelectedCharges)
+  }
+
+  const addCharge = () => {
+    setSelectedCharges([...selectedCharges, { chargeID: '', value: 0 }])
+  }
+
+  const removeCharge = (index) => {
+    const newSelectedCharges = selectedCharges.filter((_, i) => i !== index)
+    setSelectedCharges(newSelectedCharges)
+  }
+
   const handlePayment = async () => {
     if (!selectedPayment) {
       alert('Please select a payment method')
       return
     }
 
+    const totalAmount = calculateTotal()
+
     setIsProcessing(true)
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      setShowSuccessModal(true)
+      const token = localStorage.getItem('token')
+      const paymentData = {
+        tableID,
+        uuid,
+        paymentMethod: selectedPayment,
+        amount: totalAmount,
+        promoCode,
+        discounts: selectedDiscounts,
+        charges: selectedCharges,
+        tipPercentage,
+        cardDetails,
+      }
+
+      const response = await axios.post(
+        'http://localhost:8080/api/payment/charge',
+        paymentData,
+        {
+          headers: {
+            accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (response.data.success) {
+        setShowSuccessModal(true)
+      } else {
+        alert('Payment failed. Please try again.')
+      }
     } catch (error) {
+      console.error('Error during payment:', error)
       alert('Payment failed. Please try again.')
     } finally {
       setIsProcessing(false)
@@ -187,6 +268,10 @@ const PaymentTables = () => {
 
           <div className="border-t border-gray-100 mt-4 pt-4 space-y-3">
             <div className="flex justify-between text-gray-600">
+              <span>VAT (7%)</span>
+              <span>{calculateVAT().toLocaleString()} ฿</span>
+            </div>
+            <div className="flex justify-between text-gray-600">
               <span>Subtotal</span>
               <span>{calculateTotal().toLocaleString()} ฿</span>
             </div>
@@ -195,7 +280,7 @@ const PaymentTables = () => {
 
         {/* Discount Section */}
         <div className="bg-white rounded-2xl p-6 mb-6 shadow-md">
-          <h2 className="text-lg font-medium mb-4">Discounts</h2>
+          <h2 className="text-lg font-medium mb-4">ส่วนลด</h2>
           <div className="space-y-3">
             {selectedDiscounts.map((discount, index) => (
               <div key={index} className="flex space-x-3">
@@ -220,48 +305,78 @@ const PaymentTables = () => {
                     <option value="">No discounts available</option>
                   )}
                 </select>
-                <input
-                  type="number"
-                  className="border p-2 rounded-md"
-                  placeholder="Amount"
-                  value={discount.value}
-                  onChange={(e) =>
-                    handleDiscountChange(index, 'value', e.target.value)
-                  }
-                />
+                {/* ปุ่มลบส่วนลด */}
+                <button
+                  onClick={() => removeDiscount(index)}
+                  className="bg-red-500 text-white p-2 rounded-md"
+                >
+                  Remove
+                </button>
               </div>
             ))}
             <button
               onClick={addDiscount}
               className="bg-blue-500 text-white p-2 rounded-md mt-2"
             >
-              Add Discount
+              เพิ่มส่วนลด
             </button>
           </div>
         </div>
 
-        {/* Additional charges */}
+        {/* Additional charges Section */}
         <div className="bg-white rounded-2xl p-6 mb-6 shadow-md">
-          <h2 className="text-lg font-medium mb-4">Additional Charges</h2>
+          <h2 className="text-lg font-medium mb-4">ค่าใช้จ่ายเพิ่มเติม</h2>
           <div className="space-y-3">
-            <select className="border p-2 rounded-md">
-              <option value="">None</option>
-              {charges.length > 0 ? (
-                charges.map((charge) => (
-                  <option key={charge.ID} value={charge.ID}>
-                    {charge.Name} - {charge.DefaultAmount} ฿
-                  </option>
-                ))
-              ) : (
-                <option value="">No additional charges available</option>
-              )}
-            </select>
+            {selectedCharges.map((charge, index) => (
+              <div key={index} className="flex space-x-3">
+                <select
+                  className="border p-2 rounded-md"
+                  value={charge.chargeID}
+                  onChange={(e) =>
+                    handleChargeChange(index, 'chargeID', e.target.value)
+                  }
+                >
+                  <option value="">None</option>
+                  {charges.length > 0 ? (
+                    charges.map((chargeOption) => (
+                      <option key={chargeOption.ID} value={chargeOption.ID}>
+                        {chargeOption.Name} - {chargeOption.DefaultAmount} ฿
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">No additional charges available</option>
+                  )}
+                </select>
+                <input
+                  type="number"
+                  className="border p-2 rounded-md"
+                  placeholder="Amount"
+                  value={charge.value}
+                  onChange={(e) =>
+                    handleChargeChange(index, 'value', e.target.value)
+                  }
+                />
+                {/* ปุ่มลบค่าใช้จ่ายเพิ่มเติม */}
+                <button
+                  onClick={() => removeCharge(index)}
+                  className="bg-red-500 text-white p-2 rounded-md"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={addCharge}
+              className="bg-blue-500 text-white p-2 rounded-md mt-2"
+            >
+              เพิ่มค่าใช้จ่าย
+            </button>
           </div>
         </div>
 
         {/* Payment Method */}
         <div className="bg-white rounded-2xl p-6 mb-6 shadow-md">
-          <h2 className="text-lg font-medium mb-4">Payment Method</h2>
+          <h2 className="text-lg font-medium mb-4">ช่องทางการชำระ</h2>
           <div className="space-y-3">
             <button
               onClick={() => setSelectedPayment('credit')}

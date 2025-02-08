@@ -41,7 +41,6 @@ const TableManager = () => {
   const [loading, setLoading] = useState(false) // ใช้ในการโหลดข้อมูล
   const [uuid, setUuid] = useState('')
 
-  
   const [uuidMap, setUuidMap] = useState({}) // เก็บ UUID ของแต่ละโต๊ะที่มี ID
 
   const [fromTableId, setFromTableId] = useState(null)
