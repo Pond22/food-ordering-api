@@ -4,15 +4,17 @@ import { ChevronLeft, CreditCard, Wallet, Info, Check } from 'lucide-react'
 import axios from 'axios'
 
 const PaymentTables = () => {
+  const [selectedTable, setSelectedTable] = useState(null)
   const [selectedPayment, setSelectedPayment] = useState('')
-  const [tipPercentage, setTipPercentage] = useState(10)
+  const [vat, setVat] = useState(7)
+  const [tipPercentage, setTipPercentage] = useState(7)
   const [isProcessing, setIsProcessing] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [promoCode, setPromoCode] = useState('')
   const [promoError, setPromoError] = useState('')
   const [appliedDiscount, setAppliedDiscount] = useState(0)
   const location = useLocation()
-  const { tableID, uuid } = location.state || {}
+  const { tableID, uuid, occupiedTables } = location.state || {}
 
   const [billableItems, setBillableItems] = useState([])
   const [charges, setCharges] = useState([])
@@ -21,6 +23,7 @@ const PaymentTables = () => {
   const [selectedDiscounts, setSelectedDiscounts] = useState([
     { discountID: '', value: '' },
   ])
+  console.log('Occupied Tables:', occupiedTables)
 
   const [cardDetails, setCardDetails] = useState({
     number: '',
@@ -93,6 +96,11 @@ const PaymentTables = () => {
 
     fetchCharges()
   }, [])
+
+  // Add a function to handle selecting a table
+  const handleTableSelection = (table) => {
+    setSelectedTable(table) // Set selected table
+  }
 
   const calculateTotal = () => {
     const subtotal = calculateSubtotal()
@@ -182,20 +190,47 @@ const PaymentTables = () => {
     setIsProcessing(true)
     try {
       const token = localStorage.getItem('token')
+
+      // ตรวจสอบการเลือกโต๊ะ
       const paymentData = {
-        tableID,
-        uuid,
-        paymentMethod: selectedPayment,
-        amount: totalAmount,
-        promoCode,
-        discounts: selectedDiscounts,
-        charges: selectedCharges,
-        tipPercentage,
-        cardDetails,
+        
+        uuid: uuid,
+        payment_method: selectedPayment, // วิธีการชำระเงิน
+        service_charge: vat, // vat
+        staff_id: 1, // รหัสพนักงาน (เปลี่ยนให้เหมาะสม)
+
+        discounts: selectedDiscounts
+          .filter((discount) => discount.discountID) // กรองส่วนลดที่ถูกเลือก
+          .map((discount) => ({
+            discount_type_id: Number(discount.discountID),
+            reason: discount.discountName || '', // ใช้ชื่อส่วนลด หรือ null หากไม่มีชื่อ
+          })),
+
+        extra_charges: selectedCharges
+          .filter((charge) => charge.chargeID) // กรองค่าใช้จ่ายที่ถูกเลือก
+          .map((charge) => ({
+            charge_type_id: Number(charge.chargeID),
+            note: charge.chargeOption || '',
+            quantity: charge.quantity || 1,
+          })),
       }
 
+      // ตรวจสอบว่าเลือกโต๊ะเพื่อรวมค่าชำระหรือไม่
+      let apiEndpoint = '/api/payment/process'
+      if (selectedTable) {
+        // เช็คว่าเลือกโต๊ะในการรวมค่าชำระ
+        apiEndpoint = '/api/v2/payment/merge'
+        paymentData.table_ids = [tableID, Number(selectedTable.ID)] // ส่งโต๊ะที่เลือกไปในการรวม
+      } else {
+        // ถ้าไม่ได้เลือกโต๊ะเพื่อรวมชำระ ให้ส่ง table_id
+        paymentData.table_id = tableID
+      }
+
+      // ตรวจสอบการส่งข้อมูล
+      console.log(paymentData)
+
       const response = await axios.post(
-        'http://localhost:8080/api/payment/charge',
+        `http://localhost:8080${apiEndpoint}`,
         paymentData,
         {
           headers: {
@@ -217,6 +252,7 @@ const PaymentTables = () => {
       setIsProcessing(false)
     }
   }
+
 
   const SuccessModal = () => (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -371,6 +407,35 @@ const PaymentTables = () => {
             >
               เพิ่มค่าใช้จ่าย
             </button>
+          </div>
+        </div>
+
+        {/* Table Selection Section */}
+        <div className="bg-white rounded-2xl p-6 mb-6 shadow-md">
+          <h2 className="text-lg font-medium mb-4">
+            เลือกโต๊ะที่ต้องการรวมค่าชำระ
+          </h2>
+          <div className="space-y-3">
+            {occupiedTables && occupiedTables.length > 0 ? (
+              <div className="flex flex-col space-y-3">
+                {occupiedTables.map((table, index) => (
+                  <div
+                    key={index}
+                    className={`flex cursor-pointer p-3 rounded-lg border ${
+                      selectedTable?.tableID === table.tableID
+                        ? 'bg-gray-200 border-gray-500'
+                        : 'border-gray-300'
+                    }`}
+                    onClick={() => handleTableSelection(table)}
+                  >
+                    <span className="text-gray-700">Table {table.ID}</span>
+                    <span className="text-gray-500">{table.Name}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500">No occupied tables available.</p>
+            )}
           </div>
         </div>
 

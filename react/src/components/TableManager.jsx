@@ -49,10 +49,16 @@ const TableManager = () => {
 
   const navigate = useNavigate()
   const handleCheckBillClick = (tableID) => {
-    const uuid = uuidMap[tableID] // ดึง UUID ของโต๊ะจาก uuidMap โดยใช้ tableID
-    // เมื่อกดปุ่มจะนำทางไปยังหน้า PaymentTables พร้อมส่งค่า tableID และ uuid
-    navigate('/payment-tables', { state: { tableID, uuid } })
+    // กรองโต๊ะที่มีสถานะ 'occupied' จาก list ของโต๊ะ
+    const occupiedTables = tables.filter((table) => table.Status === 'occupied')
+
+    // ดึง UUID ของโต๊ะที่เลือก
+    const uuid = uuidMap[tableID]
+
+    // ส่งข้อมูลโต๊ะทั้งหมดที่มีสถานะ occupied พร้อมกับ tableID และ uuid ไปยังหน้า PaymentTables
+    navigate('/payment-tables', { state: { tableID, uuid, occupiedTables } })
   }
+
 
   // Fetch tables from API and sort by ID
   useEffect(() => {
