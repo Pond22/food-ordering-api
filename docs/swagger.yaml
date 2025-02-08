@@ -362,6 +362,45 @@ definitions:
       reserved_for:
         type: string
     type: object
+  api_handlers.ReservationResponse:
+    properties:
+      createdAt:
+        type: string
+      customerName:
+        description: ชื่อลูกค้าที่จอง
+        type: string
+      grace_period_until:
+        description: เวลาสิ้นสุด grace period
+        type: string
+      guestCount:
+        description: จำนวนลูกค้า
+        type: integer
+      id:
+        type: integer
+      phoneNumber:
+        description: เบอร์โทรศัพท์
+        type: string
+      reservedFor:
+        description: เวลาที่ลูกค้าจะมาใช้บริการ
+        type: string
+      status:
+        description: active, cancelled, completed
+        type: string
+      table:
+        allOf:
+        - $ref: '#/definitions/models.Table'
+        description: Relation to Table
+      table_blocked_from:
+        description: เวลาที่เริ่มกั้นโต๊ะ
+        type: string
+      table_name:
+        type: string
+      tableID:
+        description: Foreign key to Table
+        type: integer
+      updatedAt:
+        type: string
+    type: object
   api_handlers.ResetPasswordRequest:
     properties:
       new_password:
@@ -369,6 +408,15 @@ definitions:
         type: string
     required:
     - new_password
+    type: object
+  api_handlers.RuleRequest:
+    properties:
+      grace_period_minutes:
+        example: 15
+        type: integer
+      pre_reservation_minutes:
+        example: 30
+        type: integer
     type: object
   api_handlers.SuccessResponse:
     properties:
@@ -1246,6 +1294,24 @@ definitions:
         type: integer
       value:
         type: number
+    type: object
+  models.ReservationRules:
+    properties:
+      created_at:
+        type: string
+      grace_period_minutes:
+        description: เวลาที่ยอมให้สายได้ (นาที)
+        type: integer
+      id:
+        type: integer
+      is_active:
+        description: ใช้งาน Rule นี้อยู่หรือไม่
+        type: boolean
+      pre_reservation_minutes:
+        description: เวลาที่จะกั้นโต๊ะก่อนถึงเวลาจอง (นาที)
+        type: integer
+      updated_at:
+        type: string
     type: object
   models.Table:
     properties:
@@ -3781,6 +3847,75 @@ paths:
       summary: เข้าถึง dynamic link โต๊ะนั้นๆ
       tags:
       - Qr_code
+  /api/reservation/rules:
+    post:
+      consumes:
+      - application/json
+      description: กำหนดกฎการจองโต๊ะ เช่น เวลาสายที่ยอมรับได้ และเวลากั้นโต๊ะล่วงหน้า
+      parameters:
+      - description: กฎการจองโต๊ะ
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.RuleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: กฎการจองที่ตั้งค่า
+          schema:
+            $ref: '#/definitions/models.ReservationRules'
+      security:
+      - BearerAuth: []
+      summary: ตั้งค่ากฎการจองโต๊ะ
+  /api/reservation/rules/active:
+    get:
+      consumes:
+      - application/json
+      description: ดึงกฎการจองที่ active อยู่ในปัจจุบัน ถ้าไม่มีจะส่งค่า default
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ค่า default เมื่อไม่มีกฎที่ active
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดภายในระบบ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ดึงกฎการจองที่ใช้งานอยู่
+      tags:
+      - ReservationRules
+  /api/reservation/rules/history:
+    get:
+      consumes:
+      - application/json
+      description: ดึงประวัติการตั้งค่ากฎการจองทั้งหมด เรียงตามเวลาล่าสุด
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ประวัติการตั้งค่ากฎการจอง
+          schema:
+            items:
+              $ref: '#/definitions/models.ReservationRules'
+            type: array
+        "500":
+          description: เกิดข้อผิดพลาดภายในระบบ
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ดึงประวัติการตั้งค่ากฎการจอง
+      tags:
+      - ReservationRules
   /api/table:
     post:
       consumes:
@@ -4053,11 +4188,34 @@ paths:
       summary: ย้ายโต๊ะ
       tags:
       - Table
+  /api/table/reservations:
+    get:
+      consumes:
+      - application/json
+      description: ดึงข้อมูลการจองโต๊ะทั้งหมดพร้อมชื่อโต๊ะ เรียงตามวันที่จองจากใหม่ไปเก่า
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: รายการการจองทั้งหมด
+          schema:
+            items:
+              $ref: '#/definitions/api_handlers.ReservationResponse'
+            type: array
+        "500":
+          description: เกิดข้อผิดพลาดในการดึงข้อมูล
+          schema:
+            additionalProperties: true
+            type: object
+      summary: ดึงข้อมูลการจองทั้งหมด
+      tags:
+      - Reservation
+      - Table
   /api/table/reservedTable/{id}:
     post:
       consumes:
       - application/json
-      description: จองโต๊ะโดยโต๊ะต้องอยู่ในถานะพร้อมให้บริการถึงจองได้
+      description: จองโต๊ะโดยใช้กฎการจองที่กำหนดไว้
       parameters:
       - description: ข้อมูลการจองโต๊ะ
         in: body
@@ -4065,7 +4223,7 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/api_handlers.ReservationRequest'
-      - description: ID ของกลุ่มโต๊ะนั้นๆ
+      - description: ID ของโต๊ะ
         in: path
         name: id
         required: true
@@ -4074,27 +4232,27 @@ paths:
       - application/json
       responses:
         "200":
-          description: เค
+          description: จองโต๊ะสำเร็จ
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+          description: ข้อมูลไม่ถูกต้อง
           schema:
             additionalProperties: true
             type: object
-        "401":
-          description: ไม่ได้รับอนุญาต
+        "404":
+          description: ไม่พบโต๊ะ
           schema:
             additionalProperties: true
             type: object
-        "403":
-          description: ไม่มีสิทธิ์เข้าถึง
+        "409":
+          description: มีการจองซ้ำซ้อน
           schema:
             additionalProperties: true
             type: object
         "500":
-          description: เกิดข้อผิดพลาดในการจองโต๊ะ
+          description: เกิดข้อผิดพลาดภายในระบบ
           schema:
             additionalProperties: true
             type: object

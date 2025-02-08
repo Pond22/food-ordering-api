@@ -545,12 +545,13 @@ func prepareCancelPrintContent(job models.PrintJob) ([]byte, error) {
 	return content.Bytes(), nil
 }
 
-func prepareQRCodePrintContent(job models.PrintJob) ([]byte, error) {
+func prepareQRCodePrintContent(job models.PrintJob, png []byte) ([]byte, error) {
 	var content bytes.Buffer
 
 	// เพิ่มส่วนหัว
 	headerLines := []string{
-		"===== QR Code สำหรับโต๊ะ =====",
+		"===== QR Code สำหรับโต๊ะ ",
+		fmt.Sprint("1 ====="),
 		fmt.Sprintf("วันที่-เวลา: %s", time.Now().Format("02/01/2006 15:04:05")),
 		"========================",
 	}
@@ -562,17 +563,26 @@ func prepareQRCodePrintContent(job models.PrintJob) ([]byte, error) {
 	// เพิ่มบรรทัดว่างสำหรับ spacing ก่อน QR Code
 	content.WriteString("\n\n")
 
-	// ตรวจสอบว่ามี QR Code ใน job content หรือไม่
-	if len(job.Content) > 0 {
-		content.Write(job.Content) // เขียน PNG bytes โดยตรง
-	} else {
-		// กรณีไม่มีข้อมูล QR Code
-		content.WriteString("[ไม่พบ QR Code]")
+	// เตรียมข้อมูล PNG สำหรับการพิมพ์
+	var pngContent []byte
+	if isPNG(png) {
+		pngContent = png
+	}
+
+	// เตรียมข้อความ
+	textContent := content.Bytes()
+
+	// รวมข้อความและ PNG
+	var finalContent []byte
+	finalContent = append(finalContent, textContent...)
+
+	if pngContent != nil {
+		finalContent = append(finalContent, pngContent...)
 	}
 
 	// เพิ่มส่วนท้าย
 	footerLines := []string{
-		"\n\n========================",
+		"\n========================",
 		"โปรดสแกน QR Code เพื่อเข้าสู่ระบบ",
 		"========================",
 	}
@@ -581,7 +591,9 @@ func prepareQRCodePrintContent(job models.PrintJob) ([]byte, error) {
 		content.WriteString(cleanText(line) + "\n")
 	}
 
-	return content.Bytes(), nil
+	finalContent = append(finalContent, content.Bytes()...)
+
+	return finalContent, nil
 }
 
 // type PrintJobResponse struct {
@@ -737,6 +749,9 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 		case "cancelation":
 			preparedContent, err = prepareCancelPrintContent(job)
 		case "qr_code":
+			// preparedContent, err = prepareQRCodePrintContent(job, job.Content)
+			log.Printf("QR Code Content Length: %d", len(job.Content))
+			log.Printf("Is PNG: %v", isPNG(job.Content))
 			preparedContent = job.Content
 		default:
 			preparedContent = job.Content
@@ -1123,9 +1138,13 @@ func isPNG(data []byte) bool {
 }
 
 func convertPNGToBitmap(pngData []byte) ([]byte, error) {
+	// เพิ่ม log เพื่อตรวจสอบ
+	log.Printf("Decoding PNG with length: %d", len(pngData))
+
 	// อ่านรูป PNG
 	img, err := png.Decode(bytes.NewReader(pngData))
 	if err != nil {
+		log.Printf("PNG Decode Error: %v", err)
 		return nil, fmt.Errorf("failed to decode PNG: %v", err)
 	}
 
@@ -1282,6 +1301,8 @@ func GetReprintableJobs(c *fiber.Ctx) error {
 		case "cancelation":
 			content, err = prepareCancelPrintContent(job)
 		case "qr_code":
+			log.Printf("QR Code Job Content Length: %d", len(job.Content))
+			log.Printf("Is PNG: %v", isPNG(job.Content))
 			content = job.Content
 		default:
 			content = job.Content

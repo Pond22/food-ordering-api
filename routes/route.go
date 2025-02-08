@@ -132,6 +132,7 @@ func SetupRoutes(app *fiber.App) {
 		table.Post("/reservedTable/:id", api_handlers.ReservedTable)
 		table.Post("/unreservedTable/:id", api_handlers.UnreservedTable)
 		table.Put("/setstatus/:id", api_handlers.ToggleTableStatus)
+		table.Get("/reservations", api_handlers.GetAllReservations)
 	}
 
 	// QR Code Management Routes
@@ -186,6 +187,13 @@ func SetupRoutes(app *fiber.App) {
 			chargeTypes.Post("/", api_handlers.CreateChargeType)          // สร้างใหม่
 			chargeTypes.Put("/:id", api_handlers.UpdateChargeType)        // แก้ไข
 			chargeTypes.Delete("/:id", api_handlers.DeleteChargeType)     // ลบ/ปิดใช้งาน
+		}
+
+		reservation := api.Group("/reservation")
+		{
+			reservation.Get("/rules/active", api_handlers.GetActiveReservationRule)
+			reservation.Post("/rules", api_handlers.SetReservationRules)
+			reservation.Get("/rules/history", api_handlers.GetReservationRulesHistory)
 		}
 	}
 	// payment := api.Group("/payment")

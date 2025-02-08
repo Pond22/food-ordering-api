@@ -21,6 +21,7 @@ import PaymentTables from './components/PaymentTables'
 import ErrorBoundary from './ErrorBoundary'
 import OrderConfirmation from './components/OrderConfirmation'
 import Reprint from './components/Reprint'
+import ReservationConfig from './components/ReservationConfig';
 
 const Section = ({ isLoggedIn, user, handleLogout, token }) => {
   const location = useLocation()
@@ -166,6 +167,15 @@ const Section = ({ isLoggedIn, user, handleLogout, token }) => {
                   </Link>
 
                   <Link
+                    to="/reservation-config"
+                    className={`${styles.navLink} ${
+                      location.pathname === '/reservation-config' ? styles.activeLink : ''
+                    }`}
+                  >
+                    ตั้งค่า Rules การจอง
+                  </Link>
+
+                  <Link
                     to="/user"
                     className={`${styles.navLink} ${
                       location.pathname === '/user' ? styles.activeLink : ''
@@ -271,6 +281,8 @@ const Section = ({ isLoggedIn, user, handleLogout, token }) => {
               element={isLoggedIn ? <Reprint /> : <Navigate to="/login" />}
             />
 
+            <Route path="/reservation-config" element={<ReservationConfig />} />
+          
             <Route
               path="/comfirmation"
               element={

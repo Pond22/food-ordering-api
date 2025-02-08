@@ -115,5 +115,5 @@ func migrate() {
 	DB.AutoMigrate(&models.POSSession{})
 	// DB.AutoMigrate(&models.PromoSalesReport{})
 	DB.AutoMigrate(&models.Notification{})
-	DB.AutoMigrate(&models.Notification{})
+	DB.AutoMigrate(&models.ReservationRules{})
 }

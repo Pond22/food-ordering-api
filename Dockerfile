@@ -24,6 +24,7 @@ WORKDIR /app
 COPY --from=builder /app/main .
 # Copy font file
 COPY --from=builder /app/THSarabunNew.ttf .
+COPY --from=builder /app/logo.jpg .
 
 COPY dict/lexitron.txt /app/dict/lexitron.txt
 
