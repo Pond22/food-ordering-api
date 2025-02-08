@@ -331,13 +331,13 @@ type Receipt struct {
 
 type Printer struct {
 	ID          uint       `gorm:"primaryKey"`
-	Name        string     `gorm:"not null"`                  // ชื่อเครื่องพิมพ์
-	Type        string     `gorm:"not null"`                  // 'network' หรือ 'usb'
-	IPAddress   string     `gorm:"unique;not null"`           // IP Address
-	Port        int        `gorm:"not null"`                  // Port number
-	VendorID    string     `gorm:"index"`                     // สำหรับ USB printer
-	ProductID   string     `gorm:"index"`                     // สำหรับ USB printer
-	Department  string     `gorm:"not null"`                  // แผนก/ฝ่ายที่ใช้งาน
+	Name        string     `gorm:"not null"`        // ชื่อเครื่องพิมพ์
+	Type        string     `gorm:"not null"`        // 'network' หรือ 'usb'
+	IPAddress   string     `gorm:"unique;not null"` // IP Address
+	Port        int        `gorm:"not null"`        // Port number
+	VendorID    string     `gorm:"index"`           // สำหรับ USB printer
+	ProductID   string     `gorm:"index"`           // สำหรับ USB printer
+	PaperSize   string     `gorm:"not null"`
 	Description string     `gorm:"type:text"`                 // รายละเอียดเพิ่มเติม
 	Status      string     `gorm:"not null;default:'active'"` // สถานะ: active, inactive, maintenance
 	LastSeen    time.Time  // เวลาที่เห็นเครื่องพิมพ์ล่าสุด

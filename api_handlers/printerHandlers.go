@@ -47,7 +47,7 @@ type PrinterResponse struct {
 	Port       int               `json:"port"`
 	VendorID   string            `json:"vendor_id,omitempty"`
 	ProductID  string            `json:"product_id,omitempty"`
-	Department string            `json:"department"`
+	PaperSize  string            `json:"paper_size"`
 	Status     string            `json:"status"`
 	LastSeen   time.Time         `json:"last_seen"`
 	Categories []models.Category `json:"categories"`
@@ -584,6 +584,18 @@ func prepareQRCodePrintContent(job models.PrintJob) ([]byte, error) {
 	return content.Bytes(), nil
 }
 
+// type PrintJobResponse struct {
+// 	ID        uint            `json:"id"`
+// 	PrinterID uint            `json:"printer_id"`
+// 	OrderID   *uint           `json:"order_id,omitempty"`
+// 	Content   []byte          `json:"content"`
+// 	Status    string          `json:"status"`
+// 	CreatedAt time.Time       `json:"created_at"`
+// 	UpdatedAt time.Time       `json:"updated_at"`
+// 	Order     *models.Order   `json:"order,omitempty"`
+// 	Printer   PrinterResponse `json:"printer"`
+// }
+
 type PrintJobResponse struct {
 	ID        uint            `json:"id"`
 	PrinterID uint            `json:"printer_id"`
@@ -593,7 +605,9 @@ type PrintJobResponse struct {
 	CreatedAt time.Time       `json:"created_at"`
 	UpdatedAt time.Time       `json:"updated_at"`
 	Order     *models.Order   `json:"order,omitempty"`
+	Receipt   *models.Receipt `json:"receipt,omitempty"`
 	Printer   PrinterResponse `json:"printer"`
+	JobType   string          `json:"job_type"`
 }
 
 // @Summary รับงานพิมพ์ที่รอดำเนินการ
@@ -754,7 +768,7 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 				Port:       printer.Port,
 				VendorID:   printer.VendorID,
 				ProductID:  printer.ProductID,
-				Department: printer.Department,
+				PaperSize:  printer.PaperSize,
 				Status:     printer.Status,
 				Categories: printer.Categories,
 			},
@@ -1167,4 +1181,227 @@ func convertPNGToBitmap(pngData []byte) ([]byte, error) {
 	buf.Write([]byte{0x1D, 0x56, 0x41, 0x03}) // Partial cut
 
 	return buf.Bytes(), nil
+}
+
+// @Summary ดึงรายการงานพิมพ์ที่สามารถรีปริ้นได้
+// @Description ดึงรายการงานพิมพ์ที่สามารถรีปริ้นได้ โดยสามารถกรองตามประเภทและช่วงเวลาได้
+// @Produce json
+// @Param type query string false "ประเภทงานพิมพ์ (order, receipt, cancelation, qr_code)"
+// @Param start_date query string false "วันที่เริ่มต้น (YYYY-MM-DD)"
+// @Param end_date query string false "วันที่สิ้นสุด (YYYY-MM-DD)"
+// @Success 200 {array} PrintJobResponse
+// @Router /api/printers/reprintable-jobs [get]
+// @Tags Printer
+// @Summary ดึงรายการงานพิมพ์ที่สามารถรีปริ้นได้
+// @Description ดึงรายการงานพิมพ์ที่สามารถรีปริ้นได้ โดยสามารถกรองตามประเภทและช่วงเวลาได้
+// @Produce json
+// @Param type query string false "ประเภทงานพิมพ์ (order, receipt, cancelation, qr_code)"
+// @Param start_date query string false "วันที่เริ่มต้น (YYYY-MM-DD)"
+// @Param end_date query string false "วันที่สิ้นสุด (YYYY-MM-DD)"
+// @Success 200 {array} PrintJobResponse
+// @Router /api/printers/reprintable-jobs [get]
+// @Tags Printer
+func GetReprintableJobs(c *fiber.Ctx) error {
+	jobType := c.Query("type")
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+
+	query := db.DB.Model(&models.PrintJob{}).
+		Preload("Printer").
+		// Order และข้อมูลที่เกี่ยวข้อง
+		Preload("Order.Items", func(db *gorm.DB) *gorm.DB {
+			return db.Order("id ASC")
+		}).
+		Preload("Order.Items.MenuItem").
+		Preload("Order.Items.MenuItem.Category").
+		Preload("Order.Items.Options.MenuOption").
+		Preload("Order.Items.Options.MenuOption.OptionGroup").
+		// Receipt และข้อมูลที่เกี่ยวข้อง
+		Preload("Receipt").
+		Preload("Receipt.Staff"). // Staff relation มีแค่ใน Receipt
+		Preload("Receipt.Orders", func(db *gorm.DB) *gorm.DB {
+			return db.Order("id ASC")
+		}).
+		Preload("Receipt.Orders.Items", func(db *gorm.DB) *gorm.DB {
+			return db.Where("status != ?", "cancelled").Order("id ASC")
+		}).
+		Preload("Receipt.Orders.Items.MenuItem").
+		Preload("Receipt.Orders.Items.MenuItem.Category").
+		Preload("Receipt.Orders.Items.Options.MenuOption").
+		Preload("Receipt.Orders.Items.Options.MenuOption.OptionGroup").
+		Preload("Receipt.Discounts.DiscountType").
+		Preload("Receipt.Charges.ChargeType")
+
+	if jobType != "" {
+		query = query.Where("job_type = ?", jobType)
+	}
+
+	if startDate != "" {
+		startTime, err := time.Parse("2006-01-02", startDate)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid start date format"})
+		}
+		query = query.Where("created_at >= ?", startTime)
+	}
+
+	if endDate != "" {
+		endTime, err := time.Parse("2006-01-02", endDate)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid end date format"})
+		}
+		endTime = endTime.Add(24 * time.Hour)
+		query = query.Where("created_at < ?", endTime)
+	}
+
+	query = query.Where("status = ?", "completed").Order("created_at DESC")
+
+	var jobs []models.PrintJob
+	if err := query.Find(&jobs).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to fetch print jobs",
+			"details": err.Error(),
+		})
+	}
+
+	var responses []PrintJobResponse
+	for _, job := range jobs {
+		// Prepare print content based on job type
+		var content []byte
+		var err error
+		switch job.JobType {
+		case "order":
+			if job.OrderID != nil {
+				content, err = prepareOrderPrintContent(job)
+			}
+		case "receipt":
+			if job.ReceiptID != nil {
+				content, err = prepareReceiptPrintContent(job)
+			}
+		case "cancelation":
+			content, err = prepareCancelPrintContent(job)
+		case "qr_code":
+			content = job.Content
+		default:
+			content = job.Content
+		}
+
+		if err != nil {
+			log.Printf("Failed to prepare content for job %d: %v", job.ID, err)
+			continue
+		}
+
+		response := PrintJobResponse{
+			ID:        job.ID,
+			PrinterID: job.PrinterID,
+			OrderID:   job.OrderID,
+			Content:   content,
+			Status:    job.Status,
+			JobType:   job.JobType,
+			CreatedAt: job.CreatedAt,
+			UpdatedAt: job.UpdatedAt,
+			Order:     job.Order,
+			Receipt:   job.Receipt,
+			Printer: PrinterResponse{
+				ID:         job.Printer.ID,
+				Name:       job.Printer.Name,
+				Type:       job.Printer.Type,
+				IPAddress:  job.Printer.IPAddress,
+				Port:       job.Printer.Port,
+				VendorID:   job.Printer.VendorID,
+				ProductID:  job.Printer.ProductID,
+				PaperSize:  job.Printer.PaperSize,
+				Status:     job.Printer.Status,
+				Categories: job.Printer.Categories,
+			},
+		}
+
+		responses = append(responses, response)
+	}
+
+	return c.JSON(responses)
+}
+
+// @Summary รีปริ้นเอกสาร
+// @Description สั่งพิมพ์เอกสารซ้ำ (รองรับ order, receipt, qr_code)
+// @Accept json
+// @Produce json
+// @Param id path int true "Print Job ID"
+// @Success 200 {object} models.PrintJob
+// @Router /api/printers/reprint/{id} [post]
+// @Tags Printer
+func ReprintDocument(c *fiber.Ctx) error {
+	jobID := c.Params("id")
+
+	var originalJob models.PrintJob
+	if err := db.DB.Preload("Printer").
+		Preload("Order.Items.MenuItem").
+		Preload("Order.Items.Options.MenuOption.OptionGroup").
+		Preload("Receipt.Orders.Items.MenuItem").
+		Preload("Receipt.Orders.Items.Options.MenuOption").
+		Preload("Receipt.Discounts.DiscountType").
+		Preload("Receipt.Charges.ChargeType").
+		First(&originalJob, jobID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Print job not found"})
+	}
+
+	newJob := models.PrintJob{
+		PrinterID: originalJob.PrinterID,
+		OrderID:   originalJob.OrderID,
+		ReceiptID: originalJob.ReceiptID,
+		JobType:   originalJob.JobType,
+		Status:    "pending",
+	}
+
+	var err error
+	switch originalJob.JobType {
+	case "order":
+		newJob.Content, err = prepareOrderPrintContent(originalJob)
+	case "receipt":
+		newJob.Content, err = prepareReceiptPrintContent(originalJob)
+	case "cancelation":
+		newJob.Content, err = prepareCancelPrintContent(originalJob)
+	case "qr_code":
+		newJob.Content = originalJob.Content
+	default:
+		newJob.Content = originalJob.Content
+	}
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to prepare print content", "details": err.Error()})
+	}
+
+	if err := db.DB.Create(&newJob).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create reprint job", "details": err.Error()})
+	}
+
+	bitmapContent, err := convertToBitmap(newJob.Content)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to convert content to bitmap", "details": err.Error()})
+	}
+
+	response := PrintJobResponse{
+		ID:        newJob.ID,
+		PrinterID: newJob.PrinterID,
+		OrderID:   newJob.OrderID,
+		Content:   bitmapContent,
+		Status:    newJob.Status,
+		CreatedAt: newJob.CreatedAt,
+		UpdatedAt: newJob.UpdatedAt,
+		Order:     newJob.Order,
+		Printer: PrinterResponse{
+			ID:         originalJob.Printer.ID,
+			Name:       originalJob.Printer.Name,
+			Type:       originalJob.Printer.Type,
+			IPAddress:  originalJob.Printer.IPAddress,
+			Port:       originalJob.Printer.Port,
+			VendorID:   originalJob.Printer.VendorID,
+			ProductID:  originalJob.Printer.ProductID,
+			PaperSize:  originalJob.Printer.PaperSize,
+			Status:     originalJob.Printer.Status,
+			Categories: originalJob.Printer.Categories,
+		},
+	}
+	return c.JSON(response)
 }

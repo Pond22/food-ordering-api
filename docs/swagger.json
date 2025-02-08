@@ -3119,6 +3119,101 @@
                 }
             }
         },
+        "/api/printers/reprint/{id}": {
+            "post": {
+                "description": "สั่งพิมพ์เอกสารซ้ำ (รองรับ order, receipt, qr_code)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Printer"
+                ],
+                "summary": "รีปริ้นเอกสาร",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Print Job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.PrintJob"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/printers/reprintable-jobs": {
+            "get": {
+                "description": "ดึงรายการงานพิมพ์ที่สามารถรีปริ้นได้ โดยสามารถกรองตามประเภทและช่วงเวลาได้\nดึงรายการงานพิมพ์ที่สามารถรีปริ้นได้ โดยสามารถกรองตามประเภทและช่วงเวลาได้",
+                "produces": [
+                    "application/json",
+                    "application/json"
+                ],
+                "tags": [
+                    "Printer",
+                    "Printer"
+                ],
+                "summary": "ดึงรายการงานพิมพ์ที่สามารถรีปริ้นได้",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ประเภทงานพิมพ์ (order, receipt, cancelation, qr_code)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "วันที่เริ่มต้น (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "วันที่สิ้นสุด (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "ประเภทงานพิมพ์ (order, receipt, cancelation, qr_code)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "วันที่เริ่มต้น (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "วันที่สิ้นสุด (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api_handlers.PrintJobResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/printers/status/{id}": {
             "put": {
                 "description": "อัพเดทสถานะของงานพิมพ์ (completed/failed)",
@@ -4824,6 +4919,47 @@
                 }
             }
         },
+        "api_handlers.PrintJobResponse": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "job_type": {
+                    "type": "string"
+                },
+                "order": {
+                    "$ref": "#/definitions/models.Order"
+                },
+                "order_id": {
+                    "type": "integer"
+                },
+                "printer": {
+                    "$ref": "#/definitions/api_handlers.PrinterResponse"
+                },
+                "printer_id": {
+                    "type": "integer"
+                },
+                "receipt": {
+                    "$ref": "#/definitions/models.Receipt"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "api_handlers.PrinterResponse": {
             "type": "object",
             "properties": {
@@ -4832,9 +4968,6 @@
                     "items": {
                         "$ref": "#/definitions/models.Category"
                     }
-                },
-                "department": {
-                    "type": "string"
                 },
                 "id": {
                     "type": "integer"
@@ -4846,6 +4979,9 @@
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "paper_size": {
                     "type": "string"
                 },
                 "port": {
@@ -5926,10 +6062,6 @@
                 "createdAt": {
                     "type": "string"
                 },
-                "department": {
-                    "description": "แผนก/ฝ่ายที่ใช้งาน",
-                    "type": "string"
-                },
                 "description": {
                     "description": "รายละเอียดเพิ่มเติม",
                     "type": "string"
@@ -5947,6 +6079,9 @@
                 },
                 "name": {
                     "description": "ชื่อเครื่องพิมพ์",
+                    "type": "string"
+                },
+                "paperSize": {
                     "type": "string"
                 },
                 "port": {

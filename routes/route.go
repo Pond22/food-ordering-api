@@ -151,6 +151,8 @@ func SetupRoutes(app *fiber.App) {
 		printer.Post("/categories/:id", api_handlers.AssignPrinterCategories)
 		printer.Get("/categories/:id", api_handlers.GetPrinterCategoriesById)
 
+		printer.Post("reprint/:id", api_handlers.ReprintDocument)
+		printer.Get("/reprintable-jobs", api_handlers.GetReprintableJobs)
 		// printer.Get("/:id", api_handlers.GetPrinterByID)
 		printer.Get("/", api_handlers.GetAllPrinters)
 

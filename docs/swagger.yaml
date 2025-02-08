@@ -247,14 +247,39 @@ definitions:
     - table_id
     - uuid
     type: object
+  api_handlers.PrintJobResponse:
+    properties:
+      content:
+        items:
+          type: integer
+        type: array
+      created_at:
+        type: string
+      id:
+        type: integer
+      job_type:
+        type: string
+      order:
+        $ref: '#/definitions/models.Order'
+      order_id:
+        type: integer
+      printer:
+        $ref: '#/definitions/api_handlers.PrinterResponse'
+      printer_id:
+        type: integer
+      receipt:
+        $ref: '#/definitions/models.Receipt'
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
   api_handlers.PrinterResponse:
     properties:
       categories:
         items:
           $ref: '#/definitions/models.Category'
         type: array
-      department:
-        type: string
       id:
         type: integer
       ip_address:
@@ -262,6 +287,8 @@ definitions:
       last_seen:
         type: string
       name:
+        type: string
+      paper_size:
         type: string
       port:
         type: integer
@@ -988,9 +1015,6 @@ definitions:
         type: array
       createdAt:
         type: string
-      department:
-        description: แผนก/ฝ่ายที่ใช้งาน
-        type: string
       description:
         description: รายละเอียดเพิ่มเติม
         type: string
@@ -1004,6 +1028,8 @@ definitions:
         type: string
       name:
         description: ชื่อเครื่องพิมพ์
+        type: string
+      paperSize:
         type: string
       port:
         description: Port number
@@ -3334,6 +3360,71 @@ paths:
             type: array
       summary: รับงานพิมพ์ที่รอดำเนินการ
       tags:
+      - Printer
+  /api/printers/reprint/{id}:
+    post:
+      consumes:
+      - application/json
+      description: สั่งพิมพ์เอกสารซ้ำ (รองรับ order, receipt, qr_code)
+      parameters:
+      - description: Print Job ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.PrintJob'
+      summary: รีปริ้นเอกสาร
+      tags:
+      - Printer
+  /api/printers/reprintable-jobs:
+    get:
+      description: |-
+        ดึงรายการงานพิมพ์ที่สามารถรีปริ้นได้ โดยสามารถกรองตามประเภทและช่วงเวลาได้
+        ดึงรายการงานพิมพ์ที่สามารถรีปริ้นได้ โดยสามารถกรองตามประเภทและช่วงเวลาได้
+      parameters:
+      - description: ประเภทงานพิมพ์ (order, receipt, cancelation, qr_code)
+        in: query
+        name: type
+        type: string
+      - description: วันที่เริ่มต้น (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: วันที่สิ้นสุด (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: ประเภทงานพิมพ์ (order, receipt, cancelation, qr_code)
+        in: query
+        name: type
+        type: string
+      - description: วันที่เริ่มต้น (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: วันที่สิ้นสุด (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api_handlers.PrintJobResponse'
+            type: array
+      summary: ดึงรายการงานพิมพ์ที่สามารถรีปริ้นได้
+      tags:
+      - Printer
       - Printer
   /api/printers/status/{id}:
     put:
