@@ -30,6 +30,7 @@ func TableWebSocketHandler(db *gorm.DB) fiber.Handler {
 			var tables []TableResponse
 
 			if err := db.Table("tables").
+				Where("tables.deleted_at IS NULL").
 				Select("tables.*, COALESCE(qr_codes.uuid, '') as uuid").
 				Joins("LEFT JOIN qr_codes ON qr_codes.table_id = tables.id AND qr_codes.is_active = ? AND qr_codes.expiry_at > ?", true, time.Now()).
 				Scan(&tables).Error; err != nil {
