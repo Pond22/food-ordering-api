@@ -4,6 +4,7 @@ services:
     ports:
       - "8080:8080"
     environment:
+      - TZ=Asia/Bangkok 
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
@@ -29,6 +30,8 @@ services:
   postgres:
     image: postgres:15-alpine
     environment:
+      - TZ=Asia/Bangkok
+      - PGTZ=Asia/Bangkok
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
       - POSTGRES_DB=${DB_NAME}

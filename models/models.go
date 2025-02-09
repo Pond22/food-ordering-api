@@ -125,17 +125,28 @@ type Table struct {
 }
 
 type TableReservation struct {
-	ID           uint      `gorm:"primaryKey"`
-	TableID      uint      `gorm:"not null"`                   // Foreign key to Table
-	Table        Table     `gorm:"foreignKey:TableID"`         // Relation to Table
-	CustomerName string    `gorm:"type:varchar(100);not null"` // ชื่อลูกค้าที่จอง
-	PhoneNumber  string    `gorm:"type:varchar(20);not null"`  // เบอร์โทรศัพท์
-	GuestCount   int       `gorm:"not null"`                   // จำนวนลูกค้า
-	ReservedFor  time.Time `gorm:"not null"`                   // เวลาที่ลูกค้าจะมาใช้บริการ
-	Status       string    `gorm:"not null;default:'active'"`  // active, cancelled, completed
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	DeletedAt    gorm.DeletedAt `json:"-" swaggerignore:"true"`
+	ID               uint      `gorm:"primaryKey"`
+	TableID          uint      `gorm:"not null"`                   // Foreign key to Table
+	Table            Table     `gorm:"foreignKey:TableID"`         // Relation to Table
+	CustomerName     string    `gorm:"type:varchar(100);not null"` // ชื่อลูกค้าที่จอง
+	PhoneNumber      string    `gorm:"type:varchar(20);not null"`  // เบอร์โทรศัพท์
+	GuestCount       int       `gorm:"not null"`                   // จำนวนลูกค้า
+	ReservedFor      time.Time `gorm:"not null"`                   // เวลาที่ลูกค้าจะมาใช้บริการ
+	TableBlockedFrom time.Time `json:"table_blocked_from"`         // เวลาที่เริ่มกั้นโต๊ะ
+	GracePeriodUntil time.Time `json:"grace_period_until"`         // เวลาสิ้นสุด grace period
+	Status           string    `gorm:"not null;default:'active'"`  // active, cancelled, completed
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	DeletedAt        gorm.DeletedAt `json:"-" swaggerignore:"true"`
+}
+
+type ReservationRules struct {
+	ID                    uint      `gorm:"primaryKey" json:"id"`
+	GracePeriodMinutes    int       `json:"grace_period_minutes"`    // เวลาที่ยอมให้สายได้ (นาที)
+	PreReservationMinutes int       `json:"pre_reservation_minutes"` // เวลาที่จะกั้นโต๊ะก่อนถึงเวลาจอง (นาที)
+	IsActive              bool      `json:"is_active"`               // ใช้งาน Rule นี้อยู่หรือไม่
+	CreatedAt             time.Time `json:"created_at"`
+	UpdatedAt             time.Time `json:"updated_at"`
 }
 
 // TableHistory - เก็บประวัติการย้าย/รวมโต๊ะ

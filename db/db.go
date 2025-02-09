@@ -14,20 +14,28 @@ import (
 
 var DB *gorm.DB
 
-// func InitDatabase() {
-// 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-// 		config.DBHost, config.DBUser, config.DBPassword, config.DBName, config.DBPort)
-// 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-// 	if err != nil {
-// 		panic(fmt.Sprintf("Failed to connect to database: %v", err))
-// 	}
-// 	DB = db
-// 	migrate()
-// }
+//	func InitDatabase() {
+//		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+//			config.DBHost, config.DBUser, config.DBPassword, config.DBName, config.DBPort)
+//		db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+//		if err != nil {
+//			panic(fmt.Sprintf("Failed to connect to database: %v", err))
+//		}
+//		DB = db
+//		migrate()
+//	}
+func init() {
+	// ตั้งค่า timezone เป็น Asia/Bangkok
+	loc, err := time.LoadLocation("Asia/Bangkok")
+	if err != nil {
+		log.Fatalf("Failed to load location: %v", err)
+	}
+	time.Local = loc
+}
 
 func InitDatabase() {
 	// สร้าง connection string
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Bangkok",
 		config.DBHost, config.DBUser, config.DBPassword, config.DBName, config.DBPort)
 
 	// กำหนด logger configuration
@@ -115,5 +123,5 @@ func migrate() {
 	DB.AutoMigrate(&models.POSSession{})
 	// DB.AutoMigrate(&models.PromoSalesReport{})
 	DB.AutoMigrate(&models.Notification{})
-	DB.AutoMigrate(&models.Notification{})
+	DB.AutoMigrate(&models.ReservationRules{})
 }

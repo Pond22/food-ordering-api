@@ -3729,6 +3729,55 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/qr/reprint/{id}": {
+            "post": {
+                "description": "สร้างและพิมพ์ QR Code ใหม่โดยใช้ UUID ที่มีอยู่",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Qr_code"
+                ],
+                "summary": "พิมพ์ QR Code ใหม่สำหรับโต๊ะที่เปิดใช้งานอยู่",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID โต๊ะ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "UUID ของโต๊ะ",
+                        "name": "uuid",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "สร้างและส่งพิมพ์ QR Code สำเร็จ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/qr/{id}": {
             "get": {
                 "description": "เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ url ของแต่ละโต๊ะจะสามารถเข้าได้ผ่าน qr_code เท่านั้นจากฟังก์ชัน",
@@ -3757,6 +3806,116 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "เกิดข้อผิดพลาดจาก action ที่ไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reservation/rules": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "กำหนดกฎการจองโต๊ะ เช่น เวลาสายที่ยอมรับได้ และเวลากั้นโต๊ะล่วงหน้า",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "ตั้งค่ากฎการจองโต๊ะ",
+                "parameters": [
+                    {
+                        "description": "กฎการจองโต๊ะ",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.RuleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "กฎการจองที่ตั้งค่า",
+                        "schema": {
+                            "$ref": "#/definitions/models.ReservationRules"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reservation/rules/active": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ดึงกฎการจองที่ active อยู่ในปัจจุบัน ถ้าไม่มีจะส่งค่า default",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ReservationRules"
+                ],
+                "summary": "ดึงกฎการจองที่ใช้งานอยู่",
+                "responses": {
+                    "200": {
+                        "description": "ค่า default เมื่อไม่มีกฎที่ active",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดภายในระบบ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reservation/rules/history": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ดึงประวัติการตั้งค่ากฎการจองทั้งหมด เรียงตามเวลาล่าสุด",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ReservationRules"
+                ],
+                "summary": "ดึงประวัติการตั้งค่ากฎการจอง",
+                "responses": {
+                    "200": {
+                        "description": "ประวัติการตั้งค่ากฎการจอง",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.ReservationRules"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดภายในระบบ",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -4027,6 +4186,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/table/reservations": {
+            "get": {
+                "description": "ดึงข้อมูลการจองโต๊ะทั้งหมดพร้อมชื่อโต๊ะ เรียงตามวันที่จองจากใหม่ไปเก่า",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reservation",
+                    "Table"
+                ],
+                "summary": "ดึงข้อมูลการจองทั้งหมด",
+                "responses": {
+                    "200": {
+                        "description": "รายการการจองทั้งหมด",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api_handlers.ReservationResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการดึงข้อมูล",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/table/reservedTable/{id}": {
             "post": {
                 "security": [
@@ -4034,7 +4227,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "จองโต๊ะโดยโต๊ะต้องอยู่ในถานะพร้อมให้บริการถึงจองได้",
+                "description": "จองโต๊ะโดยใช้กฎการจองที่กำหนดไว้",
                 "consumes": [
                     "application/json"
                 ],
@@ -4057,7 +4250,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "ID ของกลุ่มโต๊ะนั้นๆ",
+                        "description": "ID ของโต๊ะ",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -4065,35 +4258,35 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "เค",
+                        "description": "จองโต๊ะสำเร็จ",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน",
+                        "description": "ข้อมูลไม่ถูกต้อง",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
-                    "401": {
-                        "description": "ไม่ได้รับอนุญาต",
+                    "404": {
+                        "description": "ไม่พบโต๊ะ",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
-                    "403": {
-                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                    "409": {
+                        "description": "มีการจองซ้ำซ้อน",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "500": {
-                        "description": "เกิดข้อผิดพลาดในการจองโต๊ะ",
+                        "description": "เกิดข้อผิดพลาดภายในระบบ",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -4464,6 +4657,112 @@ const docTemplate = `{
                         "description": "รายละเอียดใบเสร็จที่รวมแล้ว",
                         "schema": {
                             "$ref": "#/definitions/models.Receipt"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/reservation/cancel/{id}": {
+            "post": {
+                "description": "ยกเลิกการจองโดยอ้างอิงจาก ID การจอง",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reservation_V2"
+                ],
+                "summary": "ยกเลิกการจองโดยตรง",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของการจอง",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ยกเลิกการจองสำเร็จ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบการจอง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดภายในระบบ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/reservation/checkin/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "เปิดโต๊ะที่จองไว้เมื่อลูกค้ามาถึง",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reservation_V2"
+                ],
+                "summary": "เช็คอินโต๊ะที่จองไว้",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID โต๊ะ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "เช็คอินสำเร็จ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบการจอง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -5096,6 +5395,63 @@ const docTemplate = `{
                 }
             }
         },
+        "api_handlers.ReservationResponse": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "customerName": {
+                    "description": "ชื่อลูกค้าที่จอง",
+                    "type": "string"
+                },
+                "grace_period_until": {
+                    "description": "เวลาสิ้นสุด grace period",
+                    "type": "string"
+                },
+                "guestCount": {
+                    "description": "จำนวนลูกค้า",
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "phoneNumber": {
+                    "description": "เบอร์โทรศัพท์",
+                    "type": "string"
+                },
+                "reservedFor": {
+                    "description": "เวลาที่ลูกค้าจะมาใช้บริการ",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "active, cancelled, completed",
+                    "type": "string"
+                },
+                "table": {
+                    "description": "Relation to Table",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Table"
+                        }
+                    ]
+                },
+                "tableID": {
+                    "description": "Foreign key to Table",
+                    "type": "integer"
+                },
+                "table_blocked_from": {
+                    "description": "เวลาที่เริ่มกั้นโต๊ะ",
+                    "type": "string"
+                },
+                "table_name": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
         "api_handlers.ResetPasswordRequest": {
             "type": "object",
             "required": [
@@ -5105,6 +5461,19 @@ const docTemplate = `{
                 "new_password": {
                     "type": "string",
                     "minLength": 6
+                }
+            }
+        },
+        "api_handlers.RuleRequest": {
+            "type": "object",
+            "properties": {
+                "grace_period_minutes": {
+                    "type": "integer",
+                    "example": 15
+                },
+                "pre_reservation_minutes": {
+                    "type": "integer",
+                    "example": 30
                 }
             }
         },
@@ -6404,6 +6773,32 @@ const docTemplate = `{
                 },
                 "value": {
                     "type": "number"
+                }
+            }
+        },
+        "models.ReservationRules": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "grace_period_minutes": {
+                    "description": "เวลาที่ยอมให้สายได้ (นาที)",
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "description": "ใช้งาน Rule นี้อยู่หรือไม่",
+                    "type": "boolean"
+                },
+                "pre_reservation_minutes": {
+                    "description": "เวลาที่จะกั้นโต๊ะก่อนถึงเวลาจอง (นาที)",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },

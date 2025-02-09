@@ -70,6 +70,9 @@ func main() {
 		MaxAge:           300,
 	}))
 
+	go api_handlers.ManageTableReservationStatus()
+	go api_handlers.AutoManageReservations()
+
 	app.Get("/swagger/*", swagger.HandlerDefault)
 
 	app.Get("/ws/tables", api_handlers.TableWebSocketHandler(db.DB))

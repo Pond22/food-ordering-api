@@ -122,6 +122,7 @@ func SetupRoutes(app *fiber.App) {
 
 	table := api.Group("/table")
 	{
+		table.Get("/reservations", api_handlers.GetAllReservations)
 		table.Get("/billable/:uuid", api_handlers.GetBillableItems)
 		table.Post("/", api_handlers.Addtable)
 		table.Delete("/:id", api_handlers.DeleteTable)
@@ -138,6 +139,7 @@ func SetupRoutes(app *fiber.App) {
 	// qr := api.Group("/qr", utils.AuthRequired(), utils.RoleRequired(models.RoleStaff, models.RoleManager))
 	qr := api.Group("/qr")
 	{
+		qr.Post("/reprint/:id", qr_service.HandleQRCodeReprint)
 		qr.Get("/:id", qr_service.HandleQRCodeRequest)
 		qr.Get("/tables", qr_service.Table)
 	}
@@ -186,6 +188,13 @@ func SetupRoutes(app *fiber.App) {
 			chargeTypes.Post("/", api_handlers.CreateChargeType)          // สร้างใหม่
 			chargeTypes.Put("/:id", api_handlers.UpdateChargeType)        // แก้ไข
 			chargeTypes.Delete("/:id", api_handlers.DeleteChargeType)     // ลบ/ปิดใช้งาน
+		}
+
+		reservation := api.Group("/reservation")
+		{
+			reservation.Get("/rules/active", api_handlers.GetActiveReservationRule)
+			reservation.Post("/rules", api_handlers.SetReservationRules)
+			reservation.Get("/rules/history", api_handlers.GetReservationRulesHistory)
 		}
 	}
 	// payment := api.Group("/payment")

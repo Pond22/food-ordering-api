@@ -5,10 +5,16 @@ import (
 	"fmt"
 	"food-ordering-api/db"
 	"food-ordering-api/models"
+	"image"
+	"image/png"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
+	"github.com/disintegration/imaging"
+	"github.com/fogleman/gg"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/skip2/go-qrcode"
@@ -147,7 +153,18 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 	if err != nil {
 		tx.Rollback()
 		return c.Status(500).JSON(fiber.Map{
-			"error": "Failed to generate QR Code PNG",
+			"error":   "Failed to generate QR Code PNG",
+			"details": err.Error(),
+		})
+	}
+
+	// สร้าง QR Code พร้อมข้อความ
+	finalQRCodeImage, err := createQRCodeWithText(displayImageData, table.Name, "./logo.jpg")
+	if err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"error":   "Failed to create QR Code with text",
+			"details": err.Error(),
 		})
 	}
 
@@ -158,7 +175,7 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 		CreatedAt: time.Now(),
 		ExpiryAt:  expiryAt,
 		IsActive:  true,
-		Qr_Image:  displayImageData,
+		Qr_Image:  finalQRCodeImage,
 	}
 
 	if err := tx.Create(&qrCodeRecord).Error; err != nil {
@@ -178,11 +195,10 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 	}
 
 	// เตรียมเนื้อหาสำหรับการพิมพ์
-	var printContent bytes.Buffer
+	// var printContent bytes.Buffer
 
 	// headerLines := []string{
 	// 	"===== QR Code สำหรับโต๊ะ =====",
-	// 	fmt.Sprintf("โต๊ะ: %d", actualTableID),
 	// 	fmt.Sprintf("วันที่-เวลา: %s", time.Now().Format("02/01/2006 15:04:05")),
 	// 	"========================",
 	// 	"\n", // เว้นบรรทัดก่อน QR Code
@@ -192,8 +208,7 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 	// 	printContent.WriteString(line + "\n")
 	// }
 
-	// เพิ่ม QR Code PNG bytes
-	printContent.Write(displayImageData)
+	// printContent.Write(finalQRCodeImage)
 
 	// footerLines := []string{
 	// 	"\n", // เว้นบรรทัดหลัง QR Code
@@ -209,7 +224,7 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 	// สร้าง print job
 	printJob := models.PrintJob{
 		PrinterID: mainPrinter.ID,
-		Content:   printContent.Bytes(),
+		Content:   finalQRCodeImage,
 		Status:    "pending",
 		JobType:   "qr_code",
 		CreatedAt: time.Now(),
@@ -231,7 +246,7 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 	// ส่ง QR Code image กลับไปแสดงผล
 	c.Set("Content-Type", "image/png")
 	c.Set("Content-Disposition", "inline")
-	return c.Send(displayImageData)
+	return c.Send(finalQRCodeImage)
 }
 
 // table_service
@@ -262,5 +277,228 @@ func Table(c *fiber.Ctx) error {
 		"message": "Welcome to the ordering page",
 		"tableID": tableID,
 		"uuid":    uuid,
+	})
+}
+
+func isPNG(data []byte) bool {
+	// PNG signature
+	pngSignature := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
+
+	// เพิ่ม log เพื่อตรวจสอบ
+	if len(data) > 8 {
+		log.Printf("First 8 bytes: %v", data[:8])
+		log.Printf("Matches PNG Signature: %v", bytes.Equal(data[:8], pngSignature))
+	}
+
+	return len(data) > 8 && bytes.Equal(data[:8], pngSignature)
+}
+
+func createQRCodeWithText(displayImageData []byte, actualTableID string, logoImagePath string) ([]byte, error) {
+	// สร้าง reader จาก QR Code
+	imgReader := bytes.NewReader(displayImageData)
+	qrCodeImage, _, err := image.Decode(imgReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode QR Code image: %v", err)
+	}
+
+	// ดึงขนาดของ QR Code
+	qrWidth := qrCodeImage.Bounds().Dx()
+	qrHeight := qrCodeImage.Bounds().Dy()
+
+	// โหลดโลโก้ร้าน
+	logoFile, err := os.Open(logoImagePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open logo image: %v", err)
+	}
+	defer logoFile.Close()
+
+	logoImg, _, err := image.Decode(logoFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode logo image: %v", err)
+	}
+
+	// ปรับขนาดโลโก้ให้ใหญ่ขึ้น
+	logoWidth := qrWidth    // ใช้ความกว้างเต็ม QR
+	logoHeight := logoWidth // รักษาสัดส่วน 1:1
+
+	// เพิ่มพื้นที่ด้านบนให้มากขึ้น
+	paddingTop := logoHeight + 80 // เพิ่มพื้นที่ตามขนาดโลโก้
+	newHeight := qrHeight + paddingTop
+
+	// สร้าง context และเติมพื้นหลัง
+	dc := gg.NewContext(qrWidth, newHeight)
+	dc.SetRGB(1, 1, 1)
+	dc.Clear()
+
+	// วาดโลโก้
+	resizedLogo := imaging.Resize(logoImg, logoWidth, logoHeight, imaging.Lanczos)
+	logoX := (float64(qrWidth) - float64(logoWidth)) / 2
+	dc.DrawImageAnchored(resizedLogo, int(logoX), 10, 0, 0)
+
+	// โหลดฟอนต์
+	face, err := gg.LoadFontFace("THSarabunNew.ttf", 52)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load font: %v", err)
+	}
+	dc.SetFontFace(face)
+
+	// ข้อความที่ต้องการวาด
+	label := fmt.Sprintf("โต๊ะ %s", actualTableID)
+	textWidth, _ := dc.MeasureString(label)
+
+	// คำนวณตำแหน่งข้อความ
+	x := (float64(qrWidth) - textWidth) / 2
+	y := float64(logoHeight + 50)
+
+	// วาดข้อความ
+	dc.SetRGB(0, 0, 0)
+	dc.DrawString(label, x, y)
+
+	// วาดเส้นตกแต่งด้านซ้ายและขวาของข้อความ
+	lineY := y - 8            // ปรับตำแหน่ง Y ของเส้นให้อยู่ใกล้ข้อความ
+	lineLength := float64(40) // ความยาวของเส้นแต่ละข้าง
+
+	// เส้นด้านซ้าย
+	dc.DrawLine(x-lineLength-10, lineY, x-10, lineY)
+	dc.SetLineWidth(3)
+	dc.Stroke()
+
+	// เส้นด้านขวา
+	dc.DrawLine(x+textWidth+10, lineY, x+textWidth+lineLength+10, lineY)
+	dc.SetLineWidth(3)
+	dc.Stroke()
+
+	// วาด QR Code
+	dc.DrawImage(qrCodeImage, 0, paddingTop)
+
+	// สร้าง PNG ใหม่
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, dc.Image()); err != nil {
+		return nil, fmt.Errorf("failed to encode final image: %v", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// @Summary พิมพ์ QR Code ใหม่สำหรับโต๊ะที่เปิดใช้งานอยู่
+// @Description สร้างและพิมพ์ QR Code ใหม่โดยใช้ UUID ที่มีอยู่
+// @Accept json
+// @Produce json
+// @Param id path integer true "ID โต๊ะ"
+// @Param uuid body string true "UUID ของโต๊ะ"
+// @Success 200 {object} map[string]interface{} "สร้างและส่งพิมพ์ QR Code สำเร็จ"
+// @Failure 400 {object} map[string]interface{} "ข้อมูลไม่ถูกต้อง"
+// @Router /api/qr/reprint/{id} [post]
+// @Tags Qr_code
+func HandleQRCodeReprint(c *fiber.Ctx) error {
+	tableID := c.Params("id")
+
+	// รับ UUID จาก request body
+	var reqBody struct {
+		UUID string `json:"uuid"`
+	}
+	if err := c.BodyParser(&reqBody); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	num, err := strconv.Atoi(tableID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": fmt.Sprintf("Invalid ID: %s. ID must be a number.", tableID),
+		})
+	}
+
+	// ตรวจสอบว่าโต๊ะมีอยู่จริง
+	var table models.Table
+	if err := db.DB.First(&table, num).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{
+			"error": "Table not found",
+		})
+	}
+
+	actualTableID := num
+	if hasGroupID(table.GroupID) && table.ParentID != nil {
+		actualTableID = int(*table.ParentID)
+	}
+
+	// ตรวจสอบว่า UUID ตรงกับที่มีในระบบ
+	var existingQR models.QRCode
+	if err := db.DB.Where("table_id = ? AND uuid = ? AND is_active = ?",
+		actualTableID, reqBody.UUID, true).First(&existingQR).Error; err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Invalid UUID for this table",
+		})
+	}
+
+	tx := db.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// สร้าง QR Code
+	url := fmt.Sprintf("http://localhost:5173/menu?tableID=%v&uuid=%v", tableID, reqBody.UUID)
+	qrCode, err := qrcode.New(url, qrcode.Medium)
+	if err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to generate QR Code",
+		})
+	}
+
+	// แปลงเป็น PNG bytes
+	displayImageData, err := qrCode.PNG(256)
+	if err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to generate QR Code PNG",
+		})
+	}
+
+	// สร้าง QR Code พร้อมข้อความ
+	finalQRCodeImage, err := createQRCodeWithText(displayImageData, table.Name, "./logo.jpg")
+	if err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to create QR Code with text",
+		})
+	}
+
+	// หา main printer
+	var mainPrinter models.Printer
+	if err := tx.Where("name = ?", "main").First(&mainPrinter).Error; err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Main printer not found",
+		})
+	}
+
+	// สร้าง print job
+	printJob := models.PrintJob{
+		PrinterID: mainPrinter.ID,
+		Content:   finalQRCodeImage,
+		Status:    "pending",
+		JobType:   "qr_code",
+		CreatedAt: time.Now(),
+	}
+
+	if err := tx.Create(&printJob).Error; err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to create print job",
+		})
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to commit transaction",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "QR Code reprint job created successfully",
 	})
 }

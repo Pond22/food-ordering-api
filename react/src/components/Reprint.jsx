@@ -28,6 +28,47 @@ const Alert = ({ children, variant = "default" }) => (
   </div>
 );
 
+const preparePrintContent = (job) => {
+  if (!job || !job.content) return "ไม่พบข้อมูลสำหรับการพิมพ์";
+
+  try {
+    if (job.job_type === "qr_code") {
+      return (
+        <img
+          src={`data:image/png;base64,${job.content}`}
+          alt="QR Code"
+          className="mx-auto border rounded shadow-md"
+          style={{ maxWidth: "200px", height: "auto" }}
+        />
+      );
+    }
+
+    const binaryString = atob(job.content);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    const decoder = new TextDecoder("utf-8");
+    const decodedContent = decoder.decode(bytes);
+
+    return (
+      <pre className="font-mono bg-white p-4 border rounded shadow-sm max-w-md mx-auto">
+        {decodedContent}
+      </pre>  
+    );
+  } catch (err) {
+    console.error("Error decoding content:", err);
+    return "ไม่สามารถแสดงเนื้อหาได้";
+  }
+};
+
+const renderJobDetails = (job) => (
+  <div className="px-4 py-2 bg-gray-50">
+    {preparePrintContent(job)} 
+  </div>
+);
+
 const Reprint = () => {
   const today = new Date();
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -39,7 +80,7 @@ const Reprint = () => {
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [filters, setFilters] = useState({
     type: '',
-    startDate: startOfMonth.toISOString().split('T')[0],
+    startDate: startOfMonth.toISOString().split('T')[0], 
     endDate: endOfMonth.toISOString().split('T')[0],
     searchTerm: ''
   });
@@ -52,7 +93,7 @@ const Reprint = () => {
       if (filters.type) params.append('type', filters.type);
       if (filters.startDate) params.append('start_date', filters.startDate);
       if (filters.endDate) params.append('end_date', filters.endDate);
-
+      
       const response = await fetch(
         `http://localhost:8080/api/printers/reprintable-jobs?${params.toString()}`
       );
@@ -62,7 +103,7 @@ const Reprint = () => {
       }
       
       const data = await response.json();
-      setJobs(Array.isArray(data) ? data : []);
+      setJobs(Array.isArray(data) ? data : []);  
     } catch (err) {
       console.error('Fetch error:', err);
       setError(err.message);
@@ -81,16 +122,16 @@ const Reprint = () => {
           'Content-Type': 'application/json'
         }
       });
-
+      
       if (!response.ok) {
         throw new Error(`Reprint failed with status ${response.status}`);
       }
-
+      
       alert('รีปริ้นสำเร็จ');
       await fetchJobs();
     } catch (err) {
       console.error('Reprint error:', err);
-      alert('เกิดข้อผิดพลาดในการรีปริ้น: ' + err.message);
+      alert('เกิดข้อผิดพลาดในการรีปริ้น: ' + err.message);  
     } finally {
       setLoading(false);
     }
@@ -108,53 +149,6 @@ const Reprint = () => {
     });
   };
 
-  const preparePrintContent = (job) => {
-    if (!job) return "ไม่พบข้อมูลสำหรับการพิมพ์";
-    
-    // ใช้ content ที่ได้จาก backend โดยตรง
-    if (job.content) {
-      try {
-        // แปลง base64 เป็น bytes
-        const binaryString = atob(job.content);
-        
-        // แปลง binary string เป็น array ของ bytes
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-
-        // แปลงเป็น text โดยใช้ TextDecoder with UTF-8
-        const decoder = new TextDecoder('utf-8');
-        const decodedContent = decoder.decode(bytes);
-        
-        if (decodedContent) {
-          return decodedContent;
-        }
-      } catch (err) {
-        console.error('Error decoding content:', err);
-      }
-    }
-
-    return "ไม่สามารถแสดงเนื้อหาได้";
-  };
-
-  const renderJobDetails = (job) => {
-    const content = preparePrintContent(job);
-
-    return (
-      <div className="px-4 py-2 bg-gray-50">
-        <div className="font-mono whitespace-pre-wrap bg-white p-4 border rounded shadow-sm" 
-             style={{ 
-               fontFamily: 'Consolas, Monaco, monospace',
-               maxWidth: '576px',
-               margin: '0 auto'
-             }}>
-          {content}
-        </div>
-      </div>
-    );
-  };
-
   const filteredJobs = React.useMemo(() => {
     if (!filters.searchTerm) return jobs;
     
@@ -162,14 +156,14 @@ const Reprint = () => {
     return jobs.filter(job => {
       const orderId = job?.order?.id?.toString() || '';
       const receiptId = job?.receipt?.id?.toString() || '';
-      const printerName = job?.printer?.name || '';
+      const printerName = job?.printer?.name || '';  
       const tableId = job?.order?.table_id?.toString() || job?.receipt?.table_id || '';
       
       return (
         orderId.includes(searchLower) ||
         receiptId.includes(searchLower) ||
         printerName.toLowerCase().includes(searchLower) ||
-        tableId.includes(searchLower)
+        tableId.includes(searchLower)  
       );
     });
   }, [jobs, filters.searchTerm]);
@@ -177,11 +171,11 @@ const Reprint = () => {
   useEffect(() => {
     fetchJobs();
   }, [filters.type, filters.startDate, filters.endDate]);
-
+  
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">ระบบจัดการรีปริ้น</h1>
-
+      
       <div className="space-y-6">
         <div className="flex flex-wrap gap-4">
           <select
@@ -195,21 +189,21 @@ const Reprint = () => {
             <option value="cancelation">ยกเลิกรายการ</option>
             <option value="qr_code">QR Code</option>
           </select>
-
+          
           <input
             type="date"
             value={filters.startDate}
             onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
-            className="border rounded-md px-3 py-2"
+            className="border rounded-md px-3 py-2"  
           />
-
+          
           <input
             type="date"
             value={filters.endDate}
             onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
             className="border rounded-md px-3 py-2"
-          />
-
+          />  
+          
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
             <input
@@ -224,10 +218,10 @@ const Reprint = () => {
 
         {error && (
           <Alert variant="destructive">
-            <div>{error}</div>
-          </Alert>
+            <div>{error}</div>  
+          </Alert>  
         )}
-
+        
         <div className="bg-white rounded-lg overflow-hidden border">
           <Table>
             <TableHeader>
@@ -282,10 +276,10 @@ const Reprint = () => {
                         {job.order?.table_id || job.receipt?.TableID || '-'}
                       </TableCell>
                       <TableCell>
-                        {job.printer?.name || `เครื่องพิมพ์ ${job.printer_id}`}
+                        {job.printer?.name || `เครื่องพิมพ์ ${job.printer_id}`}  
                       </TableCell>
                       <TableCell className="text-right">
-                        <button
+                        <button 
                           onClick={() => handleReprint(job.id)}
                           disabled={loading}
                           className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded disabled:opacity-50"
@@ -298,7 +292,7 @@ const Reprint = () => {
                     <TableRow>
                       <TableCell colSpan={6} className="p-0 border-b">
                         {expandedRows.has(job.id) && renderJobDetails(job)}
-                      </TableCell>
+                      </TableCell>  
                     </TableRow>
                   </React.Fragment>
                 ))

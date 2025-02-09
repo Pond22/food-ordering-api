@@ -523,32 +523,59 @@ type ReservationRequest struct {
 }
 
 // @Summary จองโต๊ะ
-// @Description จองโต๊ะโดยโต๊ะต้องอยู่ในถานะพร้อมให้บริการถึงจองได้
+// @Description จองโต๊ะโดยใช้กฎการจองที่กำหนดไว้
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param request body ReservationRequest true "ข้อมูลการจองโต๊ะ"
-// @Param id path string true "ID ของกลุ่มโต๊ะนั้นๆ"
-// @Success 200 {object} map[string]interface{} "เค"
-// @Failure 400 {object} map[string]interface{} "ข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน"
-// @Failure 401 {object} map[string]interface{} "ไม่ได้รับอนุญาต"
-// @Failure 403 {object} map[string]interface{} "ไม่มีสิทธิ์เข้าถึง"
-// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการจองโต๊ะ"
+// @Param id path string true "ID ของโต๊ะ"
+// @Success 200 {object} map[string]interface{} "จองโต๊ะสำเร็จ"
+// @Failure 400 {object} map[string]interface{} "ข้อมูลไม่ถูกต้อง"
+// @Failure 404 {object} map[string]interface{} "ไม่พบโต๊ะ"
+// @Failure 409 {object} map[string]interface{} "มีการจองซ้ำซ้อน"
+// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดภายในระบบ"
 // @Router /api/table/reservedTable/{id} [post]
 // @Tags Table
 func ReservedTable(c *fiber.Ctx) error {
 	tableID := c.Params("id")
 	if tableID == "" {
-		return c.Status(400).JSON(fiber.Map{"error": "กรุณาระบุหมายเลขโต๊ะ"})
+		return c.Status(400).JSON(fiber.Map{
+			"error": "กรุณาระบุหมายเลขโต๊ะ",
+		})
 	}
 
 	// รับข้อมูลการจอง
 	var req ReservationRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "ข้อมูลการจองไม่ถูกต้อง"})
+		return c.Status(400).JSON(fiber.Map{
+			"error": "ข้อมูลการจองไม่ถูกต้อง",
+		})
+	}
+
+	// Validation
+	if req.CustomerName == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "กรุณาระบุชื่อลูกค้า"})
+	}
+	if req.PhoneNumber == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "กรุณาระบุเบอร์โทรศัพท์"})
+	}
+	if req.GuestCount <= 0 {
+		return c.Status(400).JSON(fiber.Map{"error": "จำนวนลูกค้าต้องมากกว่า 0"})
+	}
+	if req.ReservedFor.Before(time.Now()) {
+		return c.Status(400).JSON(fiber.Map{"error": "ไม่สามารถจองย้อนหลังได้"})
 	}
 
 	tx := db.DB.Begin()
+
+	// ดึง active rule
+	var activeRule models.ReservationRules
+	if err := tx.Where("is_active = ?", true).First(&activeRule).Error; err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"error": "ไม่พบกฎการจองที่ใช้งานอยู่",
+		})
+	}
 
 	// ตรวจสอบโต๊ะ
 	var table models.Table
@@ -562,14 +589,48 @@ func ReservedTable(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "โต๊ะไม่ว่าง"})
 	}
 
-	// สร้างข้อมูลการจอง
+	if table.Capacity < req.GuestCount {
+		tx.Rollback()
+		return c.Status(400).JSON(fiber.Map{
+			"error":            "จำนวนลูกค้าเกินความจุของโต๊ะ",
+			"table_capacity":   table.Capacity,
+			"requested_guests": req.GuestCount,
+		})
+	}
+
+	// คำนวณเวลา
+	now := time.Now()
+	tableBlockedFrom := req.ReservedFor.Add(-time.Duration(activeRule.PreReservationMinutes) * time.Minute)
+	gracePeriodUntil := req.ReservedFor.Add(time.Duration(activeRule.GracePeriodMinutes) * time.Minute)
+
+	// ตรวจสอบการจองซ้ำซ้อน
+	var conflictReservation models.TableReservation
+	if err := tx.Where(`
+			table_id = ? AND status = 'active' AND (
+					(table_blocked_from BETWEEN ? AND ?) OR
+					(grace_period_until BETWEEN ? AND ?) OR
+					(? BETWEEN table_blocked_from AND grace_period_until)
+			)`,
+		tableID, tableBlockedFrom, gracePeriodUntil,
+		tableBlockedFrom, gracePeriodUntil,
+		req.ReservedFor,
+	).First(&conflictReservation).Error; err == nil {
+		tx.Rollback()
+		return c.Status(409).JSON(fiber.Map{
+			"error": "มีการจองในช่วงเวลานี้แล้ว",
+		})
+	}
+
+	// สร้างการจอง
 	reservation := models.TableReservation{
-		TableID:      uint(table.ID),
-		CustomerName: req.CustomerName,
-		PhoneNumber:  req.PhoneNumber,
-		GuestCount:   req.GuestCount,
-		ReservedFor:  req.ReservedFor,
-		Status:       "active",
+		TableID:          uint(table.ID),
+		CustomerName:     req.CustomerName,
+		PhoneNumber:      req.PhoneNumber,
+		GuestCount:       req.GuestCount,
+		ReservedFor:      req.ReservedFor,
+		TableBlockedFrom: tableBlockedFrom,
+		GracePeriodUntil: gracePeriodUntil,
+		Status:           "active",
 	}
 
 	if err := tx.Create(&reservation).Error; err != nil {
@@ -577,15 +638,8 @@ func ReservedTable(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถบันทึกการจองได้"})
 	}
 
-	// อัพเดทสถานะโต๊ะ - รวมถึงโต๊ะที่อยู่ในกลุ่มเดียวกัน
-	if hasGroupID(table.GroupID) {
-		if err := tx.Model(&models.Table{}).
-			Where("group_id = ?", table.GroupID).
-			Update("status", "reserved").Error; err != nil {
-			tx.Rollback()
-			return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถอัพเดทสถานะโต๊ะรวมได้"})
-		}
-	} else {
+	// อัพเดทสถานะโต๊ะเฉพาะเมื่อถึงเวลา tableBlockedFrom
+	if now.After(tableBlockedFrom) || now.Equal(tableBlockedFrom) {
 		if err := tx.Model(&table).Update("status", "reserved").Error; err != nil {
 			tx.Rollback()
 			return c.Status(500).JSON(fiber.Map{"error": "ไม่สามารถอัพเดทสถานะโต๊ะได้"})
@@ -597,8 +651,11 @@ func ReservedTable(c *fiber.Ctx) error {
 	}
 
 	return c.Status(200).JSON(fiber.Map{
-		"message":        "จองโต๊ะสำเร็จ",
-		"reservation_id": reservation.ID,
+		"message":            "จองโต๊ะสำเร็จ",
+		"reservation_id":     reservation.ID,
+		"table_blocked_from": tableBlockedFrom,
+		"reserved_for":       req.ReservedFor,
+		"grace_period_until": gracePeriodUntil,
 	})
 }
 
@@ -838,4 +895,37 @@ type OptionInfo struct {
 	Name     string  `json:"name"`
 	Price    float64 `json:"price"`
 	Quantity int     `json:"quantity"`
+}
+
+type ReservationResponse struct {
+	models.TableReservation
+	TableName string `json:"table_name"`
+}
+
+// @Summary ดึงข้อมูลการจองทั้งหมด
+// @Description ดึงข้อมูลการจองโต๊ะทั้งหมดพร้อมชื่อโต๊ะ เรียงตามวันที่จองจากใหม่ไปเก่า
+// @Tags Reservation
+// @Accept json
+// @Produce json
+// @Success 200 {array} ReservationResponse "รายการการจองทั้งหมด"
+// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการดึงข้อมูล"
+// @Router /api/table/reservations [get]
+// @Tags Table
+func GetAllReservations(c *fiber.Ctx) error {
+	var reservations []struct {
+		models.TableReservation
+		TableName string `json:"table_name"`
+	}
+
+	if err := db.DB.Table("table_reservations").
+		Select("table_reservations.*, tables.name as table_name").
+		Joins("LEFT JOIN tables ON tables.id = table_reservations.table_id").
+		Order("reserved_for DESC").
+		Scan(&reservations).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "เกิดข้อผิดพลาดในการดึงข้อมูล",
+		})
+	}
+
+	return c.JSON(reservations)
 }

@@ -10,6 +10,7 @@ require (
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/fasthttp/websocket v1.5.3 // indirect
 	github.com/fogleman/gg v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
