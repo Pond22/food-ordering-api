@@ -3847,6 +3847,39 @@ paths:
       summary: เข้าถึง dynamic link โต๊ะนั้นๆ
       tags:
       - Qr_code
+  /api/qr/reprint/{id}:
+    post:
+      consumes:
+      - application/json
+      description: สร้างและพิมพ์ QR Code ใหม่โดยใช้ UUID ที่มีอยู่
+      parameters:
+      - description: ID โต๊ะ
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: UUID ของโต๊ะ
+        in: body
+        name: uuid
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: สร้างและส่งพิมพ์ QR Code สำเร็จ
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ข้อมูลไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+      summary: พิมพ์ QR Code ใหม่สำหรับโต๊ะที่เปิดใช้งานอยู่
+      tags:
+      - Qr_code
   /api/reservation/rules:
     post:
       consumes:
@@ -4442,6 +4475,40 @@ paths:
             additionalProperties: true
             type: object
       summary: ยกเลิกการจองโดยตรง
+      tags:
+      - Reservation_V2
+  /api/v2/reservation/checkin/{id}:
+    post:
+      consumes:
+      - application/json
+      description: เปิดโต๊ะที่จองไว้เมื่อลูกค้ามาถึง
+      parameters:
+      - description: ID โต๊ะ
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: เช็คอินสำเร็จ
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ข้อมูลไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: ไม่พบการจอง
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: เช็คอินโต๊ะที่จองไว้
       tags:
       - Reservation_V2
   /order:

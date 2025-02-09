@@ -17,5 +17,6 @@ func SetupRoutesV2(app *fiber.App) {
 	reservation := api.Group("/reservation")
 	{
 		reservation.Post("/cancel/:id", api_v2.CancelReservation)
+		reservation.Post("/checkin/:id", api_v2.CheckinReservedTable)
 	}
 }

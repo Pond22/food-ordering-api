@@ -139,6 +139,7 @@ func SetupRoutes(app *fiber.App) {
 	// qr := api.Group("/qr", utils.AuthRequired(), utils.RoleRequired(models.RoleStaff, models.RoleManager))
 	qr := api.Group("/qr")
 	{
+		qr.Post("/reprint/:id", qr_service.HandleQRCodeReprint)
 		qr.Get("/:id", qr_service.HandleQRCodeRequest)
 		qr.Get("/tables", qr_service.Table)
 	}

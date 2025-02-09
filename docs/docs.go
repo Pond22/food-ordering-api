@@ -3729,6 +3729,55 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/qr/reprint/{id}": {
+            "post": {
+                "description": "สร้างและพิมพ์ QR Code ใหม่โดยใช้ UUID ที่มีอยู่",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Qr_code"
+                ],
+                "summary": "พิมพ์ QR Code ใหม่สำหรับโต๊ะที่เปิดใช้งานอยู่",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID โต๊ะ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "UUID ของโต๊ะ",
+                        "name": "uuid",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "สร้างและส่งพิมพ์ QR Code สำเร็จ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/qr/{id}": {
             "get": {
                 "description": "เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ url ของแต่ละโต๊ะจะสามารถเข้าได้ผ่าน qr_code เท่านั้นจากฟังก์ชัน",
@@ -4659,6 +4708,58 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "เกิดข้อผิดพลาดภายในระบบ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/reservation/checkin/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "เปิดโต๊ะที่จองไว้เมื่อลูกค้ามาถึง",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reservation_V2"
+                ],
+                "summary": "เช็คอินโต๊ะที่จองไว้",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID โต๊ะ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "เช็คอินสำเร็จ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบการจอง",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true

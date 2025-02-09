@@ -379,3 +379,126 @@ func createQRCodeWithText(displayImageData []byte, actualTableID string, logoIma
 
 	return buf.Bytes(), nil
 }
+
+// @Summary พิมพ์ QR Code ใหม่สำหรับโต๊ะที่เปิดใช้งานอยู่
+// @Description สร้างและพิมพ์ QR Code ใหม่โดยใช้ UUID ที่มีอยู่
+// @Accept json
+// @Produce json
+// @Param id path integer true "ID โต๊ะ"
+// @Param uuid body string true "UUID ของโต๊ะ"
+// @Success 200 {object} map[string]interface{} "สร้างและส่งพิมพ์ QR Code สำเร็จ"
+// @Failure 400 {object} map[string]interface{} "ข้อมูลไม่ถูกต้อง"
+// @Router /api/qr/reprint/{id} [post]
+// @Tags Qr_code
+func HandleQRCodeReprint(c *fiber.Ctx) error {
+	tableID := c.Params("id")
+
+	// รับ UUID จาก request body
+	var reqBody struct {
+		UUID string `json:"uuid"`
+	}
+	if err := c.BodyParser(&reqBody); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	num, err := strconv.Atoi(tableID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": fmt.Sprintf("Invalid ID: %s. ID must be a number.", tableID),
+		})
+	}
+
+	// ตรวจสอบว่าโต๊ะมีอยู่จริง
+	var table models.Table
+	if err := db.DB.First(&table, num).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{
+			"error": "Table not found",
+		})
+	}
+
+	actualTableID := num
+	if hasGroupID(table.GroupID) && table.ParentID != nil {
+		actualTableID = int(*table.ParentID)
+	}
+
+	// ตรวจสอบว่า UUID ตรงกับที่มีในระบบ
+	var existingQR models.QRCode
+	if err := db.DB.Where("table_id = ? AND uuid = ? AND is_active = ?",
+		actualTableID, reqBody.UUID, true).First(&existingQR).Error; err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Invalid UUID for this table",
+		})
+	}
+
+	tx := db.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// สร้าง QR Code
+	url := fmt.Sprintf("http://localhost:5173/menu?tableID=%v&uuid=%v", tableID, reqBody.UUID)
+	qrCode, err := qrcode.New(url, qrcode.Medium)
+	if err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to generate QR Code",
+		})
+	}
+
+	// แปลงเป็น PNG bytes
+	displayImageData, err := qrCode.PNG(256)
+	if err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to generate QR Code PNG",
+		})
+	}
+
+	// สร้าง QR Code พร้อมข้อความ
+	finalQRCodeImage, err := createQRCodeWithText(displayImageData, table.Name, "./logo.jpg")
+	if err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to create QR Code with text",
+		})
+	}
+
+	// หา main printer
+	var mainPrinter models.Printer
+	if err := tx.Where("name = ?", "main").First(&mainPrinter).Error; err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Main printer not found",
+		})
+	}
+
+	// สร้าง print job
+	printJob := models.PrintJob{
+		PrinterID: mainPrinter.ID,
+		Content:   finalQRCodeImage,
+		Status:    "pending",
+		JobType:   "qr_code",
+		CreatedAt: time.Now(),
+	}
+
+	if err := tx.Create(&printJob).Error; err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to create print job",
+		})
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to commit transaction",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "QR Code reprint job created successfully",
+	})
+}

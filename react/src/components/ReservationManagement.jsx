@@ -15,8 +15,20 @@ const ReservationManagement = ({ isOpen, onClose }) => {
   const fetchReservations = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:8080/api/table/reservations');
-      setReservations(response.data);
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8080/api/table/reservations', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      
+      const data = await response.json();
+      setReservations(data);
     } catch (error) {
       console.error('Error fetching reservations:', error);
       alert('ไม่สามารถดึงข้อมูลการจองได้');
@@ -24,26 +36,32 @@ const ReservationManagement = ({ isOpen, onClose }) => {
       setLoading(false);
     }
   };
-
+  
   const handleCancelReservation = async (tableId, reservationId) => {
     if (!window.confirm('ยืนยันการยกเลิกการจอง?')) return;
-
+  
     try {
-        const response = await axios.post(`http://localhost:8080/api/v2/reservation/cancel/${reservationId}`);
-        
-        if (response.status === 200) {
-            alert('ยกเลิกการจองสำเร็จ');
-            fetchReservations();
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8080/api/v2/reservation/cancel/${reservationId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'ไม่สามารถยกเลิกการจองได้');
+      }
+      
+      alert('ยกเลิกการจองสำเร็จ');
+      fetchReservations();
     } catch (error) {
-        console.error('Error cancelling reservation:', error);
-        if (error.response?.data?.error) {
-            alert(error.response.data.error);
-        } else {
-            alert('ไม่สามารถยกเลิกการจองได้');
-        }
+      console.error('Error cancelling reservation:', error);
+      alert(error.message || 'ไม่สามารถยกเลิกการจองได้');
     }
-};
+  };
 
   const filterReservations = () => {
     const now = new Date();

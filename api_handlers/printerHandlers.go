@@ -12,7 +12,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -632,7 +634,6 @@ type PrintJobResponse struct {
 // @Router /api/printers/pending-jobs [get]
 // @Tags Printer
 func GetPendingPrintJobs(c *fiber.Ctx) error {
-	// ตรวจสอบ params
 	printerIP := c.Query("printer_ip")
 	vendorID := c.Query("vendor_id")
 	productID := c.Query("product_id")
@@ -641,17 +642,9 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 	var err error
 
 	if vendorID != "" && productID != "" {
-		// กรณีเครื่องพิมพ์ USB
-		// log.Printf("Looking for USB printer - VID: %s, PID: %s", vendorID, productID)
-		// log.Printf("Looking for USB printer - VID: %s, PID: %s", vendorID, productID)
 		err = db.DB.Where("type = ? AND vendor_id = ? AND product_id = ?",
 			"usb", vendorID, productID).First(&printer).Error
 	} else if printerIP != "" {
-		// กรณีเครื่องพิมพ์เครือข่าย
-		// log.Printf("Looking for Network printer - IP: %s", printerIP)
-		// log.Printf("Looking for Network printer - IP: %s", printerIP)
-
-		// ถ้า printerIP เริ่มต้นด้วย USB_ ให้ค้นหาจาก vendor_id และ product_id
 		if strings.HasPrefix(printerIP, "USB_") {
 			parts := strings.Split(printerIP[4:], "_")
 			if len(parts) == 2 {
@@ -664,7 +657,6 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 				})
 			}
 		} else {
-			// ค้นหาจาก IP address สำหรับ network printer
 			err = db.DB.Where("type = ? AND ip_address = ?",
 				"network", printerIP).First(&printer).Error
 		}
@@ -676,36 +668,18 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			log.Printf("Printer not found: %v", err)
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 				"error":   "Printer not found",
 				"details": err.Error(),
 			})
-		} else {
-			log.Printf("Database error: %v", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error":   "Database error",
-				"details": err.Error(),
-			})
 		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Database error",
+			"details": err.Error(),
+		})
 	}
 
-	// ดึงงานพิมพ์ที่รอดำเนินการ
 	var jobs []models.PrintJob
-	// err = db.DB.Where("printer_id = ? AND status = ?", printer.ID, "pending").
-	// 	Preload("Order").
-	// 	Preload("Order.Items", "status = ?", "pending").
-	// 	Preload("Order.Items.MenuItem").
-	// 	Preload("Order.Items.Options").
-	// 	Preload("Order.Items.Options.MenuOption").
-	// 	Preload("Order.Items.Options.MenuOption.OptionGroup").
-	// 	Preload("Receipt").
-	// 	Preload("Receipt.Orders.Items.MenuItem").
-	// 	Preload("Receipt.Discounts.DiscountType").
-	// 	Preload("Receipt.Charges.ChargeType").
-	// 	Order("created_at ASC").
-	// 	Find(&jobs).Error
-
 	query := db.DB.Where("printer_id = ? AND status = ?", printer.ID, "pending").
 		Order("created_at ASC")
 
@@ -724,71 +698,110 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 		Find(&jobs).Error
 
 	if err != nil {
-		log.Printf("Error fetching print jobs: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to fetch print jobs",
 			"details": err.Error(),
 		})
 	}
 
-	// เตรียม response
-	var responses []PrintJobResponse
+	// กำหนดจำนวน workers
+	numWorkers := 10
+
+	// สร้าง channels
+	jobsChan := make(chan models.PrintJob, len(jobs))
+	resultsChan := make(chan PrintJobResponse, len(jobs))
+
+	// สร้าง WaitGroup สำหรับ workers
+	var wg sync.WaitGroup
+
+	// เริ่ม workers
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for job := range jobsChan {
+				var preparedContent []byte
+				var err error
+
+				switch job.JobType {
+				case "order":
+					if job.OrderID != nil {
+						preparedContent, err = prepareOrderPrintContent(job)
+					}
+				case "receipt":
+					if job.ReceiptID != nil {
+						preparedContent, err = prepareReceiptPrintContent(job)
+					}
+				case "cancelation":
+					preparedContent, err = prepareCancelPrintContent(job)
+				case "qr_code":
+					preparedContent = job.Content
+				default:
+					preparedContent = job.Content
+				}
+
+				if err != nil {
+					log.Printf("Failed to prepare content for job %d: %v", job.ID, err)
+					continue
+				}
+
+				bitmapImage, err := convertToBitmap(preparedContent)
+				if err != nil {
+					log.Printf("Failed to convert job %d to bitmap: %v", job.ID, err)
+					continue
+				}
+
+				response := PrintJobResponse{
+					ID:        job.ID,
+					PrinterID: printer.ID,
+					OrderID:   job.OrderID,
+					Content:   bitmapImage,
+					Status:    job.Status,
+					CreatedAt: job.CreatedAt,
+					UpdatedAt: job.UpdatedAt,
+					Order:     job.Order,
+					Receipt:   job.Receipt,
+					Printer: PrinterResponse{
+						ID:         printer.ID,
+						Name:       printer.Name,
+						Type:       printer.Type,
+						IPAddress:  printer.IPAddress,
+						Port:       printer.Port,
+						VendorID:   printer.VendorID,
+						ProductID:  printer.ProductID,
+						PaperSize:  printer.PaperSize,
+						Status:     printer.Status,
+						Categories: printer.Categories,
+					},
+				}
+
+				resultsChan <- response
+			}
+		}()
+	}
+
+	// ส่งงานเข้า jobs channel
 	for _, job := range jobs {
-		var preparedContent []byte
-		var err error
+		jobsChan <- job
+	}
+	close(jobsChan)
 
-		switch job.JobType {
-		case "order":
-			if job.OrderID != nil {
-				preparedContent, err = prepareOrderPrintContent(job)
-			}
-		case "receipt":
-			if job.ReceiptID != nil {
-				preparedContent, err = prepareReceiptPrintContent(job)
-			}
-		case "cancelation":
-			preparedContent, err = prepareCancelPrintContent(job)
-		case "qr_code":
-			// preparedContent, err = prepareQRCodePrintContent(job, job.Content)
-			preparedContent = job.Content
-		default:
-			preparedContent = job.Content
-		}
+	// รอให้ workers ทำงานเสร็จ
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
 
-		if err != nil {
-			log.Printf("Failed to prepare content for job %d: %v", job.ID, err)
-			continue
-		}
-		bitmapImage, err := convertToBitmap(preparedContent)
-		if err != nil {
-			log.Printf("Failed to convert job %d to bitmap %v", job.ID, err)
-			continue
-		}
-		response := PrintJobResponse{
-			ID:        job.ID,
-			PrinterID: printer.ID,
-			OrderID:   job.OrderID,
-			Content:   bitmapImage,
-			Status:    job.Status,
-			CreatedAt: job.CreatedAt,
-			UpdatedAt: job.UpdatedAt,
-			Order:     job.Order,
-			Printer: PrinterResponse{
-				ID:         printer.ID,
-				Name:       printer.Name,
-				Type:       printer.Type,
-				IPAddress:  printer.IPAddress,
-				Port:       printer.Port,
-				VendorID:   printer.VendorID,
-				ProductID:  printer.ProductID,
-				PaperSize:  printer.PaperSize,
-				Status:     printer.Status,
-				Categories: printer.Categories,
-			},
-		}
-
+	// รวบรวมผลลัพธ์
+	var responses []PrintJobResponse
+	for response := range resultsChan {
 		responses = append(responses, response)
 	}
+
+	// เรียงลำดับตาม CreatedAt
+	sort.Slice(responses, func(i, j int) bool {
+		return responses[i].CreatedAt.Before(responses[j].CreatedAt)
+	})
 
 	return c.JSON(responses)
 }

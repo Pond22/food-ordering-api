@@ -5,6 +5,9 @@ import { X, CalendarDays, Edit, Trash2, Plus, Split } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import PaymentTables from './PaymentTables'
 import ReservationManagement from './ReservationManagement';
+import ReservationCheckin from './ReservationCheckin';
+import QRCodeReprint from './QRCodeReprint';
+
 
 // Helper component for displaying table info
 const TableInfo = ({ label, value }) => (
@@ -632,16 +635,20 @@ const TableManager = () => {
               </div>
             </>
           )}
-          {status === 'reserved' && (
-            <>
-              <button
-                className="bg-gray-500 text-white px-4 py-2 rounded"
-                onClick={() => handleTableAction('unreserve', table)}
-              >
-                ยกเลิกการจอง
-              </button>
-            </>
-          )}
+        {status === 'reserved' && (
+          <ReservationCheckin
+            table={table}
+            onCheckinSuccess={({ table }) => {
+              // อัพเดทสถานะโต๊ะใน tables state
+              setTables(prevTables =>
+                prevTables.map(t =>
+                  t.ID === table.ID ? table : t
+                )
+              );
+            }}
+            onUnreserve={(table) => handleTableAction('unreserve', table)}
+          />
+        )}
           {status === 'unavailable' && (
             <>
               <button
@@ -662,6 +669,13 @@ const TableManager = () => {
               <button onClick={() => handleMoveTable(table.ID)}>
                 ย้ายโต๊ะ
               </button>
+                          {/* เพิ่มปุ่มพิมพ์ QR Code ใหม่ */}
+            {uuidMap[table.ID] && (
+              <QRCodeReprint 
+                tableId={table.ID} 
+                uuid={uuidMap[table.ID]} 
+              />
+            )}
             </>
           )}
           {table.GroupID && (
