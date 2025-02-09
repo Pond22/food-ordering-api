@@ -351,7 +351,7 @@ const Section = ({ isLoggedIn, user, handleLogout, token }) => {
 
             <Route
               path="/payment-tables"
-              element={<PaymentTables token={token} />}
+              element={<PaymentTables token={token} user={user}/>}
             />
           </Routes>
 

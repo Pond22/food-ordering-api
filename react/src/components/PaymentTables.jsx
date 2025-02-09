@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { ChevronLeft, CreditCard, Wallet, Info, Check } from 'lucide-react'
 import axios from 'axios'
 
-const PaymentTables = () => {
+const PaymentTables = ({ user }) => {
   const [selectedTable, setSelectedTable] = useState(null)
   const [selectedPayment, setSelectedPayment] = useState('')
   const [vat, setVat] = useState(7)
@@ -24,6 +24,7 @@ const PaymentTables = () => {
     { discountID: '', value: '' },
   ])
   console.log('Occupied Tables:', occupiedTables)
+  console.log('User:', user)
 
   const [cardDetails, setCardDetails] = useState({
     number: '',
@@ -193,11 +194,10 @@ const PaymentTables = () => {
 
       // ตรวจสอบการเลือกโต๊ะ
       const paymentData = {
-        
         uuid: uuid,
         payment_method: selectedPayment, // วิธีการชำระเงิน
         service_charge: vat, // vat
-        staff_id: 1, // รหัสพนักงาน (เปลี่ยนให้เหมาะสม)
+        staff_id: user.id, // รหัสพนักงาน (เปลี่ยนให้เหมาะสม)
 
         discounts: selectedDiscounts
           .filter((discount) => discount.discountID) // กรองส่วนลดที่ถูกเลือก
@@ -252,7 +252,6 @@ const PaymentTables = () => {
       setIsProcessing(false)
     }
   }
-
 
   const SuccessModal = () => (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">

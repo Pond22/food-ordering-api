@@ -46,7 +46,7 @@ const Login = () => {
           if (role === "manager") {
             window.location.href = "/dashboard"; // Manager ไปที่ Dashboard
           } else if (role === "staff") {
-            window.location.href = "/tables"; // Staff ไปที่ Tables
+            window.location.href = "/home"; // Staff ไปที่ Tables
           } else {
             window.location.href = "/login"; // กรณีไม่มี Role ที่ระบุ
           }
