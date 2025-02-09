@@ -750,8 +750,6 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 			preparedContent, err = prepareCancelPrintContent(job)
 		case "qr_code":
 			// preparedContent, err = prepareQRCodePrintContent(job, job.Content)
-			log.Printf("QR Code Content Length: %d", len(job.Content))
-			log.Printf("Is PNG: %v", isPNG(job.Content))
 			preparedContent = job.Content
 		default:
 			preparedContent = job.Content
@@ -1301,8 +1299,6 @@ func GetReprintableJobs(c *fiber.Ctx) error {
 		case "cancelation":
 			content, err = prepareCancelPrintContent(job)
 		case "qr_code":
-			log.Printf("QR Code Job Content Length: %d", len(job.Content))
-			log.Printf("Is PNG: %v", isPNG(job.Content))
 			content = job.Content
 		default:
 			content = job.Content

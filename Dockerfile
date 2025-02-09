@@ -18,6 +18,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o main .
 # Final stage
 FROM alpine:latest
 
+# Install tzdata in final stage
+RUN apk add --no-cache tzdata
+
 WORKDIR /app
 
 # Copy the binary from builder

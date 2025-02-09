@@ -4407,6 +4407,43 @@ paths:
       summary: ชำระเงินรวมหลายโต๊ะ
       tags:
       - Payment_V2
+  /api/v2/reservation/cancel/{id}:
+    post:
+      consumes:
+      - application/json
+      description: ยกเลิกการจองโดยอ้างอิงจาก ID การจอง
+      parameters:
+      - description: ID ของการจอง
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ยกเลิกการจองสำเร็จ
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ข้อมูลไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: ไม่พบการจอง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดภายในระบบ
+          schema:
+            additionalProperties: true
+            type: object
+      summary: ยกเลิกการจองโดยตรง
+      tags:
+      - Reservation_V2
   /order:
     get:
       description: เข้าสู่โต๊ะนั้นๆ ซึ่ง api เส้นนี้ไม่จำเป็นต้องถูกใช้งานโดยตรงเพราะ

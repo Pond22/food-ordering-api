@@ -29,31 +29,33 @@ const ReservationManagement = ({ isOpen, onClose }) => {
     if (!window.confirm('ยืนยันการยกเลิกการจอง?')) return;
 
     try {
-      const response = await axios.post(`http://localhost:8080/api/table/unreservedTable/${tableId}`, {
-        reservation_id: reservationId
-      });
-      
-      if (response.status === 200) {
-        alert('ยกเลิกการจองสำเร็จ');
-        fetchReservations();
-      }
+        const response = await axios.post(`http://localhost:8080/api/v2/reservation/cancel/${reservationId}`);
+        
+        if (response.status === 200) {
+            alert('ยกเลิกการจองสำเร็จ');
+            fetchReservations();
+        }
     } catch (error) {
-      console.error('Error cancelling reservation:', error);
-      alert('ไม่สามารถยกเลิกการจองได้');
+        console.error('Error cancelling reservation:', error);
+        if (error.response?.data?.error) {
+            alert(error.response.data.error);
+        } else {
+            alert('ไม่สามารถยกเลิกการจองได้');
+        }
     }
-  };
+};
 
   const filterReservations = () => {
     const now = new Date();
     return reservations.filter(reservation => {
-      const reservationTime = new Date(reservation.reserved_for);
+      const reservationTime = new Date(reservation.ReservedFor);
       switch (filter) {
         case 'upcoming':
-          return reservationTime > now && reservation.status === 'active';
+          return reservationTime > now && reservation.Status === 'active';
         case 'past':
-          return reservationTime <= now || reservation.status === 'expired';
+          return reservationTime <= now || reservation.Status === 'expired';
         case 'cancelled':
-          return reservation.status === 'cancelled';
+          return reservation.Status === 'cancelled';
         default:
           return true;
       }
@@ -135,22 +137,22 @@ const ReservationManagement = ({ isOpen, onClose }) => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filterReservations().map((reservation) => {
-                  const reservationTime = new Date(reservation.reserved_for);
-                  const isUpcoming = reservationTime > new Date() && reservation.status === 'active';
+                  const reservationTime = new Date(reservation.ReservedFor);
+                  const isUpcoming = reservationTime > new Date() && reservation.Status === 'active';
                   
                   return (
-                    <tr key={reservation.id}>
+                    <tr key={reservation.ID}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {reservation.table_name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {reservation.customer_name}
+                        {reservation.CustomerName}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {reservation.phone_number}
+                        {reservation.PhoneNumber}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {reservation.guest_count} ท่าน
+                        {reservation.GuestCount} ท่าน
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {reservationTime.toLocaleString()}
@@ -158,18 +160,18 @@ const ReservationManagement = ({ isOpen, onClose }) => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                           ${isUpcoming ? 'bg-green-100 text-green-800' : 
-                            reservation.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
+                            reservation.Status === 'cancelled' ? 'bg-red-100 text-red-800' : 
                             'bg-gray-100 text-gray-800'}`}
                         >
                           {isUpcoming ? 'กำลังจะมาถึง' : 
-                           reservation.status === 'cancelled' ? 'ยกเลิกแล้ว' : 
+                           reservation.Status === 'cancelled' ? 'ยกเลิกแล้ว' : 
                            'ผ่านไปแล้ว'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         {isUpcoming && (
                           <button
-                            onClick={() => handleCancelReservation(reservation.table_id, reservation.id)}
+                            onClick={() => handleCancelReservation(reservation.TableID, reservation.ID)}
                             className="text-red-600 hover:text-red-900"
                           >
                             ยกเลิกการจอง

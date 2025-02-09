@@ -122,6 +122,7 @@ func SetupRoutes(app *fiber.App) {
 
 	table := api.Group("/table")
 	{
+		table.Get("/reservations", api_handlers.GetAllReservations)
 		table.Get("/billable/:uuid", api_handlers.GetBillableItems)
 		table.Post("/", api_handlers.Addtable)
 		table.Delete("/:id", api_handlers.DeleteTable)
@@ -132,7 +133,6 @@ func SetupRoutes(app *fiber.App) {
 		table.Post("/reservedTable/:id", api_handlers.ReservedTable)
 		table.Post("/unreservedTable/:id", api_handlers.UnreservedTable)
 		table.Put("/setstatus/:id", api_handlers.ToggleTableStatus)
-		table.Get("/reservations", api_handlers.GetAllReservations)
 	}
 
 	// QR Code Management Routes
