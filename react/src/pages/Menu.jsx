@@ -25,7 +25,7 @@ export default function Menu() {
   return (
     <div className="bg-gray-100 min-h-screen">
       <MenuBar tableID={tableId} uuid={uuid} />
-      <MenuList />
+      {/* <MenuList /> */}
     </div>
   )
 }

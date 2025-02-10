@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import styles from '../styles/MenuItem.module.css'
-import { Image, Minus, Plus, PlusIcon } from 'lucide-react'
+import { Minus, Plus, PlusIcon, } from 'lucide-react'
 import useCartStore from '../hooks/cart-store'
 
-const MenuItem = ({ item }) => {
+const MenuItem = ({ item, language }) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false) // Popup state
   const [note, setNote] = useState('') // Note for the kitchen
   const [selectedOptions, setSelectedOptions] = useState({})
-
+  
   const [quantity, setQuantity] = useState(1)
 
   const { addToCart } = useCartStore()
@@ -21,30 +21,29 @@ const MenuItem = ({ item }) => {
   const togglePopup = () => setIsPopupOpen((prev) => !prev)
 
   // Handle adding item to cart
- const handleAddToCart = () => {
-   if (quantity > 0) {
-     // เพิ่มการตรวจสอบว่า selectedOptions ถูกต้องหรือไม่
-     console.log('Selected Options:', selectedOptions) // ตรวจสอบข้อมูลของ selectedOptions
-     addToCart(item, quantity, note, Object.values(selectedOptions)) // ส่ง selectedOptions ไปด้วย
-     setNote('') // ล้างข้อมูล note หลังจากเพิ่มลงตะกร้า
-     setSelectedOptions({}) // ล้าง selectedOptions
-     setQuantity(1) // รีเซ็ตปริมาณ
-     togglePopup() // ปิด popup
-   }
- }
-
+  const handleAddToCart = () => {
+    if (quantity > 0) {
+      // เพิ่มการตรวจสอบว่า selectedOptions ถูกต้องหรือไม่
+      console.log('Selected Options:', selectedOptions) // ตรวจสอบข้อมูลของ selectedOptions
+      addToCart(item, quantity, note, Object.values(selectedOptions)) // ส่ง selectedOptions ไปด้วย
+      setNote('') // ล้างข้อมูล note หลังจากเพิ่มลงตะกร้า
+      setSelectedOptions({}) // ล้าง selectedOptions
+      setQuantity(1) // รีเซ็ตปริมาณ
+      togglePopup() // ปิด popup
+    }
+  }
 
   // Handle option selection change
   const handleOptionChange = (groupID, option) => {
-  setSelectedOptions((prev) => ({
-    ...prev,
-    [groupID]: {
-      menu_option_id: option.ID,
-      name: option.Name, // เพิ่มชื่อ option
-      price: option.Price, // เพิ่มราคาของ option
-    },
-  }))
-}
+    setSelectedOptions((prev) => ({
+      ...prev,
+      [groupID]: {
+        menu_option_id: option.ID,
+        name: option.Name, // เพิ่มชื่อ option
+        price: option.Price, // เพิ่มราคาของ option
+      },
+    }))
+  }
 
   return (
     <div
@@ -71,14 +70,16 @@ const MenuItem = ({ item }) => {
           className="text-md text-goldlight font-semibold"
           onClick={togglePopup}
         >
-          {item.Name}
+          {/* แสดงชื่อเมนูตามภาษาที่เลือก */}
+          {language === 'th'
+            ? item.Name
+            : language === 'en'
+            ? item.NameEn
+            : item.NameCh}
         </h3>
-        {/* <h4>{item.Description}</h4> */}
 
         <div className={'flex justify-between items-center'}>
-          <p className="text-base text-goldpre font-semibold">
-            {item.Price} ฿
-          </p>
+          <p className="text-base text-goldpre font-semibold">{item.Price} ฿</p>
           <button
             onClick={togglePopup}
             className=" bg-red-500 hover:bg-gold rounded-full p-1 text-white"
@@ -112,7 +113,7 @@ const MenuItem = ({ item }) => {
                 </svg>
               </button>
 
-              {Image ? (
+              {item.Image ? (
                 <img
                   src={`data:image/png;base64,${item.Image}`}
                   alt={item.Name || 'Menu item'}
@@ -130,14 +131,24 @@ const MenuItem = ({ item }) => {
             <div className="p-6">
               <div className="flex justify-between">
                 <h3 className="text-black text-2xl font-medium mb-2">
-                  {item.Name || 'Untitled Item'}
+                  {/* แสดงชื่อเมนูใน Popup ตามภาษาที่เลือก */}
+                  {language === 'th'
+                    ? item.Name
+                    : language === 'en'
+                    ? item.NameEn
+                    : item.NameCh}
                 </h3>
                 <p className="text-black text-xl font-semibold mb-6">
                   {item.Price || 0}&nbsp;บาท
                 </p>
               </div>
               <p className="text-gray-400 mb-4">
-                {item.Description || 'No description available'}
+                {/* แสดงคำอธิบายเมนูใน Popup ตามภาษาที่เลือก */}
+                {language === 'th'
+                  ? item.Description
+                  : language === 'en'
+                  ? item.DescriptionEn
+                  : item.DescriptionCh}
               </p>
 
               {/* Displaying Option Groups if they exist */}
@@ -146,7 +157,12 @@ const MenuItem = ({ item }) => {
                   {item.OptionGroups.map((group) => (
                     <div key={group.ID}>
                       <h4 className="text-black text-lg font-medium">
-                        {group.Name || 'Option Group'}
+                        {/* แสดงชื่อกลุ่มตัวเลือก */}
+                        {language === 'th'
+                          ? group.Name
+                          : language === 'en'
+                          ? group.NameEn
+                          : group.NameCh}
                       </h4>
                       <div className="flex flex-col gap-2 mt-2">
                         {group.Options.map((option) => (
@@ -167,7 +183,13 @@ const MenuItem = ({ item }) => {
                               }
                               className="cursor-pointer"
                             />
-                            {option.Name} (+{option.Price}฿)
+                            {/* แสดงชื่อและราคา option */}
+                            {language === 'th'
+                              ? option.Name
+                              : language === 'en'
+                              ? option.NameEn
+                              : option.NameCh}{' '}
+                            (+{option.Price}฿)
                           </div>
                         ))}
                       </div>

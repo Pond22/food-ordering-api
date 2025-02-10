@@ -14,8 +14,8 @@ const PaymentTables = ({ user }) => {
   const [promoError, setPromoError] = useState('')
   const [appliedDiscount, setAppliedDiscount] = useState(0)
   const location = useLocation()
-  const { tableID, uuid, occupiedTables } = location.state || {}
-
+  const { tableID, uuid,tableName, occupiedTables } = location.state || {}
+  const [selectedTables, setSelectedTables] = useState([])
   const [billableItems, setBillableItems] = useState([])
   const [charges, setCharges] = useState([])
   const [selectedCharges, setSelectedCharges] = useState([])
@@ -23,8 +23,8 @@ const PaymentTables = ({ user }) => {
   const [selectedDiscounts, setSelectedDiscounts] = useState([
     { discountID: '', value: '' },
   ])
-  console.log('Occupied Tables:', occupiedTables)
-  console.log('User:', user)
+  // console.log('Occupied Tables:', occupiedTables)
+  // console.log('User:', user)
 
   const [cardDetails, setCardDetails] = useState({
     number: '',
@@ -100,7 +100,15 @@ const PaymentTables = ({ user }) => {
 
   // Add a function to handle selecting a table
   const handleTableSelection = (table) => {
-    setSelectedTable(table) // Set selected table
+    setSelectedTables((prevSelectedTables) => {
+      if (prevSelectedTables.includes(table.ID)) {
+        // ถ้าโต๊ะถูกเลือกอยู่แล้ว, ลบออก
+        return prevSelectedTables.filter((id) => id !== table.ID)
+      } else {
+        // ถ้าโต๊ะไม่ได้ถูกเลือก, เพิ่มเข้าไป
+        return [...prevSelectedTables, table.ID]
+      }
+    })
   }
 
   const calculateTotal = () => {
@@ -135,7 +143,7 @@ const PaymentTables = ({ user }) => {
     }, 0)
 
     const total =
-      subtotal + tipAmount + vatAmount - totalDiscount + totalCharges
+      subtotal  + vatAmount - totalDiscount + totalCharges
 
     return Math.max(0, total)
   }
@@ -215,16 +223,13 @@ const PaymentTables = ({ user }) => {
           })),
       }
 
-      // ตรวจสอบว่าเลือกโต๊ะเพื่อรวมค่าชำระหรือไม่
-      let apiEndpoint = '/api/payment/process'
-      if (selectedTable) {
-        // เช็คว่าเลือกโต๊ะในการรวมค่าชำระ
-        apiEndpoint = '/api/v2/payment/merge'
-        paymentData.table_ids = [tableID, Number(selectedTable.ID)] // ส่งโต๊ะที่เลือกไปในการรวม
-      } else {
-        // ถ้าไม่ได้เลือกโต๊ะเพื่อรวมชำระ ให้ส่ง table_id
-        paymentData.table_id = tableID
-      }
+       let apiEndpoint = '/api/payment/process' // API สำหรับกรณีไม่มีโต๊ะที่เลือก
+       if (selectedTables && selectedTables.length > 0) {
+         apiEndpoint = '/api/v2/payment/merge' // API สำหรับกรณีเลือกโต๊ะหลายโต๊ะ
+         paymentData.table_ids = selectedTables // ส่ง array ของ ID โต๊ะที่เลือกไป
+       } else {
+         paymentData.table_id = tableID // ถ้าไม่มีโต๊ะที่เลือก ให้ส่ง tableID
+       }
 
       // ตรวจสอบการส่งข้อมูล
       console.log(paymentData)
@@ -288,7 +293,9 @@ const PaymentTables = ({ user }) => {
         <div className="bg-white rounded-2xl p-6 mb-6 shadow-md">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-medium">Order Summary</h2>
-            <span className="text-sm text-gray-500">Table {tableID}</span>
+            <span className="text-lg font-medium text-gray-500">
+              Table {tableName}
+            </span>
             <span className="text-sm text-gray-500">Table {uuid}</span>
           </div>
           {billableItems.map((item) => (
@@ -417,11 +424,11 @@ const PaymentTables = ({ user }) => {
           <div className="space-y-3">
             {occupiedTables && occupiedTables.length > 0 ? (
               <div className="flex flex-col space-y-3">
-                {occupiedTables.map((table, index) => (
+                {occupiedTables.map((table) => (
                   <div
-                    key={index}
+                    key={table.ID}
                     className={`flex cursor-pointer p-3 rounded-lg border ${
-                      selectedTable?.tableID === table.tableID
+                      selectedTables.includes(table.ID)
                         ? 'bg-gray-200 border-gray-500'
                         : 'border-gray-300'
                     }`}

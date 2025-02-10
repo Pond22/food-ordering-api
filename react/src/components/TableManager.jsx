@@ -62,9 +62,13 @@ const TableManager = () => {
 
     // ดึง UUID ของโต๊ะที่เลือก
     const uuid = uuidMap[tableID]
+     const table = tables.find((t) => t.ID === tableID) // หาตัวโต๊ะที่ตรงกับ tableID
+     const tableName = table ? table.Name : 'ไม่พบชื่อโต๊ะ'
 
     // ส่งข้อมูลโต๊ะทั้งหมดที่มีสถานะ occupied พร้อมกับ tableID และ uuid ไปยังหน้า PaymentTables
-    navigate('/payment-tables', { state: { tableID, uuid, occupiedTables } })
+    navigate('/payment-tables', {
+      state: { tableID, uuid, tableName, occupiedTables },
+    })
   }
 
 
@@ -235,48 +239,7 @@ const TableManager = () => {
       alert(errorMessage);
     }
   };
-  const handleReservationSubmit = async () => {
-    if (!selectedTable || !customerName || !customerCount || !reservationTime) {
-      alert('กรุณากรอกข้อมูลให้ครบถ้วน');
-      return;
-    }
-  
-    const currentTime = new Date();
-    const reservationDate = new Date(reservationTime);
-  
-    if (reservationDate < currentTime) {
-      alert('เวลาจองต้องไม่ใช่เวลาในอดีต');
-      return;
-    }
-  
-    try {
-      const response = await axios.post(
-        `http://localhost:8080/api/table/reservedTable/${selectedTable.ID}`,
-        {
-          customer_name: customerName,
-          phone_number: "", // เพิ่มฟิลด์สำหรับเบอร์โทร
-          guest_count: parseInt(customerCount),
-          reserved_for: reservationTime
-        }
-      );
-  
-      if (response.status === 200) {
-        alert('จองโต๊ะสำเร็จ');
-        setIsReservationDialogOpen(false);
-        setCustomerName('');
-        setCustomerCount(0);
-        setReservationTime('');
-        setSelectedTable(null);
-      }
-    } catch (error) {
-      console.error('Error making reservation:', error);
-      if (error.response?.data?.error) {
-        alert(`เกิดข้อผิดพลาด: ${error.response.data.error}`);
-      } else {
-        alert('เกิดข้อผิดพลาดในการจองโต๊ะ');
-      }
-    }
-  };
+
 
   // Create a new table
   const createTable = async () => {
@@ -399,10 +362,6 @@ const TableManager = () => {
         alert('เกิดข้อผิดพลาดในการย้ายโต๊ะ')
       }
     }
-  }
-
-  const handlePrimaryTableSelection = (table) => {
-    setPrimaryTable(table) // เมื่อผู้ใช้เลือกโต๊ะหลัก
   }
 
   const handleSelectTable = (tableId) => {
