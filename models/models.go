@@ -231,16 +231,49 @@ type Users struct {
 	UpdatedAt time.Time
 }
 
-type POSSession struct { //เอาไว้เวลาพนักงานสแกนเพื่อเข้าทำงานที่เครื่องคอมหลักหรือ POS เคาท์เตอร์
-	ID         uint      `gorm:"primaryKey"`
-	StaffID    uint      `gorm:"not null"`           // เชื่อมกับตาราง Users
-	Staff      Users     `gorm:"foreignKey:StaffID"` // Relation กับ Users
-	StartTime  time.Time `gorm:"not null"`
-	EndTime    *time.Time
-	LoginToken string `gorm:"unique"`   // Token สำหรับ QR Login
-	Status     string `gorm:"not null"` // active, ended
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+// POSSession - เก็บข้อมูล session การใช้งาน POS
+type POSSession struct {
+	gorm.Model
+	StaffID          *uint      `json:"staff_id"`
+	Staff            *Users     `gorm:"foreignKey:StaffID"`
+	StartTime        time.Time  `json:"start_time" gorm:"not null"`
+	EndTime          *time.Time `json:"end_time,omitempty"`
+	LoginToken       string     `json:"login_token" gorm:"unique"`
+	VerificationCode string     `json:"-" gorm:"size:6"` // ไม่แสดงใน JSON response
+	Verified         bool       `json:"verified" gorm:"default:false"`
+	Status           string     `json:"status" gorm:"not null"` // pending, active, closed
+	ExpiresAt        *time.Time `json:"expires_at,omitempty"`   // เวลาหมดอายุของ verification code
+	LastActivityAt   time.Time  `json:"last_activity_at"`
+	DeviceInfo       string     `json:"device_info,omitempty"` // ข้อมูลอุปกรณ์ที่ใช้งาน
+	IPAddress        string     `json:"ip_address,omitempty"`  // IP ของอุปกรณ์
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
+// POSSessionLog - เก็บประวัติการทำงานของ POS session
+type POSSessionLog struct {
+	gorm.Model
+	SessionID   uint       `json:"session_id" gorm:"not null"`
+	POSSession  POSSession `gorm:"foreignKey:SessionID"`
+	StaffID     uint       `json:"staff_id" gorm:"not null"`
+	Staff       Users      `gorm:"foreignKey:StaffID"`
+	Action      string     `json:"action" gorm:"not null"` // login, logout, verify, expire
+	Status      string     `json:"status" gorm:"not null"` // success, failed
+	DeviceInfo  string     `json:"device_info,omitempty"`
+	IPAddress   string     `json:"ip_address,omitempty"`
+	Description string     `json:"description,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+}
+
+// POSVerificationAttempt - เก็บประวัติการพยายามยืนยันตัวตน
+type POSVerificationAttempt struct {
+	gorm.Model
+	SessionID   uint       `json:"session_id" gorm:"not null"`
+	POSSession  POSSession `gorm:"foreignKey:SessionID"`
+	AttemptedAt time.Time  `json:"attempted_at" gorm:"not null"`
+	Success     bool       `json:"success" gorm:"not null"`
+	IPAddress   string     `json:"ip_address,omitempty"`
+	DeviceInfo  string     `json:"device_info,omitempty"`
 }
 
 // SalesAnalysis - ตารางสำหรับวิเคราะห์การขายและ Association

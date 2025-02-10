@@ -18,16 +18,25 @@ func SetupRoutes(app *fiber.App) {
 	{
 		notifications.Post("/call-staff", api_handlers.CallStaff)
 	}
-	// WebSocket สำหรับพนักงาน
+	// WebSocket สำหรับพนักงานรับแจ้งเตือน
 	app.Get("/ws/staff", websocket.New(api_handlers.StaffWebSocket))
 
 	pos := api.Group("/pos")
 	{
-		pos.Post("/sessions/start", api_handlers.StartPOSSession)
-		pos.Post("sessions/:id/end", api_handlers.EndPOSSession)
-		pos.Get("/sessions/:id/validate", api_handlers.ValidatePOSSession)
-	}
+		// Public endpoints (ไม่ต้องการ authentication)
+		pos.Post("/verify-code", api_handlers.VerifyPOSAccessCode)
 
+		// Protected endpoints (ต้องการ authentication)
+		posAuth := pos.Group("", utils.AuthRequired())
+		{
+			// สำหรับเครื่องต้นทาง (ที่ staff login อยู่)
+			posAuth.Post("/generate-code", api_handlers.GeneratePOSVerificationCode)
+
+			// สำหรับการจัดการ POS session
+			posAuth.Post("/logout", api_handlers.LogoutPOS)
+			posAuth.Get("/session-status", api_handlers.GetPOSSessionStatus)
+		}
+	}
 	// Auth Routes
 	auth := api.Group("/auth")
 	{

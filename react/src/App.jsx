@@ -1,72 +1,86 @@
-import React, { useState, useEffect } from 'react'
-import { Routes, Route, useNavigate } from 'react-router-dom'
-import Login from './components/Login'
-import Section from './Section'
-import Menu from './pages/Menu'
+import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import Login from './components/Login';
+import Section from './Section';
+import Menu from './pages/Menu';
+import Pos from './pages/POS';
+import POSVerifyRoute from './pages/POSVerifyRoute';
+
+// Protected Route Component
+const ProtectedRoute = ({ children, isLoggedIn }) => {
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+};
 
 const App = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [user, setUser] = useState(null)
-  const [token, setToken] = useState(null) // เพิ่ม state สำหรับ token
-  const navigate = useNavigate()
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    const userData = localStorage.getItem('user')
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
     if (token && userData) {
-      setIsLoggedIn(true)
-      setUser(JSON.parse(userData))
+      setIsLoggedIn(true);
+      setToken(token);
+      setUser(JSON.parse(userData));
     } else {
-      setIsLoggedIn(false)
-      setUser(null)
+      setIsLoggedIn(false);
+      setUser(null);
     }
-  }, [])
+  }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    setIsLoggedIn(false)
-    setUser(null)
-    navigate('/login') // ไปที่หน้า login หลัง logout
-  }
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('posToken'); // ลบ POS token ด้วย
+    localStorage.removeItem('posSessionId');
+    setIsLoggedIn(false);
+    setUser(null);
+    setToken(null);
+    navigate('/login');
+  };
 
   return (
-    <>
-      {/* เส้นทางที่ไม่มีการล็อกอิน */}
-      <Routes>
-        {/* เส้นทางสำหรับเมนูของโต๊ะที่มี tableId และ uuid */}
-        <Route path="/menu" element={<Menu />} />
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/login" element={
+        isLoggedIn ? <Navigate to="/home" replace /> : <Login />
+      } />
+      <Route path="/menu" element={<Menu />} />
 
-        {/* เส้นทางอื่นๆ สำหรับ login */}
-        {!isLoggedIn ? (
-          <Route path="/login" element={<Login />} />
-        ) : (
-          // เมื่อผู้ใช้ล็อกอินสำเร็จ จะแสดง Section โดยไม่ใช้ Route
-          <Route
-            path="/home"
-            element={
-              <Section
-                isLoggedIn={isLoggedIn}
-                user={user}
-                handleLogout={handleLogout}
-                token={token}
-              />
-            }
+      {/* POS Routes */}
+      <Route path="/pos/verify" element={<POSVerifyRoute />} />
+      <Route path="/pos" element={
+        <ProtectedRoute isLoggedIn={isLoggedIn}>
+          <Pos />
+        </ProtectedRoute>
+      } />
+
+      {/* Protected Routes */}
+      <Route path="/home" element={
+        <ProtectedRoute isLoggedIn={isLoggedIn}>
+          <Section
+            isLoggedIn={isLoggedIn}
+            user={user}
+            handleLogout={handleLogout}
+            token={token}
           />
-        )}
-      </Routes>
+        </ProtectedRoute>
+      } />
 
-      {/* แสดง Section โดยตรงหากล็อกอินแล้ว */}
-      {isLoggedIn && (
-        <Section
-          isLoggedIn={isLoggedIn}
-          user={user}
-          handleLogout={handleLogout}
-          token={token}
-        />
-      )}
-    </>
-  )
-}
+      {/* Root Route */}
+      <Route path="/" element={
+        isLoggedIn ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />
+      } />
 
-export default App
+      {/* Catch all route */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
+
+export default App;

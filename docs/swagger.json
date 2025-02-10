@@ -2982,6 +2982,123 @@
                 }
             }
         },
+        "/api/pos/generate-code": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "สร้าง Temporary Session และ Verification Code สำหรับผู้ใช้งาน POS",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "POS"
+                ],
+                "summary": "สร้าง Verification Code สำหรับการเข้าใช้งาน POS",
+                "responses": {
+                    "200": {
+                        "description": "สร้าง Session และ Verification Code สำเร็จ",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.GeneratePOSVerificationCodeResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลผู้ใช้ไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต: ไม่มีสิทธิ์เข้าใช้",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการสร้าง Session",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/pos/verify-code": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ตรวจสอบและยืนยัน Verification Code สำหรับการเข้าใช้งาน POS",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "POS"
+                ],
+                "summary": "ยืนยัน Verification Code เพื่อเข้าใช้งาน POS",
+                "parameters": [
+                    {
+                        "description": "ข้อมูลการยืนยัน",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.POSVerificationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ยืนยันการเข้าใช้งาน POS สำเร็จ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "รูปแบบคำขอไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "รหัสยืนยันไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบพนักงาน",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการยืนยัน Session",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/printers": {
             "get": {
                 "description": "ดึงรายการเครื่องพิมพ์ทั้งหมดพร้อมหมวดหมู่",
@@ -4976,6 +5093,17 @@
                 }
             }
         },
+        "api_handlers.GeneratePOSVerificationCodeResponse": {
+            "type": "object",
+            "properties": {
+                "code_hint": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
         "api_handlers.LoginRequest": {
             "type": "object",
             "required": [
@@ -5143,6 +5271,20 @@
                     "type": "number"
                 },
                 "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "api_handlers.POSVerificationRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "staff_id": {
+                    "type": "integer"
+                },
+                "token": {
                     "type": "string"
                 }
             }
