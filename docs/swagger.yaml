@@ -14,6 +14,27 @@ definitions:
       table_number:
         type: string
     type: object
+  api_handlers.CancelItemDetail:
+    properties:
+      order_item_id:
+        type: integer
+      quantity:
+        minimum: 1
+        type: integer
+    required:
+    - order_item_id
+    - quantity
+    type: object
+  api_handlers.CancelOptionDetail:
+    properties:
+      option_id:
+        type: integer
+      order_item_id:
+        type: integer
+    required:
+    - option_id
+    - order_item_id
+    type: object
   api_handlers.ChangePasswordRequest:
     properties:
       current_password:
@@ -561,6 +582,27 @@ definitions:
     - items
     - name
     - price
+    type: object
+  api_handlers.finalize_items_req:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/api_handlers.CancelItemDetail'
+        type: array
+      options:
+        items:
+          $ref: '#/definitions/api_handlers.CancelOptionDetail'
+        type: array
+      reason:
+        type: string
+      staff_id:
+        type: integer
+      table_id:
+        type: integer
+    required:
+    - reason
+    - staff_id
+    - table_id
     type: object
   api_handlers.move_req:
     properties:
@@ -2881,6 +2923,29 @@ paths:
               $ref: '#/definitions/api_handlers.OrderResponse'
             type: array
       summary: ดึงรายการออเดอร์ที่กำลังดำเนินการ
+      tags:
+      - Order_ใหม่
+  /api/orders/finalize:
+    post:
+      consumes:
+      - application/json
+      description: ใช้สำหรับการยกเลิกรายการอาหารในกรณีพิเศษก่อนชำระเงิน เช่น อาหารที่เสิร์ฟแล้วแต่ลูกค้าไม่ได้รับ
+      parameters:
+      - description: ข้อมูลการยกเลิกรายการ
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.finalize_items_req'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: จัดการออเดอร์ก่อนชำระเงิน
       tags:
       - Order_ใหม่
   /api/orders/items/cancel:

@@ -15,7 +15,12 @@ const MenuTable = ({ menuItemId }) => {
       if (!menuItemId) return; // ถ้าไม่มี menuItemId ไม่ต้องทำอะไร
       setLoading(true);
       try {
-        const response = await axios.get(`http://127.0.0.1:8080/api/menu/options/${menuItemId}`);
+        const token = localStorage.getItem('token')
+        const response = await axios.get(`http://127.0.0.1:8080/api/menu/options/${menuItemId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setMenuOptions(response.data);
       } catch (error) {
         console.error("ไม่สามารถดึงข้อมูลตัวเลือกของเมนูได้:", error);

@@ -131,7 +131,13 @@ const MenuManagement = () => {
   const fetchCategories = async () => {
     try {
       setLoading(true)
-      const response = await axios.get('http://127.0.0.1:8080/api/categories') //การดึงข้อมูล categories จาก api เส้นอื่น
+      const token = localStorage.getItem('token')
+      const response = await axios.get('http://127.0.0.1:8080/api/categories', {
+        headers: {
+          accept: 'application/json',
+          Authorization: `Bearer ${token}`, // ส่ง JWT ใน Header
+        },
+      }) //การดึงข้อมูล categories จาก api เส้นอื่น
       setCategories(response.data)
     } catch (error) {
       setErrorMessage('ไม่สามารถดึงข้อมูลหมวดหมู่ได้')
@@ -150,9 +156,12 @@ const MenuManagement = () => {
   // ฟังก์ชันดึงข้อมูล options จาก api
   const fetchGroupOptions = async (menuId) => {
     try {
-      const response = await axios.get(
-        `${API_BASE_URL}/option-groups/${menuId}`
-      )
+      const token = localStorage.getItem('token')
+      const response = await axios.get(`${API_BASE_URL}/option-groups/${menuId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
       if (response.status === 200) {
         setMenuOptions(response.data) // ตั้งค่าเมนู options จาก API
       }
@@ -175,7 +184,12 @@ const MenuManagement = () => {
         url += `&id=${id}`
       }
 
-      const response = await axios.get(url)
+      const token = localStorage.getItem('token')
+      const response = await axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
 
       if (response.status === 200 && Array.isArray(response.data)) {
         const sortedMenus = response.data.sort((a, b) => a.ID - b.ID)
@@ -281,12 +295,14 @@ const MenuManagement = () => {
         image: '', // ถ้าไม่มีภาพให้ส่งเป็นค่าว่าง
       }
 
+      const token = localStorage.getItem('token')
       const menuResponse = await axios.put(
         `http://localhost:8080/api/menu/${menuDetails.ID}`, // ใช้ menuDetails.ID
         menuPayload, // ส่งข้อมูลที่เตรียมไว้
         {
           headers: {
             'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
           },
         }
       )
@@ -315,7 +331,7 @@ const MenuManagement = () => {
               price: Number(option.price),
             })),
           }
-
+          const token = localStorage.getItem('token')
           // ใช้ API POST ในการสร้าง Option Group ใหม่
           const groupResponse = await axios.post(
             `http://localhost:8080/api/menu/option-groups?menu_id=${menuDetails.ID}`,
@@ -323,6 +339,7 @@ const MenuManagement = () => {
             {
               headers: {
                 'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
               },
             }
           )
@@ -347,7 +364,7 @@ const MenuManagement = () => {
               price: Number(option.price),
             })),
           }
-
+          const token = localStorage.getItem('token')
           // ใช้ API PUT ในการอัปเดต Option Group ที่มีอยู่แล้ว
           const groupResponse = await axios.put(
             `http://localhost:8080/api/menu/option-groups/${group.ID}`,
@@ -355,6 +372,7 @@ const MenuManagement = () => {
             {
               headers: {
                 'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
               },
             }
           )
@@ -382,13 +400,14 @@ const MenuManagement = () => {
                 name_ch: option.nameCh.trim(),
                 price: Number(option.price),
               }
-
+              const token = localStorage.getItem('token')
               const optionResponse = await axios.put(
                 `http://localhost:8080/api/menu/options/${option.ID}`,
                 optionPayload,
                 {
                   headers: {
                     'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
                   },
                 }
               )
@@ -411,13 +430,14 @@ const MenuManagement = () => {
                 name_ch: option.nameCh.trim(),
                 price: Number(option.price),
               }
-
+              const token = localStorage.getItem('token')
               const optionResponse = await axios.post(
                 `http://localhost:8080/api/menu/options?OptionGroupID=${group.ID}`,
                 optionPayload,
                 {
                   headers: {
                     'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
                   },
                 }
               )
@@ -472,12 +492,14 @@ const MenuManagement = () => {
   // ฟังก์ชันสำหรับการอัพเดท Option ผ่าน API
   const updateOption = async () => {
     try {
+      const token = localStorage.getItem('token')
       const response = await axios.put(
         `http://localhost:8080/api/menu/${selectedOption.GroupID}/options/${selectedOption.ID}`,
         updatedData,
         {
           headers: {
             'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
           },
         }
       )
@@ -510,9 +532,13 @@ const MenuManagement = () => {
     if (!menuToDelete) return
 
     try {
-      const response = await axios.delete(
-        `http://localhost:8080/api/menu/${menuToDelete.ID}`
-      )
+      const token = localStorage.getItem('token')
+      const response = await axios.delete(`http://localhost:8080/api/menu/${menuToDelete.ID}`, {
+        headers: {
+          accept: 'application/json',
+          Authorization: `Bearer ${token}`, // ส่ง JWT ใน Header
+        },
+      })
       if (response.status === 200) {
         alert('ลบเมนูสำเร็จ')
         setMenus((prevMenus) =>
@@ -563,12 +589,19 @@ const MenuManagement = () => {
   // ลบ Option
   const deleteOption = async (optionId) => {
     try {
+      const token = localStorage.getItem('token') // ดึง JWT
+  
       const response = await fetch(
         `http://localhost:8080/api/menu/options/${optionId}`,
         {
           method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`, // เพิ่ม JWT ใน Header
+          },
         }
       )
+  
       if (response.ok) {
         alert('ลบตัวเลือกสำเร็จ')
       } else {
@@ -579,6 +612,7 @@ const MenuManagement = () => {
       alert('ไม่สามารถลบตัวเลือกได้')
     }
   }
+  
 
   const handleDeleteOptionGroup = (groupIndex) => {
     const updatedGroups = menuDetails.optionGroups.filter(
@@ -1481,7 +1515,15 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await axios.get('http://127.0.0.1:8080/api/categories')
+        const token = localStorage.getItem('token')
+        const response = await axios.get('http://127.0.0.1:8080/api/categories',
+          {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`, // เพิ่ม JWT ใน Header
+            },
+          })
         if (response.status === 200) {
           setCategories(response.data) // เก็บข้อมูลหมวดหมู่
         }
@@ -1587,11 +1629,15 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
     }
 
     try {
+      const token = localStorage.getItem('token')
       const response = await axios.post(
         'http://localhost:8080/api/menu',
         menuData,
         {
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`, 
+          },
         }
       )
 

@@ -11,28 +11,40 @@ const Discount = () => {
     isActive: true,
   })
 
+  const token = localStorage.getItem('token') || ''
+  if (!token) {
+    window.location.href = '/login' 
+  }
+  
   // ดึงข้อมูลประเภทส่วนลดทั้งหมดจาก API
   useEffect(() => {
     const fetchDiscountTypes = async () => {
       try {
+        const token = localStorage.getItem('token')
+        if (!token) throw new Error('No token found')
+  
         const response = await fetch(
           'http://localhost:8080/api/payment/discount-types',
           {
             method: 'GET',
-            headers: { Accept: 'application/json' },
+            headers: {
+              Accept: 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
           }
         )
-
-        if (response.ok) {
-          const data = await response.json()
-          setDiscountTypes(data)
-        } else {
-          console.error('Error fetching discount types:', response.statusText)
+  
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`)
         }
+  
+        const data = await response.json()
+        setDiscountTypes(data)
       } catch (error) {
         console.error('Error fetching discount types:', error)
       }
     }
+  
     fetchDiscountTypes()
   }, [])
 
@@ -74,11 +86,13 @@ const Discount = () => {
   const handleDelete = async (id) => {
     if (window.confirm('คุณแน่ใจหรือไม่ที่จะลบประเภทส่วนลดนี้?')) {
       try {
+        const token = localStorage.getItem('token')
         const response = await fetch(
           `http://localhost:8080/api/payment/discount-types/${id}`,
           {
             method: 'DELETE',
-            headers: { Accept: 'application/json' },
+            headers: { Accept: 'application/json',
+              Authorization: `Bearer ${token}`,},
           }
         )
 
@@ -103,6 +117,7 @@ const Discount = () => {
     const updatedStatus = !currentStatus
 
     try {
+      const token = localStorage.getItem('token')
       const response = await fetch(
         `http://localhost:8080/api/payment/discount-types/${id}`,
         {
@@ -110,6 +125,7 @@ const Discount = () => {
           headers: {
             'Content-Type': 'application/json',
             Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             is_active: updatedStatus, // ส่งข้อมูลสถานะ is_active ที่อัปเดต
@@ -154,11 +170,13 @@ const Discount = () => {
       : 'http://localhost:8080/api/payment/discount-types'
 
     try {
+      const token = localStorage.getItem('token')
       const response = await fetch(url, {
         method: method,
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(newDiscountType),
       })

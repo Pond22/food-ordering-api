@@ -2211,6 +2211,41 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/orders/finalize": {
+            "post": {
+                "description": "ใช้สำหรับการยกเลิกรายการอาหารในกรณีพิเศษก่อนชำระเงิน เช่น อาหารที่เสิร์ฟแล้วแต่ลูกค้าไม่ได้รับ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Order_ใหม่"
+                ],
+                "summary": "จัดการออเดอร์ก่อนชำระเงิน",
+                "parameters": [
+                    {
+                        "description": "ข้อมูลการยกเลิกรายการ",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.finalize_items_req"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/orders/items/cancel": {
             "post": {
                 "description": "ยกเลิกรายการอาหารในออเดอร์ตามจำนวนที่กำหนด",
@@ -4991,6 +5026,37 @@ const docTemplate = `{
                 }
             }
         },
+        "api_handlers.CancelItemDetail": {
+            "type": "object",
+            "required": [
+                "order_item_id",
+                "quantity"
+            ],
+            "properties": {
+                "order_item_id": {
+                    "type": "integer"
+                },
+                "quantity": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
+        "api_handlers.CancelOptionDetail": {
+            "type": "object",
+            "required": [
+                "option_id",
+                "order_item_id"
+            ],
+            "properties": {
+                "option_id": {
+                    "type": "integer"
+                },
+                "order_item_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "api_handlers.ChangePasswordRequest": {
             "type": "object",
             "required": [
@@ -5807,6 +5873,37 @@ const docTemplate = `{
                 },
                 "start_date": {
                     "type": "string"
+                }
+            }
+        },
+        "api_handlers.finalize_items_req": {
+            "type": "object",
+            "required": [
+                "reason",
+                "staff_id",
+                "table_id"
+            ],
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api_handlers.CancelItemDetail"
+                    }
+                },
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api_handlers.CancelOptionDetail"
+                    }
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "staff_id": {
+                    "type": "integer"
+                },
+                "table_id": {
+                    "type": "integer"
                 }
             }
         },

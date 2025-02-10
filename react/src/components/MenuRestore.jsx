@@ -8,12 +8,24 @@ const DeletedMenuTable = () => {
   const [message, setMessage] = useState('')
 
   useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
+      window.location.href = '/login' // Redirect ไปที่หน้า Login
+      return
+    }
     fetchDeletedMenus()
   }, [])
-
+  
   const fetchDeletedMenus = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/menu/deleted')
+      const token = localStorage.getItem('token')
+      const response = await axios.get('http://localhost:8080/api/menu/deleted', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+      )
       setMenus(response.data)
       setLoading(false)
     } catch (err) {
@@ -24,9 +36,13 @@ const DeletedMenuTable = () => {
 
   const handleRestoreMenu = async (menuId) => {
     try {
+      const token = localStorage.getItem('token')
       const response = await axios.post(
-        `http://localhost:8080/api/menu/restore/${menuId}`
-      )
+        `http://localhost:8080/api/menu/restore/${menuId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`, // ✅ เพิ่ม JWT
+          },
+        })
       setMessage(`เมนู "${response.data.Name}" ได้รับการกู้คืนเรียบร้อยแล้ว`)
       fetchDeletedMenus() // Refresh the list after restoring
     } catch (err) {

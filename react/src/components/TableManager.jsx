@@ -7,7 +7,7 @@ import PaymentTables from './PaymentTables'
 import ReservationManagement from './ReservationManagement';
 import ReservationCheckin from './ReservationCheckin';
 import QRCodeReprint from './QRCodeReprint';
-
+import OrderSummaryDetail from './OrderSummaryDetail'
 
 // Helper component for displaying table info
 const TableInfo = ({ label, value }) => (

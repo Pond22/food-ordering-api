@@ -16,10 +16,12 @@ const ChargeTypeManagement = () => {
 
   // ดึงข้อมูลประเภทค่าใช้จ่ายทั้งหมดจาก API
   useEffect(() => {
+    const token = localStorage.getItem('token')
     fetch('http://localhost:8080/api/payment/charge-types', {
       method: 'GET',
       headers: {
         Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
       },
     })
       .then((response) => response.json())
@@ -75,10 +77,12 @@ const ChargeTypeManagement = () => {
   // ฟังก์ชันสำหรับลบประเภทค่าใช้จ่าย
   const handleDelete = (id) => {
     if (window.confirm('คุณแน่ใจหรือไม่ที่จะลบประเภทค่าใช้จ่ายนี้?')) {
+      const token = localStorage.getItem('token')
       fetch(`http://localhost:8080/api/payment/charge-types/${id}`, {
         method: 'DELETE',
         headers: {
           Accept: 'application/json',
+          Authorization: `Bearer ${token}`,
         },
       })
         .then((response) => {
@@ -101,11 +105,12 @@ const ChargeTypeManagement = () => {
   // ฟังก์ชันสำหรับ toggle การเปิดใช้งาน
   const toggleActiveStatus = (id, currentStatus) => {
     const updatedStatus = !currentStatus // เปลี่ยนสถานะเปิด/ปิดใช้งาน
-
+    const token = localStorage.getItem('token')
     fetch(`http://localhost:8080/api/payment/charge-types/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
         Accept: 'application/json',
       },
       body: JSON.stringify({
@@ -145,11 +150,13 @@ const ChargeTypeManagement = () => {
     : 'http://localhost:8080/api/payment/charge-types' // ถ้าเป็นการเพิ่มข้อมูลใหม่
 
   try {
+    const token = localStorage.getItem('token')
     const response = await fetch(url, {
       method: method,
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(updatedChargeType),
     })

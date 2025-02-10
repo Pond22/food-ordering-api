@@ -121,6 +121,7 @@ func SetupRoutes(app *fiber.App) {
 		orders.Post("/items/serve/:id", api_handlers.ServeOrderItem)
 		orders.Get("/active", api_handlers.GetActiveOrders)
 		orders.Get("/table/:uuid", api_handlers.GetOrdersByid)
+		orders.Post("/finalize", api_handlers.FinalizeOrderItems)
 		// สำหรับพนักงาน (ต้องการการยืนยันตัวตน)
 		// orderStaff := orders.Group("/", utils.AuthRequired())
 		// {

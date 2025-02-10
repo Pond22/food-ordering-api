@@ -13,51 +13,55 @@ const Printer = () => {
 
   // Fetch printers
   useEffect(() => {
-    axios
-      .get('http://localhost:8080/api/printers', {
-        headers: {
-          Accept: 'application/json',
-        },
-      })
-      .then((response) => {
-        setPrinters(response.data)
-
-        // Fetch categories for each printer
-        response.data.forEach((printer) => {
-          axios
-            .get(
-              `http://localhost:8080/api/printers/categories/${printer.ID}`,
-              {
-                headers: {
-                  Accept: 'application/json',
-                },
-              }
-            )
-            .then((categoryResponse) => {
-              setPrinterCategories((prev) => ({
-                ...prev,
-                [printer.ID]: categoryResponse.data,
-              }))
-            })
-            .catch((error) => {
-              console.error(
-                `Error fetching categories for printer ${printer.ID}:`,
-                error
-              )
-            })
+    const fetchPrintersAndCategories = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) return
+  
+        const [printersRes, categoriesRes] = await Promise.all([
+          axios.get('http://localhost:8080/api/printers', {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          axios.get('http://localhost:8080/api/categories', {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ])
+  
+        setPrinters(printersRes.data)
+        setCategories(categoriesRes.data)
+  
+        // Fetch categories for all printers in one request
+        const categoryRequests = printersRes.data.map((printer) =>
+          axios.get(`http://localhost:8080/api/printers/categories/${printer.ID}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+        )
+  
+        const categoryResponses = await Promise.all(categoryRequests)
+  
+        // อัปเดต printerCategories ให้เป็น object โดยใช้ printer.ID เป็น key
+        const newPrinterCategories = {}
+        printersRes.data.forEach((printer, index) => {
+          newPrinterCategories[printer.ID] = categoryResponses[index].data
         })
-      })
-      .catch((error) => {
-        console.error('Error fetching printers data:', error)
-      })
+  
+        setPrinterCategories(newPrinterCategories)
+      } catch (error) {
+        console.error('Error fetching printers and categories:', error)
+      }
+    }
+  
+    fetchPrintersAndCategories()
   }, [])
 
   // Fetch categories
   useEffect(() => {
+    const token = localStorage.getItem('token')
     axios
       .get('http://localhost:8080/api/categories', {
         headers: {
           Accept: 'application/json',
+          Authorization: `Bearer ${token}`,
         },
       })
       .then((response) => {
@@ -143,6 +147,7 @@ const Printer = () => {
   // Delete printer
   const handleDeletePrinter = async (printerId) => {
     try {
+      const token = localStorage.getItem('token')
       await axios.delete(`http://localhost:8080/api/printers/${printerId}`)
       setPrinters(printers.filter((printer) => printer.ID !== printerId))
     } catch (error) {

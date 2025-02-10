@@ -813,12 +813,13 @@ func GetBillableItems(c *fiber.Ctx) error {
 		})
 	}
 
-	// ดึงรายการอาหารที่ต้องคิดเงินa
+	// ดึงรายการอาหารที่ต้องคิดเงิน
 	var orderItems []models.OrderItem
 	if err := db.DB.Joins("Order").
 		Joins("MenuItem").
 		Joins("MenuItem.Category").
 		Preload("Options.MenuOption").
+		Preload("PromotionUsage.Promotion"). // เพิ่ม Preload สำหรับโปรโมชั่น
 		Where("\"Order\".uuid = ? AND order_items.status IN ?", uuid, []string{"served", "pending"}).
 		Find(&orderItems).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -833,13 +834,13 @@ func GetBillableItems(c *fiber.Ctx) error {
 	}
 
 	var response struct {
-		UUID       string         `json:"uuid"`
-		Items      []BillableItem `json:"items"`
-		GrandTotal float64        `json:"grand_total"`
+		UUID  string         `json:"uuid"`
+		Items []BillableItem `json:"items"`
+		Total float64        `json:"total"`
 	}
 
 	response.UUID = uuid
-	var grandTotal float64
+	var total float64
 
 	// แปลงข้อมูลรายการอาหาร
 	for _, item := range orderItems {
@@ -857,9 +858,18 @@ func GetBillableItems(c *fiber.Ctx) error {
 			Options:   make([]OptionInfo, 0),
 		}
 
+		// ตรวจสอบและเพิ่มข้อมูลโปรโมชั่น
+		if item.PromotionUsage != nil && item.PromotionUsage.Promotion.ID > 0 {
+			billableItem.Promotion = &PromotionInfo{
+				ID:          item.PromotionUsage.Promotion.ID,
+				Name:        item.PromotionUsage.Promotion.Name,
+				Description: item.PromotionUsage.Promotion.Description,
+			}
+		}
 		// เพิ่มข้อมูลตัวเลือกเสริม
 		for _, opt := range item.Options {
 			billableItem.Options = append(billableItem.Options, OptionInfo{
+				ID:       opt.ID,
 				Name:     opt.MenuOption.Name,
 				Price:    opt.Price,
 				Quantity: opt.Quantity,
@@ -868,30 +878,31 @@ func GetBillableItems(c *fiber.Ctx) error {
 		}
 
 		response.Items = append(response.Items, billableItem)
-		grandTotal += billableItem.ItemTotal
+		total += billableItem.ItemTotal
 	}
 
-	response.GrandTotal = grandTotal
-
+	response.Total = total
 	return c.JSON(response)
 }
 
 // โครงสร้างข้อมูลสำหรับการส่งกลับ
 type BillableItem struct {
-	ID        uint         `json:"id"`
-	OrderID   uint         `json:"order_id"`
-	Name      string       `json:"name"`
-	Category  string       `json:"category"`
-	Quantity  int          `json:"quantity"`
-	Price     float64      `json:"price"`
-	Status    string       `json:"status"`
-	Notes     string       `json:"notes"`
-	CreatedAt time.Time    `json:"created_at"`
-	ItemTotal float64      `json:"item_total"`
-	Options   []OptionInfo `json:"options"`
+	ID        uint           `json:"id"`
+	OrderID   uint           `json:"order_id"`
+	Name      string         `json:"name"`
+	Category  string         `json:"category"`
+	Quantity  int            `json:"quantity"`
+	Price     float64        `json:"price"`
+	Status    string         `json:"status"`
+	Notes     string         `json:"notes"`
+	CreatedAt time.Time      `json:"created_at"`
+	ItemTotal float64        `json:"item_total"`
+	Options   []OptionInfo   `json:"options"`
+	Promotion *PromotionInfo `json:"promotion,omitempty"`
 }
 
 type OptionInfo struct {
+	ID       uint    `json:"id"`
 	Name     string  `json:"name"`
 	Price    float64 `json:"price"`
 	Quantity int     `json:"quantity"`
@@ -900,6 +911,12 @@ type OptionInfo struct {
 type ReservationResponse struct {
 	models.TableReservation
 	TableName string `json:"table_name"`
+}
+
+type PromotionInfo struct {
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 // @Summary ดึงข้อมูลการจองทั้งหมด

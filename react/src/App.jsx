@@ -6,14 +6,6 @@ import Menu from './pages/Menu';
 import Pos from './pages/POS';
 import POSVerifyRoute from './pages/POSVerifyRoute';
 
-// Protected Route Component
-const ProtectedRoute = ({ children, isLoggedIn }) => {
-  if (!isLoggedIn) {
-    return <Navigate to="/login" replace />;
-  }
-  return children;
-};
-
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
@@ -36,7 +28,7 @@ const App = () => {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    localStorage.removeItem('posToken'); // ลบ POS token ด้วย
+    localStorage.removeItem('posToken');
     localStorage.removeItem('posSessionId');
     setIsLoggedIn(false);
     setUser(null);
@@ -46,39 +38,33 @@ const App = () => {
 
   return (
     <Routes>
-      {/* Public Routes */}
-      <Route path="/login" element={
-        isLoggedIn ? <Navigate to="/home" replace /> : <Login />
-      } />
-      <Route path="/menu" element={<Menu />} />
-
-      {/* POS Routes */}
+      {/* POS Routes (ไม่ต้องการการล็อกอิน) */}
       <Route path="/pos/verify" element={<POSVerifyRoute />} />
-      <Route path="/pos" element={
-        <ProtectedRoute isLoggedIn={isLoggedIn}>
-          <Pos />
-        </ProtectedRoute>
-      } />
+      <Route path="/pos" element={<Pos />} />
+      
+      {/* Public Routes */}
+      <Route path="/menu" element={<Menu />} />
+      <Route 
+        path="/login" 
+        element={isLoggedIn ? <Navigate to="/home" /> : <Login />} 
+      />
 
-      {/* Protected Routes */}
-      <Route path="/home" element={
-        <ProtectedRoute isLoggedIn={isLoggedIn}>
-          <Section
-            isLoggedIn={isLoggedIn}
-            user={user}
-            handleLogout={handleLogout}
-            token={token}
-          />
-        </ProtectedRoute>
-      } />
-
-      {/* Root Route */}
-      <Route path="/" element={
-        isLoggedIn ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />
-      } />
-
-      {/* Catch all route */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* Main Application Routes */}
+      <Route 
+        path="/*" 
+        element={
+          isLoggedIn ? (
+            <Section 
+              isLoggedIn={isLoggedIn}
+              user={user}
+              handleLogout={handleLogout}
+              token={token}
+            />
+          ) : (
+            <Navigate to="/login" />
+          )
+        } 
+      />
     </Routes>
   );
 };

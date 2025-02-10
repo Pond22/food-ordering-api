@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { ChevronLeft, CreditCard, Wallet, Info, Check } from 'lucide-react'
 import axios from 'axios'
+import OrderSummaryDetail from './OrderSummaryDetail'
 
 const PaymentTables = ({ user }) => {
   const [selectedTable, setSelectedTable] = useState(null)
@@ -37,6 +38,11 @@ const PaymentTables = ({ user }) => {
   useEffect(() => {
     const fetchBillableItems = async () => {
       const token = localStorage.getItem('token')
+      if (!token) {
+        alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
+        window.location.href = '/login'
+      }
+    
       try {
         const response = await axios.get(
           `http://localhost:8080/api/table/billable/${uuid}`,
@@ -61,10 +67,13 @@ const PaymentTables = ({ user }) => {
   useEffect(() => {
     const fetchDiscounts = async () => {
       try {
+        const token = localStorage.getItem('token')
         const response = await axios.get(
           'http://localhost:8080/api/payment/discount-types/Active',
           {
-            headers: { accept: 'application/json' },
+            headers: { accept: 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
           }
         )
         if (response.data && Array.isArray(response.data)) {
@@ -81,10 +90,13 @@ const PaymentTables = ({ user }) => {
   useEffect(() => {
     const fetchCharges = async () => {
       try {
+        const token = localStorage.getItem('token')
         const response = await axios.get(
           'http://localhost:8080/api/payment/charge-types/Active',
           {
-            headers: { accept: 'application/json' },
+            headers: { accept: 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
           }
         )
         if (response.data && Array.isArray(response.data)) {
@@ -113,9 +125,8 @@ const PaymentTables = ({ user }) => {
 
   const calculateTotal = () => {
     const subtotal = calculateSubtotal()
-    const tipAmount = (subtotal * tipPercentage) / 100
-    const vatAmount = calculateVAT()
-
+    const vatAmount = subtotal * 0.07
+  
     const totalDiscount = selectedDiscounts.reduce((sum, discount) => {
       if (discount.value) {
         const discountAmount =
@@ -130,7 +141,7 @@ const PaymentTables = ({ user }) => {
       }
       return sum
     }, 0)
-
+  
     const totalCharges = selectedCharges.reduce((sum, charge) => {
       if (charge.value) {
         const chargeAmount =
@@ -141,17 +152,49 @@ const PaymentTables = ({ user }) => {
       }
       return sum
     }, 0)
-
-    const total =
-      subtotal  + vatAmount - totalDiscount + totalCharges
-
+  
+    const total = subtotal + vatAmount - totalDiscount + totalCharges
+  
     return Math.max(0, total)
   }
-
   const calculateSubtotal = () => {
-    return billableItems.reduce((sum, item) => sum + item.price, 0)
+    return billableItems.reduce((sum, item) => {
+      let itemTotal = item.price
+      // เพิ่มราคา options
+      if (item.options && item.options.length > 0) {
+        itemTotal += item.options.reduce((optSum, opt) => {
+          return optSum + (opt.price * opt.quantity)
+        }, 0)
+      }
+  
+      return sum + itemTotal
+    }, 0)
   }
-
+  
+  const calculateDiscounts = (subtotal) => {
+    return selectedDiscounts.reduce((sum, discount) => {
+      if (discount.value && discount.discountID) {
+        const discountType = discounts.find(d => d.ID === discount.discountID)
+        const discountAmount = discountType.Type === 'percentage'
+          ? (subtotal * parseFloat(discount.value)) / 100
+          : parseFloat(discount.value)
+        return sum + discountAmount
+      }
+      return sum
+    }, 0)
+  }
+  
+  const calculateCharges = () => {
+    return selectedCharges.reduce((sum, charge) => {
+      if (charge.value && charge.chargeID) {
+        const chargeOption = charges.find(c => c.ID === charge.chargeID)
+        return sum + parseFloat(charge.value)
+      }
+      return sum
+    }, 0)
+  }
+  
+  const justtotal = calculateSubtotal()
   const calculateVAT = () => {
     const subtotal = calculateSubtotal()
     return subtotal * 0.07
@@ -233,7 +276,7 @@ const PaymentTables = ({ user }) => {
 
       // ตรวจสอบการส่งข้อมูล
       console.log(paymentData)
-
+       
       const response = await axios.post(
         `http://localhost:8080${apiEndpoint}`,
         paymentData,
@@ -290,25 +333,31 @@ const PaymentTables = ({ user }) => {
       </header>
 
       <main className="flex-1 p-6 pb-24">
-        <div className="bg-white rounded-2xl p-6 mb-6 shadow-md">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-medium">Order Summary</h2>
-            <span className="text-lg font-medium text-gray-500">
-              Table {tableName}
-            </span>
-            <span className="text-sm text-gray-500">Table {uuid}</span>
-          </div>
-          {billableItems.map((item) => (
-            <div key={item.id} className="flex justify-between mb-3">
-              <div>
-                <span className="text-gray-800">{item.quantity}x </span>
-                <span>{item.name}</span>
-              </div>
-              <span>{item.price.toLocaleString()} ฿</span>
-            </div>
-          ))}
+            <div className="bg-white rounded-2xl p-6 mb-6 shadow-md">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-medium">Order Summary</h2>
+          <span className="text-lg font-medium text-gray-500">
+            Table {tableName}
+          </span>
+          <span className="text-sm text-gray-500">Table {uuid}</span>
+        </div>
+
+        {/* <OrderSummaryDetail billableItems={billableItems} /> */}
+        <OrderSummaryDetail 
+          billableItems={billableItems} 
+          user={user}  // เพิ่ม user
+          tableID={tableID}  // เพิ่ม tableID
+          onCancelItem={(updatedItems) => {
+            // Optional: อัพเดท billableItems หลังยกเลิกรายการ
+            setBillableItems(updatedItems)
+          }}
+        />
 
           <div className="border-t border-gray-100 mt-4 pt-4 space-y-3">
+          <div className="flex justify-between text-gray-600">
+              <span>ราคาก่อนรวมภาษี</span>
+              <span>{justtotal} ฿</span>
+            </div>
             <div className="flex justify-between text-gray-600">
               <span>VAT (7%)</span>
               <span>{calculateVAT().toLocaleString()} ฿</span>

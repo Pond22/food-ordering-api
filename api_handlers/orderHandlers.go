@@ -1186,212 +1186,374 @@ func calculatePromotionSaving(promotion *models.Promotion, selectedItemIDs []uin
 	return normalPrice - promotion.Price
 }
 
-// func FinalizeOrderItems(c *fiber.Ctx) error {
-//     var req finalize_items_req
-//     if err := c.BodyParser(&req); err != nil {
-//         return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-//             "error": "ข้อมูลไม่ถูกต้อง",
-//         })
-//     }
+// @Summary จัดการออเดอร์ก่อนชำระเงิน
+// @Description ใช้สำหรับการยกเลิกรายการอาหารในกรณีพิเศษก่อนชำระเงิน เช่น อาหารที่เสิร์ฟแล้วแต่ลูกค้าไม่ได้รับ
+// @Accept json
+// @Produce json
+// @Param request body finalize_items_req true "ข้อมูลการยกเลิกรายการ"
+// @Success 200 {object} map[string]interface{}
+// @Router /api/orders/finalize [post]
+// @Tags Order_ใหม่
+func FinalizeOrderItems(c *fiber.Ctx) error {
+	var req finalize_items_req
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "ข้อมูลไม่ถูกต้อง",
+		})
+	}
 
-//     tx := db.DB.Begin()
+	// ตรวจสอบว่ามีเหตุผลในการยกเลิกหรือไม่
+	if req.Reason == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "กรุณาระบุเหตุผลในการยกเลิกรายการ",
+		})
+	}
 
-//     // ตรวจสอบพนักงาน
-//     var staff Users
-//     if err := tx.First(&staff, req.StaffID).Error; err != nil {
-//         tx.Rollback()
-//         return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-//             "error": "ไม่พบข้อมูลพนักงาน",
-//         })
-//     }
+	tx := db.DB.Begin()
 
-//     // ดึงข้อมูลออเดอร์
-//     var orders []Order
-//     if err := tx.Where("table_id = ? AND status NOT IN (?, ?)",
-//         req.TableID, "completed", "cancelled").
-//         Preload("Items.MenuItem").
-//         Preload("Items.Options.MenuOption").
-//         Find(&orders).Error; err != nil {
-//         tx.Rollback()
-//         return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-//             "error": "ไม่พบออเดอร์ของโต๊ะนี้",
-//         })
-//     }
+	// ตรวจสอบพนักงาน
+	var staff models.Users
+	if err := tx.First(&staff, req.StaffID).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "ไม่พบข้อมูลพนักงาน",
+		})
+	}
 
-//     // ดึงข้อมูล OrderItems ที่จะยกเลิก
-//     var orderItems []OrderItem
-//     if err := tx.Where("id IN ?", getOrderItemIDs(req.Items)).
-//         Preload("PromotionUsage.Promotion").
-//         Preload("MenuItem").
-//         Find(&orderItems).Error; err != nil {
-//         tx.Rollback()
-//         return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-//             "error": "ไม่พบรายการอาหารที่ต้องการยกเลิก",
-//         })
-//     }
+	// ดึงข้อมูลออเดอร์ทั้งหมดของโต๊ะ (ที่ยังไม่เสร็จสิ้นหรือยกเลิก)
+	var orders []models.Order
+	if err := tx.Where("table_id = ? AND status NOT IN (?, ?)",
+		req.TableID, "completed", "cancelled").
+		Preload("Items.MenuItem").
+		Preload("Items.Options.MenuOption").
+		Find(&orders).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "ไม่พบออเดอร์ของโต๊ะนี้",
+		})
+	}
 
-//     // แยกรายการตาม PromotionUsage
-//     promoUsageMap := make(map[uint][]OrderItem)
-//     var normalItems []OrderItem
-//     var printContents []string
+	var printContents []string
 
-//     for _, item := range orderItems {
-//         if item.PromotionUsageID != nil {
-//             promoUsageMap[*item.PromotionUsageID] = append(promoUsageMap[*item.PromotionUsageID], item)
-//         } else {
-//             normalItems = append(normalItems, item)
-//         }
-//     }
+	// จัดการรายการเสริม
+	for _, reqOption := range req.Options {
+		var orderItemOption models.OrderItemOption
+		if err := tx.Where("order_item_id = ? AND id = ?",
+			reqOption.OrderItemID,
+			reqOption.OptionID).
+			Preload("MenuOption").
+			Preload("OrderItem").
+			First(&orderItemOption).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": fmt.Sprintf("ไม่พบตัวเลือกเสริมรหัส %d", reqOption.OptionID),
+			})
+		}
 
-//     // จัดการรายการโปรโมชั่น
-//     for promoUsageID, items := range promoUsageMap {
-//         var totalPromoItems int64
-//         if err := tx.Model(&OrderItem{}).
-//             Where("promotion_usage_id = ?", promoUsageID).
-//             Count(&totalPromoItems).Error; err != nil {
-//             tx.Rollback()
-//             return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-//                 "error": "ไม่สามารถตรวจสอบรายการโปรโมชั่นได้",
-//             })
-//         }
+		// Soft delete ตัวเลือกเสริม
+		if err := tx.Delete(&orderItemOption).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "ไม่สามารถยกเลิกตัวเลือกเสริมได้",
+			})
+		}
 
-//         if int64(len(items)) < totalPromoItems {
-//             tx.Rollback()
-//             return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-//                 "error": "ต้องยกเลิกรายการในโปรโมชั่นทั้งหมดพร้อมกัน",
-//             })
-//         }
+		// อัพเดทยอดรวมของออเดอร์
+		if err := updateOrderTotal(tx, orderItemOption.OrderItem.OrderID); err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "ไม่สามารถอัพเดทยอดรวมได้",
+			})
+		}
 
-//         for _, item := range items {
-//             printContents = append(printContents,
-//                 fmt.Sprintf("%s|%d (โปรโมชั่น %s)",
-//                     item.MenuItem.Name,
-//                     item.Quantity,
-//                     item.PromotionUsage.Promotion.Name))
-//         }
+		printContents = append(printContents,
+			fmt.Sprintf("ยกเลิกตัวเลือก %s", orderItemOption.MenuOption.Name))
+	}
 
-//         // อัพเดทสถานะรายการในโปรโมชั่น
-//         if err := tx.Model(&OrderItem{}).
-//             Where("promotion_usage_id = ?", promoUsageID).
-//             Updates(map[string]interface{}{
-//                 "status": "cancelled",
-//                 "quantity": 0,
-//             }).Error; err != nil {
-//             tx.Rollback()
-//             return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-//                 "error": "ไม่สามารถยกเลิกรายการโปรโมชั่นได้",
-//             })
-//         }
-//     }
+	// ดึงข้อมูล OrderItems ที่จะยกเลิก
+	var orderItems []models.OrderItem
+	ids := make([]uint, len(req.Items))
+	for i, item := range req.Items {
+		ids[i] = item.OrderItemID
+	}
 
-//     // จัดการรายการปกติ
-//     for _, reqItem := range req.Items {
-//         var orderItem OrderItem
-//         if err := tx.Where("id = ?", reqItem.OrderItemID).
-//             Preload("MenuItem").
-//             First(&orderItem).Error; err != nil {
-//             tx.Rollback()
-//             return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-//                 "error": fmt.Sprintf("ไม่พบรายการอาหารรหัส %d", reqItem.OrderItemID),
-//             })
-//         }
+	if err := tx.Where("id IN ?", ids).
+		Preload("PromotionUsage.Promotion").
+		Preload("MenuItem").
+		Find(&orderItems).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "ไม่พบรายการอาหารที่ต้องการยกเลิก",
+		})
+	}
 
-//         if reqItem.Quantity > orderItem.Quantity {
-//             tx.Rollback()
-//             return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-//                 "error": fmt.Sprintf("จำนวนที่ยกเลิกมากกว่าจำนวนที่สั่ง สำหรับรายการ %d", reqItem.OrderItemID),
-//             })
-//         }
+	// แยกรายการตาม PromotionUsage
+	promoUsageMap := make(map[uint][]models.OrderItem)
+	var normalItems []models.OrderItem
 
-//         if orderItem.Quantity == reqItem.Quantity {
-//             orderItem.Status = "cancelled"
-//             orderItem.Quantity = 0
-//         } else {
-//             orderItem.Quantity -= reqItem.Quantity
-//         }
+	for _, item := range orderItems {
+		if item.PromotionUsageID != nil {
+			promoUsageMap[*item.PromotionUsageID] = append(promoUsageMap[*item.PromotionUsageID], item)
+		} else {
+			normalItems = append(normalItems, item)
+		}
+	}
 
-//         if err := tx.Save(&orderItem).Error; err != nil {
-//             tx.Rollback()
-//             return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-//                 "error": "ไม่สามารถอัพเดทรายการอาหารได้",
-//             })
-//         }
+	// จัดการรายการโปรโมชั่น
+	for promoUsageID, items := range promoUsageMap {
+		var totalPromoItems int64
+		if err := tx.Model(&models.OrderItem{}).
+			Where("promotion_usage_id = ?", promoUsageID).
+			Count(&totalPromoItems).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "ไม่สามารถตรวจสอบรายการโปรโมชั่นได้",
+			})
+		}
 
-//         printContents = append(printContents, fmt.Sprintf("%s|%d", orderItem.MenuItem.Name, reqItem.Quantity))
-//     }
+		if int64(len(items)) < totalPromoItems {
+			tx.Rollback()
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "ต้องยกเลิกรายการในโปรโมชั่นทั้งหมดพร้อมกัน",
+			})
+		}
 
-//     // อัพเดทยอดรวมของทุกออเดอร์
-//     for _, order := range orders {
-//         var total float64
-//         if err := tx.Model(&OrderItem{}).
-//             Where("order_id = ? AND status != ?", order.ID, "cancelled").
-//             Select("COALESCE(SUM(price * quantity), 0)").
-//             Scan(&total).Error; err != nil {
-//             tx.Rollback()
-//             return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-//                 "error": "ไม่สามารถคำนวณยอดรวมได้",
-//             })
-//         }
+		for _, item := range items {
+			printContents = append(printContents,
+				fmt.Sprintf("%s|%d (โปรโมชั่น %s)",
+					item.MenuItem.Name,
+					item.Quantity,
+					item.PromotionUsage.Promotion.Name))
+		}
 
-//         if err := tx.Model(&order).Update("total", total).Error; err != nil {
-//             tx.Rollback()
-//             return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-//                 "error": "ไม่สามารถอัพเดทยอดรวมได้",
-//             })
-//         }
-//     }
+		// อัพเดทสถานะรายการในโปรโมชั่น
+		if err := tx.Model(&models.OrderItem{}).
+			Where("promotion_usage_id = ?", promoUsageID).
+			Updates(map[string]interface{}{
+				"status":   "cancelled",
+				"quantity": 0,
+			}).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "ไม่สามารถยกเลิกรายการโปรโมชั่นได้",
+			})
+		}
 
-//     // ส่งการแจ้งเตือนไปยังครัว
-//     if len(printContents) > 0 {
-//         var printers []Printer
-//         if err := tx.Where("department IN ?", []string{"kitchen", "bar"}).Find(&printers).Error; err != nil {
-//             tx.Rollback()
-//             return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-//                 "error": "ไม่สามารถค้นหาเครื่องพิมพ์ได้",
-//             })
-//         }
+		// Soft delete promotion usage
+		if err := tx.Delete(&models.PromotionUsage{}, promoUsageID).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "ไม่สามารถยกเลิกการใช้โปรโมชั่นได้",
+			})
+		}
+	}
 
-//         printContentString := fmt.Sprintf("ยกเลิกรายการก่อนชำระเงิน\nโต๊ะ: %d\nเหตุผล: %s\n\n%s",
-//             req.TableID, req.Reason, strings.Join(printContents, "\n"))
+	// จัดการรายการปกติ
+	for _, reqItem := range req.Items {
+		// ข้ามรายการที่เป็นโปรโมชั่น (จัดการไปแล้ว)
+		isPromoItem := false
+		for _, items := range promoUsageMap {
+			for _, item := range items {
+				if item.ID == reqItem.OrderItemID {
+					isPromoItem = true
+					break
+				}
+			}
+			if isPromoItem {
+				break
+			}
+		}
+		if isPromoItem {
+			continue
+		}
 
-//         for _, printer := range printers {
-//             printJob := PrintJob{
-//                 PrinterID:         printer.ID,
-//                 Status:            "pending",
-//                 JobType:           "cancelation",
-//                 CancelledQuantity: len(req.Items),
-//                 Content:           []byte(printContentString),
-//                 CreatedAt:         time.Now(),
-//             }
+		var orderItem models.OrderItem
+		if err := tx.Where("id = ?", reqItem.OrderItemID).
+			Preload("MenuItem").
+			First(&orderItem).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": fmt.Sprintf("ไม่พบรายการอาหารรหัส %d", reqItem.OrderItemID),
+			})
+		}
 
-//             if err := tx.Create(&printJob).Error; err != nil {
-//                 tx.Rollback()
-//                 return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-//                     "error": fmt.Sprintf("ไม่สามารถสร้างงานพิมพ์สำหรับเครื่องพิมพ์ %s", printer.Name),
-//                 })
-//             }
-//         }
-//     }
+		if reqItem.Quantity > orderItem.Quantity {
+			tx.Rollback()
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": fmt.Sprintf("จำนวนที่ยกเลิกมากกว่าจำนวนที่สั่ง สำหรับรายการ %d", reqItem.OrderItemID),
+			})
+		}
 
-//     if err := tx.Commit().Error; err != nil {
-//         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-//             "error": "ไม่สามารถบันทึกข้อมูลได้",
-//         })
-//     }
+		// อัพเดทข้อมูลการยกเลิก
+		updates := map[string]interface{}{}
 
-//     return c.JSON(fiber.Map{
-//         "message": "ยกเลิกรายการอาหารสำเร็จ",
-//     })
-// }
+		if orderItem.Quantity == reqItem.Quantity {
+			updates["status"] = "cancelled"
+			updates["quantity"] = 0
+		} else {
+			updates["quantity"] = orderItem.Quantity - reqItem.Quantity
+		}
 
-// type finalize_items_req struct {
-//     TableID  uint               `json:"table_id"`
-//     StaffID  uint              `json:"staff_id"`
-//     Reason   string            `json:"reason"`
-//     Items    []CancelItemDetail `json:"items"`
-// }
+		if err := tx.Model(&orderItem).Updates(updates).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "ไม่สามารถอัพเดทรายการอาหารได้",
+			})
+		}
 
-// type CancelItemDetail struct {
-//     OrderItemID uint `json:"order_item_id"`
-//     Quantity    int  `json:"quantity"`
-// }
+		printContents = append(printContents, fmt.Sprintf("%s|%d", orderItem.MenuItem.Name, reqItem.Quantity))
+	}
+
+	for _, order := range orders {
+		// ตรวจสอบจำนวน OrderItems ที่ยังไม่ถูกยกเลิกในออเดอร์นี้
+		var nonCancelledItemCount int64
+		if err := tx.Model(&models.OrderItem{}).
+			Where("order_id = ? AND status != ?", order.ID, "cancelled").
+			Count(&nonCancelledItemCount).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "ไม่สามารถตรวจสอบสถานะรายการอาหารได้",
+			})
+		}
+
+		// ถ้าไม่มีรายการที่ไม่ถูกยกเลิก ให้อัปเดตสถานะออเดอร์เป็น cancelled
+		if nonCancelledItemCount == 0 {
+			if err := tx.Model(&order).
+				Update("status", "cancelled").Error; err != nil {
+				tx.Rollback()
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "ไม่สามารถอัปเดตสถานะออเดอร์ได้",
+				})
+			}
+		}
+	}
+
+	// อัพเดทยอดรวมของทุกออเดอร์
+	for _, order := range orders {
+		if err := updateOrderTotal(tx, order.ID); err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "ไม่สามารถอัพเดทยอดรวมได้",
+			})
+		}
+	}
+
+	// บันทึก log การยกเลิก
+	notification := models.Notification{
+		UserID:    staff.ID,
+		Message:   fmt.Sprintf("ยกเลิกรายการอาหารโต๊ะ %d โดย %s เหตุผล: %s", req.TableID, staff.Name, req.Reason),
+		Status:    "unread",
+		CreatedAt: time.Now(),
+	}
+
+	if err := tx.Create(&notification).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "ไม่สามารถบันทึก notification ได้",
+		})
+	}
+
+	// ส่งการแจ้งเตือนไปยังครัวและพนักงาน
+	if len(printContents) > 0 {
+		// ค้นหาเครื่องพิมพ์ทั้งหมดที่เกี่ยวข้อง
+		var printers []models.Printer
+		if err := tx.Preload("Categories").Find(&printers).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "ไม่สามารถค้นหาเครื่องพิมพ์ได้",
+			})
+		}
+
+		// สร้างเนื้อหาที่จะพิมพ์
+		printContentString := fmt.Sprintf(
+			"ยกเลิกรายการก่อนชำระเงิน\n"+
+				"โต๊ะ: %d\n"+
+				"พนักงาน: %s\n"+
+				"เหตุผล: %s\n"+
+				"เวลา: %s\n\n"+
+				"รายการที่ยกเลิก:\n%s",
+			req.TableID,
+			staff.Name,
+			req.Reason,
+			time.Now().Format("15:04:05"),
+			strings.Join(printContents, "\n"))
+
+		// สร้าง print job สำหรับแต่ละเครื่องพิมพ์
+		for _, printer := range printers {
+			printJob := models.PrintJob{
+				PrinterID:         printer.ID,
+				Status:            "pending",
+				JobType:           "final_cancelation",
+				CancelledQuantity: len(req.Items) + len(req.Options),
+				Content:           []byte(printContentString),
+			}
+
+			if err := tx.Create(&printJob).Error; err != nil {
+				tx.Rollback()
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": fmt.Sprintf("ไม่สามารถสร้างงานพิมพ์สำหรับเครื่องพิมพ์ %s", printer.Name),
+				})
+			}
+		}
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "ไม่สามารถบันทึกข้อมูลได้",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message":               "ยกเลิกรายการอาหารสำเร็จ",
+		"staff":                 staff.Name,
+		"table_id":              req.TableID,
+		"cancelled_items_count": len(req.Items) + len(req.Options),
+	})
+}
+
+type finalize_items_req struct {
+	TableID uint                 `json:"table_id" binding:"required"`
+	StaffID uint                 `json:"staff_id" binding:"required"`
+	Reason  string               `json:"reason" binding:"required"`
+	Items   []CancelItemDetail   `json:"items" binding:"required_without=Options"`
+	Options []CancelOptionDetail `json:"options,omitempty"`
+}
+
+type CancelItemDetail struct {
+	OrderItemID uint `json:"order_item_id" binding:"required"`
+	Quantity    int  `json:"quantity" binding:"required,min=1"`
+}
+
+type CancelOptionDetail struct {
+	OrderItemID uint `json:"order_item_id" binding:"required"`
+	OptionID    uint `json:"option_id" binding:"required"`
+}
+
+// Helper function to update order total
+func updateOrderTotal(tx *gorm.DB, orderID uint) error {
+	var total float64
+
+	// Calculate total from non-cancelled items
+	if err := tx.Model(&models.OrderItem{}).
+		Where("order_id = ? AND status != ?", orderID, "cancelled").
+		Select("COALESCE(SUM(price * quantity), 0)").
+		Scan(&total).Error; err != nil {
+		return err
+	}
+
+	// Add options total
+	var optionsTotal float64
+	if err := tx.Model(&models.OrderItemOption{}).
+		Joins("JOIN order_items ON order_items.id = order_item_options.order_item_id").
+		Where("order_items.order_id = ? AND order_items.status != ?", orderID, "cancelled").
+		Select("COALESCE(SUM(order_item_options.price * order_item_options.quantity), 0)").
+		Scan(&optionsTotal).Error; err != nil {
+		return err
+	}
+
+	total += optionsTotal
+
+	// Update order total
+	return tx.Model(&models.Order{}).Where("id = ?", orderID).Update("total", total).Error
+}

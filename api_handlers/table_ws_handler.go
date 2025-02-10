@@ -23,7 +23,7 @@ type TableResponse struct {
 
 func TableWebSocketHandler(db *gorm.DB) fiber.Handler {
 	return websocket.New(func(c *websocket.Conn) {
-		ticker := time.NewTicker(2 * time.Second)
+		ticker := time.NewTicker(1 * time.Second)
 		defer ticker.Stop()
 
 		for range ticker.C {

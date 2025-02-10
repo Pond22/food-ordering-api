@@ -23,8 +23,13 @@ const OrderConfirmation = () => {
 
   // ฟังก์ชันที่ใช้ดึงข้อมูลจาก API ด้วย axios
   const fetchOrders = () => {
+    const token = localStorage.getItem('token')
     axios
-      .get('http://localhost:8080/api/orders/active')
+      .get('http://localhost:8080/api/orders/active', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
       .then((response) => {
         const validOrders = response.data.filter((order) => {
           // กรองออเดอร์ที่มีสถานะ 'pending' แต่ไม่มีเมนูที่มีสถานะ 'pending'
@@ -55,27 +60,38 @@ const OrderConfirmation = () => {
   }, [])
 
   // ฟังก์ชันยืนยันการเสิร์ฟอาหาร
-  const handleConfirmDish = (orderId, dishIndex) => {
-    const orderItemId = orders.find((order) => order.id === orderId)?.items[
-      dishIndex
-    ]?.id
-    if (!orderItemId) return
+  const handleConfirmDish = async (orderId, dishIndex) => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        setError('กรุณาเข้าสู่ระบบใหม่')
+        return
+      }
 
-    // ส่งคำขอไปยืนยันการเสิร์ฟอาหาร
-    axios
-      .post(`http://localhost:8080/api/orders/items/serve/${orderItemId}`)
-      .then(() => {
-        // รีเฟรชข้อมูลหลังจากยืนยันการเสิร์ฟ
-        fetchOrders()
-        setIsModalOpen(false) // ปิด modal หลังจากยืนยัน
-      })
-      .catch((error) => {
-        console.error('Error confirming serve:', error)
-      })
+      const orderItemId = orders.find((order) => order.id === orderId)?.items[dishIndex]?.id
+      if (!orderItemId) {
+        setError('ไม่พบรายการอาหารที่ต้องการยืนยัน')
+        return
+      }
+
+      setIsModalOpen(false) 
+
+      await axios.post(
+        `http://localhost:8080/api/orders/items/serve/${orderItemId}`,
+        {}, 
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+
+      fetchOrders()
+    } catch (error) {
+      setError('เกิดข้อผิดพลาดในการยืนยันการเสิร์ฟ')
+      console.error('Error confirming dish:', error)
+    }
   }
 
   // ฟังก์ชันยกเลิกรายการอาหาร
   const handleCancelDish = (ItemId, tableId, uuid) => {
+    const token = localStorage.getItem('token')
     axios
       .post('http://localhost:8080/api/orders/items/cancel', {
         id: tableId,
@@ -86,6 +102,10 @@ const OrderConfirmation = () => {
           },
         ],
         order_uuid: uuid,
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       })
       .then(() => {
         // รีเฟรชข้อมูลหลังจากยกเลิก
