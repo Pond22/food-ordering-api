@@ -88,6 +88,13 @@ definitions:
         example: Invalid input format
         type: string
     type: object
+  api_handlers.GeneratePOSVerificationCodeResponse:
+    properties:
+      code_hint:
+        type: string
+      token:
+        type: string
+    type: object
   api_handlers.LoginRequest:
     properties:
       password:
@@ -197,6 +204,15 @@ definitions:
       total:
         type: number
       uuid:
+        type: string
+    type: object
+  api_handlers.POSVerificationRequest:
+    properties:
+      code:
+        type: string
+      staff_id:
+        type: integer
+      token:
         type: string
     type: object
   api_handlers.PaymentDiscountRequest:
@@ -3336,6 +3352,83 @@ paths:
       summary: ดึงใบเสร็จ
       tags:
       - Payment
+  /api/pos/generate-code:
+    post:
+      consumes:
+      - application/json
+      description: สร้าง Temporary Session และ Verification Code สำหรับผู้ใช้งาน POS
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: สร้าง Session และ Verification Code สำเร็จ
+          schema:
+            $ref: '#/definitions/api_handlers.GeneratePOSVerificationCodeResponse'
+        "400":
+          description: ข้อมูลผู้ใช้ไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 'ไม่ได้รับอนุญาต: ไม่มีสิทธิ์เข้าใช้'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการสร้าง Session
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: สร้าง Verification Code สำหรับการเข้าใช้งาน POS
+      tags:
+      - POS
+  /api/pos/verify-code:
+    post:
+      consumes:
+      - application/json
+      description: ตรวจสอบและยืนยัน Verification Code สำหรับการเข้าใช้งาน POS
+      parameters:
+      - description: ข้อมูลการยืนยัน
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api_handlers.POSVerificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ยืนยันการเข้าใช้งาน POS สำเร็จ
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: รูปแบบคำขอไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: รหัสยืนยันไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: ไม่พบพนักงาน
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการยืนยัน Session
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ยืนยัน Verification Code เพื่อเข้าใช้งาน POS
+      tags:
+      - POS
   /api/printers:
     get:
       description: ดึงรายการเครื่องพิมพ์ทั้งหมดพร้อมหมวดหมู่
