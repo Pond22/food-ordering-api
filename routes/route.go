@@ -73,6 +73,7 @@ func SetupRoutes(app *fiber.App) {
 		menu.Get("/option-groups/:id", api_handlers.GetOptionByid)
 		menu.Post("/option-groups", api_handlers.AddMoreGroup)
 		menu.Put("/option-groups/:id", api_handlers.UpdateOptionGroup)
+		menu.Delete("/option-groups/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.SoftDelete_OptionGroup)
 
 		// Options
 		menu.Post("/options", api_handlers.AddMoreMenuOption)

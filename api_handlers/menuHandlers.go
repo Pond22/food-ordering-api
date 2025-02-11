@@ -712,8 +712,8 @@ func UpdateOptionGroup(c *fiber.Ctx) error {
 
 	// ตรวจสอบว่าชื่อไม่ซ้ำกับ Option Group อื่นในเมนูเดียวกัน
 	var duplicateGroup models.OptionGroup
-	if err := db.DB.Where("name = ? AND menu_item_id = ? AND id != ?",
-		req.Name, existingGroup.MenuItemID, groupID).First(&duplicateGroup).Error; err == nil {
+	if err := db.DB.Where("menu_item_id = ? AND name = ? AND id != ?",
+		existingGroup.MenuItemID, existingGroup.Name, groupID).First(&duplicateGroup).Error; err == nil {
 		return c.Status(http.StatusConflict).JSON(fiber.Map{
 			"error": "Option group name already exists in this menu",
 		})
@@ -793,8 +793,8 @@ func UpdateOption(c *fiber.Ctx) error {
 
 	// ตรวจสอบว่าชื่อไม่ซ้ำกับ Option อื่นในกลุ่มเดียวกัน
 	var duplicateOption models.MenuOption
-	if err := db.DB.Where("name = ? AND group_id = ? AND id != ?",
-		req.Name, existingOption.GroupID, optionID).First(&duplicateOption).Error; err == nil {
+	if err := db.DB.Where("group_id = ? AND name = ? AND id != ?",
+		existingOption.GroupID, existingOption.Name, optionID).First(&duplicateOption).Error; err == nil {
 		return c.Status(http.StatusConflict).JSON(fiber.Map{
 			"error": "Option name already exists in this group",
 		})
@@ -1304,4 +1304,65 @@ func UpdateOptionByMenuID(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(updatedOption)
+}
+
+// @Summary ลบกลุ่มตัวเลือกอาหาร
+// @Description ฟังก์ชันนี้ใช้สำหรับลบกลุ่มตัวเลือกโดยจะเป็นการ soft delete
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path integer true "ID ของกลุ่มตัวเลือกนั้นๆ"
+// @Success 200 "ลบกลุ่มตัวเลือกสำเร็จ"
+// @Failure 400 {object} map[string]interface{} "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง"
+// @Failure 401 {object} map[string]interface{} "ไม่ได้รับอนุญาต"
+// @Failure 403 {object} map[string]interface{} "ไม่มีสิทธิ์เข้าถึง"
+// @Router /api/menu/option-groups/{id} [delete]
+// @Tags menu
+func SoftDelete_OptionGroup(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	if id == "" {
+		return c.Status(http.StatusBadRequest).JSON(map[string]interface{}{
+			"error": "Option Group ID is required",
+		})
+	}
+
+	// เริ่ม transaction
+	tx := db.DB.Begin()
+
+	// ตรวจสอบว่ามีกลุ่มตัวเลือกอยู่จริง
+	var existingOptionGroup models.OptionGroup
+	if err := tx.First(&existingOptionGroup, id).Error; err != nil {
+		tx.Rollback()
+		return c.Status(http.StatusNotFound).JSON(map[string]interface{}{
+			"error": "Option Group not found",
+		})
+	}
+
+	// ลบ options ที่อยู่ในกลุ่มก่อน
+	if err := tx.Where("group_id = ?", id).Delete(&models.MenuOption{}).Error; err != nil {
+		tx.Rollback()
+		return c.Status(http.StatusInternalServerError).JSON(map[string]interface{}{
+			"error": "Failed to delete options in group",
+		})
+	}
+
+	// ลบกลุ่มตัวเลือก
+	if err := tx.Delete(&existingOptionGroup).Error; err != nil {
+		tx.Rollback()
+		return c.Status(http.StatusInternalServerError).JSON(map[string]interface{}{
+			"error": "Failed to delete Option Group",
+		})
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(map[string]interface{}{
+			"error": "Failed to commit transaction",
+		})
+	}
+
+	return c.Status(http.StatusOK).JSON(map[string]interface{}{
+		"message": "ลบกลุ่มตัวเลือกสำเร็จ",
+	})
 }

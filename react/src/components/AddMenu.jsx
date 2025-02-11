@@ -35,6 +35,7 @@ const MenuManagement = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [menuToDelete, setMenuToDelete] = useState(null) // เก็บเมนูที่ต้องการลบ
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [expandedOptions, setExpandedOptions] = useState({}) // เพิ่ม state สำหรับการจัดการการแสดง/ซ่อนตัวเลือก
 
   const toggleDropdown = (ID) => {
     setIsDropdownOpen((prev) => (prev === ID ? null : ID))
@@ -277,28 +278,27 @@ const MenuManagement = () => {
 
   const handleEditMenu = async () => {
     try {
-      // ตรวจสอบว่า menuDetails.ID มีค่าอยู่หรือไม่
-      if (!menuDetails.ID) {
-        throw new Error('ไม่พบ ID ของเมนูในการอัปเดต')
+      // ตรวจสอบข้อมูลที่จำเป็น
+      if (!menuDetails.name || !menuDetails.categoryId || menuDetails.price < 0) {
+        throw new Error('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน และราคาต้องไม่ติดลบ')
       }
 
       // 1. อัปเดตข้อมูลเมนูหลัก
       const menuPayload = {
-        category_id: menuDetails.categoryId, // หมวดหมู่เป็นตัวเลข
-        description: menuDetails.description.trim(),
-        description_ch: menuDetails.descriptionCh.trim(),
-        description_en: menuDetails.descriptionEn.trim(),
         name: menuDetails.name.trim(),
-        name_ch: menuDetails.nameCh.trim(),
         name_en: menuDetails.nameEn.trim(),
-        price: Number(menuDetails.price), // แปลงราคาเป็นตัวเลข
-        image: '', // ถ้าไม่มีภาพให้ส่งเป็นค่าว่าง
+        name_ch: menuDetails.nameCh.trim(),
+        description: menuDetails.description.trim(),
+        description_en: menuDetails.descriptionEn.trim(),
+        description_ch: menuDetails.descriptionCh.trim(),
+        category_id: Number(menuDetails.categoryId),
+        price: Number(menuDetails.price),
       }
 
       const token = localStorage.getItem('token')
       const menuResponse = await axios.put(
-        `http://localhost:8080/api/menu/${menuDetails.ID}`, // ใช้ menuDetails.ID
-        menuPayload, // ส่งข้อมูลที่เตรียมไว้
+        `http://localhost:8080/api/menu/${menuDetails.ID}`,
+        menuPayload,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -307,66 +307,23 @@ const MenuManagement = () => {
         }
       )
 
-      // ตรวจสอบผลลัพธ์ของการอัปเดตเมนู
       if (menuResponse.status !== 200) {
         throw new Error('ไม่สามารถอัปเดตข้อมูลเมนูได้')
       }
 
-      // 2. จัดการข้อมูล Option Groups (แยก POST และ PUT)
+      // 2. จัดการข้อมูล Option Groups
       for (const group of menuDetails.optionGroups) {
-        // ถ้าไม่มี ID ของกลุ่มตัวเลือก (หมายถึงเป็นกลุ่มใหม่), ใช้ POST เพื่อสร้างกลุ่มใหม่
-        if (!group.ID) {
-          const options = Array.isArray(group.options) ? group.options : []
+        const groupPayload = {
+          name: group.name.trim(),
+          name_en: group.nameEn.trim(),
+          name_ch: group.nameCh.trim(),
+          MaxSelections: group.MaxSelections || 1,
+          is_required: group.isRequired || false,
+        }
 
-          const groupPayload = {
-            MaxSelections: group.MaxSelections || 1, // จำนวนที่เลือกได้สูงสุด
-            is_required: group.isRequired || false, // การบังคับเลือก
-            name: group.name.trim(),
-            name_en: group.nameEn.trim(),
-            name_ch: group.nameCh.trim(),
-            options: options.map((option) => ({
-              name: option.name.trim(),
-              name_en: option.nameEn.trim(),
-              name_ch: option.nameCh.trim(),
-              price: Number(option.price),
-            })),
-          }
-          const token = localStorage.getItem('token')
-          // ใช้ API POST ในการสร้าง Option Group ใหม่
-          const groupResponse = await axios.post(
-            `http://localhost:8080/api/menu/option-groups?menu_id=${menuDetails.ID}`,
-            groupPayload,
-            {
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          )
-
-          if (groupResponse.status !== 200) {
-            throw new Error(`ไม่สามารถเพิ่ม Option Group ${group.name} ได้`)
-          }
-        } else {
-          // ถ้ามี ID ของกลุ่มตัวเลือก (หมายถึงกลุ่มตัวเลือกที่มีอยู่แล้ว), ใช้ PUT ในการอัปเดต
-          const options = Array.isArray(group.options) ? group.options : []
-
-          const groupPayload = {
-            MaxSelections: group.MaxSelections || 1, // จำนวนที่เลือกได้สูงสุด
-            is_required: group.isRequired || false, // การบังคับเลือก
-            name: group.name.trim(),
-            name_en: group.nameEn.trim(),
-            name_ch: group.nameCh.trim(),
-            options: options.map((option) => ({
-              name: option.name.trim(),
-              name_en: option.nameEn.trim(),
-              name_ch: option.nameCh.trim(),
-              price: Number(option.price),
-            })),
-          }
-          const token = localStorage.getItem('token')
-          // ใช้ API PUT ในการอัปเดต Option Group ที่มีอยู่แล้ว
-          const groupResponse = await axios.put(
+        if (group.ID) {
+          // อัปเดต Option Group ที่มีอยู่
+          await axios.put(
             `http://localhost:8080/api/menu/option-groups/${group.ID}`,
             groupPayload,
             {
@@ -376,32 +333,33 @@ const MenuManagement = () => {
               },
             }
           )
-
-          if (groupResponse.status !== 200) {
-            throw new Error(
-              `ไม่สามารถอัปเดตข้อมูล Option Group ${group.ID} ได้`
-            )
-          }
+        } else {
+          // สร้าง Option Group ใหม่
+          await axios.post(
+            `http://localhost:8080/api/menu/option-groups?menu_id=${menuDetails.ID}`,
+            groupPayload,
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          )
         }
-      }
 
-      // 3. อัปเดตข้อมูล Options และลบ Options ที่ถูกลบใน UI
-      for (const group of menuDetails.optionGroups) {
-        const options = Array.isArray(group.options) ? group.options : []
+        // 3. จัดการข้อมูล Options
+        if (group.options && group.options.length > 0) {
+          for (const option of group.options) {
+            const optionPayload = {
+              name: option.name.trim(),
+              name_en: option.nameEn.trim(),
+              name_ch: option.nameCh.trim(),
+              price: Number(option.price),
+            }
 
-        // สำหรับการเพิ่มหรืออัปเดต Option
-        for (const option of options) {
-          if (option.ID) {
-            // อัปเดต Option ที่มีอยู่แล้ว
-            try {
-              const optionPayload = {
-                name: option.name.trim(),
-                name_en: option.nameEn.trim(),
-                name_ch: option.nameCh.trim(),
-                price: Number(option.price),
-              }
-              const token = localStorage.getItem('token')
-              const optionResponse = await axios.put(
+            if (option.ID) {
+              // อัปเดต Option ที่มีอยู่
+              await axios.put(
                 `http://localhost:8080/api/menu/options/${option.ID}`,
                 optionPayload,
                 {
@@ -411,27 +369,9 @@ const MenuManagement = () => {
                   },
                 }
               )
-
-              if (optionResponse.status !== 200) {
-                throw new Error(`ไม่สามารถอัปเดตข้อมูล Option ${option.ID} ได้`)
-              }
-            } catch (error) {
-              console.error(`Error updating option ID ${option.ID}:`, error)
-              throw new Error(
-                `เกิดข้อผิดพลาดในการอัปเดต Option ID ${option.ID}`
-              )
-            }
-          } else {
-            // เพิ่ม Option ใหม่
-            try {
-              const optionPayload = {
-                name: option.name.trim(),
-                name_en: option.nameEn.trim(),
-                name_ch: option.nameCh.trim(),
-                price: Number(option.price),
-              }
-              const token = localStorage.getItem('token')
-              const optionResponse = await axios.post(
+            } else if (group.ID) {
+              // สร้าง Option ใหม่
+              await axios.post(
                 `http://localhost:8080/api/menu/options?OptionGroupID=${group.ID}`,
                 optionPayload,
                 {
@@ -441,25 +381,17 @@ const MenuManagement = () => {
                   },
                 }
               )
-
-              if (optionResponse.status !== 200) {
-                throw new Error(`ไม่สามารถเพิ่ม Option ใหม่`)
-              }
-            } catch (error) {
-              console.error(`Error adding option:`, error)
-              throw new Error(`เกิดข้อผิดพลาดในการเพิ่ม Option`)
             }
           }
         }
       }
 
-      // 4. แจ้งความสำเร็จ
       alert('อัปเดตข้อมูลเมนูสำเร็จ')
       fetchMenus('getAll') // โหลดข้อมูลใหม่
       setShowEditMenuModal(false) // ปิด Modal
     } catch (error) {
       console.error('Error updating menu:', error)
-      alert('เกิดข้อผิดพลาดในการอัปเดตข้อมูลเมนู: ' + error.message)
+      alert('เกิดข้อผิดพลาดในการอัปเดตข้อมูลเมนู: ' + (error.response?.data?.error || error.message))
     }
   }
 
@@ -614,20 +546,79 @@ const MenuManagement = () => {
   }
   
 
-  const handleDeleteOptionGroup = (groupIndex) => {
-    const updatedGroups = menuDetails.optionGroups.filter(
-      (_, index) => index !== groupIndex
-    )
-    setMenuDetails({ ...menuDetails, optionGroups: updatedGroups })
-  }
+  const handleDeleteOptionGroup = async (groupIndex) => {
+    try {
+      const group = menuDetails.optionGroups[groupIndex];
+      if (group.ID) {
+        // ถ้ามี ID แสดงว่าเป็น group ที่มีอยู่แล้ว ต้องลบผ่าน API
+        const token = localStorage.getItem('token');
+        const response = await axios.delete(
+          `http://localhost:8080/api/menu/option-groups/${group.ID}`,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        
+        if (response.status === 200) {
+          // ลบสำเร็จ อัพเดท state
+          const updatedGroups = menuDetails.optionGroups.filter((_, index) => index !== groupIndex);
+          setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+          alert('ลบกลุ่มตัวเลือกสำเร็จ');
+        } else {
+          throw new Error('Failed to delete option group');
+        }
+      } else {
+        // ถ้าไม่มี ID แสดงว่าเป็น group ใหม่ที่ยังไม่ได้บันทึก ลบจาก state ได้เลย
+        const updatedGroups = menuDetails.optionGroups.filter((_, index) => index !== groupIndex);
+        setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+      }
+    } catch (error) {
+      console.error('Error deleting option group:', error);
+      alert('เกิดข้อผิดพลาดในการลบกลุ่มตัวเลือก: ' + (error.response?.data?.error || error.message));
+    }
+  };
 
-  const handleDeleteOption = (groupIndex, optionIndex) => {
-    const updatedGroups = [...menuDetails.optionGroups]
-    updatedGroups[groupIndex].options = updatedGroups[
-      groupIndex
-    ].options.filter((_, index) => index !== optionIndex)
-    setMenuDetails({ ...menuDetails, optionGroups: updatedGroups })
-  }
+  const handleDeleteOption = async (groupIndex, optionIndex) => {
+    try {
+      const option = menuDetails.optionGroups[groupIndex].options[optionIndex];
+      if (option.ID) {
+        // ถ้ามี ID แสดงว่าเป็น option ที่มีอยู่แล้ว ต้องลบผ่าน API
+        const token = localStorage.getItem('token');
+        const response = await axios.delete(
+          `http://localhost:8080/api/menu/options/${option.ID}`,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        
+        if (response.status === 200) {
+          // ลบสำเร็จ อัพเดท state
+          const updatedGroups = [...menuDetails.optionGroups];
+          updatedGroups[groupIndex].options = updatedGroups[groupIndex].options.filter(
+            (_, index) => index !== optionIndex
+          );
+          setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+          alert('ลบตัวเลือกสำเร็จ');
+        }
+      } else {
+        // ถ้าไม่มี ID แสดงว่าเป็น option ใหม่ที่ยังไม่ได้บันทึก ลบจาก state ได้เลย
+        const updatedGroups = [...menuDetails.optionGroups];
+        updatedGroups[groupIndex].options = updatedGroups[groupIndex].options.filter(
+          (_, index) => index !== optionIndex
+        );
+        setMenuDetails({ ...menuDetails, optionGroups: updatedGroups });
+      }
+    } catch (error) {
+      console.error('Error deleting option:', error);
+      alert('เกิดข้อผิดพลาดในการลบตัวเลือก');
+    }
+  };
 
   // เพิ่ม Group opptions ใหม่ใน modal แก้ไข menu
   const handleAddOptionGroup = () => {
@@ -659,566 +650,84 @@ const MenuManagement = () => {
     setMenuDetails({ ...menuDetails, optionGroups: updatedGroups })
   }
 
+  // เพิ่มฟังก์ชันสำหรับการสลับการแสดง/ซ่อนตัวเลือก
+  const toggleOptions = (menuId) => {
+    setExpandedOptions(prev => ({
+      ...prev,
+      [menuId]: !prev[menuId]
+    }))
+  }
+
   return (
-    <div className="bg-gray-50 max-h-full h-full lg:ml-4 p-2">
-      <div className="flex justify-between rounded items-center bg-gray-800 shadow p-4 ">
-        <h1 className="text-xl ml-10 font-bold text-white ">จัดการเมนูอาหาร</h1>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+      {/* Header Section */}
+      <div className="mb-8">
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">จัดการเมนูอาหาร</h1>
+          <p className="text-gray-600">จัดการรายการอาหาร เพิ่ม แก้ไข และปรับแต่งตัวเลือกต่างๆ</p>
+        </div>
       </div>
 
-      <div className="flex mb-4"></div>
-      <div className="">
-        <div className="flex justify-between">
-          <div>
-            {/* ปุ่มเปลี่ยนตาราง */}
-            <button
-              className={`px-4 py-2 rounded-t-lg ${
-                activeTab === 'menu'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-              onClick={() => setActiveTab('menu')}
-            >
-              ข้อมูลสินค้า
-            </button>
-            <button
-              className={`px-4 py-2 rounded-t-lg ${
-                activeTab === 'promotion'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-              onClick={() => setActiveTab('promotion')}
-            >
-              ข้อมูลโปรโมชัน
-            </button>
-            <button
-              className={`px-4 py-2 rounded-t-lg ${
-                activeTab === 'restore'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-              onClick={() => setActiveTab('restore')}
-            >
-              ข้อมูลสินค้าที่ถูกลบ
-            </button>
-          </div>
-          {/* สิ้นสุดปุ่มเปลี่ยนตาราง */}
+      {/* Tab Navigation */}
+      <div className="mb-6">
+        <div className="bg-white rounded-xl shadow-lg p-2 inline-flex space-x-2">
+          <button
+            className={`px-6 py-3 rounded-lg transition-all duration-200 ${
+              activeTab === 'menu'
+                ? 'bg-blue-500 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+            onClick={() => setActiveTab('menu')}
+          >
+            ข้อมูลสินค้า
+          </button>
+          <button
+            className={`px-6 py-3 rounded-lg transition-all duration-200 ${
+              activeTab === 'promotion'
+                ? 'bg-blue-500 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+            onClick={() => setActiveTab('promotion')}
+          >
+            ข้อมูลโปรโมชัน
+          </button>
+          <button
+            className={`px-6 py-3 rounded-lg transition-all duration-200 ${
+              activeTab === 'restore'
+                ? 'bg-blue-500 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+            onClick={() => setActiveTab('restore')}
+          >
+            ข้อมูลสินค้าที่ถูกลบ
+          </button>
         </div>
+      </div>
 
-        {/* ตารางแสดงเมนู */}
-        {activeTab === 'menu' && (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                {/* การค้นหาชื่อเมนู */}
+      {/* Main Content Area */}
+      {activeTab === 'menu' && (
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          {/* Search and Filter Section */}
+          <div className="flex flex-wrap gap-4 mb-6">
+            <div className="flex-1 min-w-[200px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                 <input
                   type="text"
-                  className="p-2 border border-gray-300 rounded-lg"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   placeholder="ค้นหาชื่อเมนู ราคา..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
-
-                {/* ตัวกรองหมวดหมู่ */}
-                <select
-                  className="ml-4 p-2 border border-gray-300 rounded-lg cursor-pointer"
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                >
-                  <option value="">ค้นหาตามหมวดหมู่</option>
-                  {categories.map((category) => (
-                    <option key={category.ID} value={category.ID}>
-                      {category.Name}
-                    </option>
-                  ))}
-                </select>
-
-                {/* ตัวกรองกลุ่มตัวเลือก */}
-                <select
-                  className="ml-4 p-2 border border-gray-300 rounded-lg cursor-pointer"
-                  value={optionGroupFilter}
-                  onChange={(e) => setOptionGroupFilter(e.target.value)}
-                >
-                  <option value="">ตัวเลือกทั้งหมด</option>
-                  {menus.flatMap((menu) =>
-                    menu.OptionGroups.map((group) => (
-                      <option key={group.ID} value={group.ID}>
-                        {group.Name}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
-              <div>
-                <button
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg mr-2 hover:bg-blue-600"
-                  onClick={() => setShowAddMenuModal(true)}
-                >
-                  เพิ่มเมนูอาหาร
-                </button>
               </div>
             </div>
-            <table className="w-full max-x-full bg-white rounded-3xl shadow-lg border border-gray-300">
-              <thead>
-                <tr className="bg-blue-500 text-left text-white">
-                  <th className="p-2 text-center">สถานะ</th>
-                  <th className="p-1">รหัสสินค้า</th>
-                  <th className="p-2 w-4/12">รูปสินค้า</th>
-                  <th className="p-2 w-1/12 text-center">ชื่อเมนู</th>
-                  <th className="p-2 w-3/12">คำอธิบาย</th>
-                  <th className="p-2">หมวดหมู่</th>
-                  <th className="p-2">ราคา (THB)</th>
-                  <th className="p-2 text-center">ตัวเลือก</th>
-                  <th className="p-2 ">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Array.isArray(filteredMenus) && filteredMenus.length > 0 ? (
-                  filteredMenus.map((menu) => (
-                    <tr key={menu.ID} className="border-t">
-                      <td className="">
-                        <div className="flex items-center justify-center  ">
-                          <label className="relative  items-center cursor-pointer ">
-                            <input
-                              type="checkbox"
-                              className="sr-only peer"
-                              checked={menu.Is_available}
-                              onChange={() => {
-                                // อัปเดตสถานะใน UI ทันที
-                                setMenus((prevMenus) =>
-                                  prevMenus.map((m) =>
-                                    m.ID === menu.ID
-                                      ? {
-                                          ...m,
-                                          Is_available: !menu.Is_available,
-                                        }
-                                      : m
-                                  )
-                                )
-
-                                // ส่งคำขอไปยังเซิร์ฟเวอร์เพื่อเปลี่ยนสถานะ
-                                toggleMenuStatus(menu.ID).then(
-                                  (updatedMenu) => {
-                                    if (updatedMenu) {
-                                      // อัปเดตสถานะในกรณีที่เซิร์ฟเวอร์ตอบกลับสำเร็จ
-                                      setMenus((prevMenus) =>
-                                        prevMenus.map((m) =>
-                                          m.ID === updatedMenu.ID
-                                            ? updatedMenu
-                                            : m
-                                        )
-                                      )
-                                    }
-                                  }
-                                )
-                              }}
-                            />
-                            <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
-                            <span className="ml-3 text-sm font-medium text-gray-900 ">
-                              {menu.Is_available ? 'พร้อม' : 'หมด'}
-                            </span>
-                          </label>
-                        </div>
-                      </td>
-                      <td className="text-center">{menu.ID}</td>
-                      <td className="border sm:w-32">
-                        {menu.Image && menu.Image.length > 0 ? (
-                          <img
-                            src={`data:image/png;base64,${menu.Image}`}
-                            alt={menu.Name}
-                            className="w-50 h-25 "
-                          />
-                        ) : (
-                          'ไม่มีรูป'
-                        )}
-                      </td>
-                      <td className="text-center w-1/12 border">
-                        <div>TH: {menu.Name} </div>
-                        <div>EN: {menu.NameEn}</div>
-                        <div>CH: {menu.NameCh}</div>
-                      </td>
-                      <td className=" w-3/12 border">
-                        <div className="mb-2 border-b border-gray-300 ">
-                          TH: {menu.Description}
-                        </div>
-                        <div className="mb-2 border-b border-gray-300">
-                          EN: {menu.DescriptionEn}
-                        </div>
-                        <div>CH: {menu.DescriptionCh}</div>
-                      </td>
-                      <td className="p-2 border">
-                        {menu.CategoryID ? (
-                          <div>{getCategoryNameById(menu.CategoryID)}</div>
-                        ) : (
-                          'ไม่พบหมวดหมู่'
-                        )}
-                      </td>
-                      <td className="p-2 text-center border">{menu.Price}</td>
-                      <td className=" w-7/12 border">
-                        {/* แสดงตัวเลือก */}
-                        {Array.isArray(menu.OptionGroups) &&
-                        menu.OptionGroups.length > 0 ? (
-                          <ul className="">
-                            {menu.OptionGroups.map((group) => (
-                              <li key={group.ID} className="border-b p-2">
-                                <div className="text-lg font-semibold text-gray-800">
-                                  กลุ่ม:{' '}
-                                  <span className="text-blue-600">
-                                    {group.ID}
-                                  </span>
-                                </div>
-                                <div className="text-gray-600 mt-1">
-                                  <span className="font-medium ">TH:</span>{' '}
-                                  {group.Name} |
-                                  <span className="font-medium">EN:</span>{' '}
-                                  {group.NameEn} |
-                                  <span className="font-medium">CH:</span>{' '}
-                                  {group.NameCh}
-                                </div>
-
-                                {/* รายการตัวเลือก */}
-                                <ul className="list-disc ml-1 mt-1 space-y-2">
-                                  {group.Options && group.Options.length > 0 ? (
-                                    group.Options.map((option) => (
-                                      <li
-                                        key={option.ID}
-                                        className="flex justify-between items-center"
-                                      >
-                                        <span className="font-mg text-gray-700">
-                                          • {option.ID}
-                                          {option.Name} | {option.NameEn} |{' '}
-                                          {option.NameCh}
-                                        </span>
-                                        <span className="text-green-600 text-sm">
-                                          {option.Price} THB
-                                        </span>
-                                      </li>
-                                    ))
-                                  ) : (
-                                    <span className="text-red-500 text-center">
-                                      ไม่มีตัวเลือก
-                                    </span>
-                                  )}
-                                </ul>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <span className="text-red-500 text-center">
-                            ไม่มีตัวเลือก
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="flex justify-center ">
-                        <div className="flex">
-                          <div className="relative inline-block ">
-                            <div className="relative group">
-                              <button
-                                className="hover:bg-gray-100 p-2 rounded-full"
-                                onClick={() => toggleDropdown(menu.ID)}
-                              >
-                                <Ellipsis />
-                              </button>
-                              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-400 text-white text-sm py-1 px-2 rounded-md shadow-lg">
-                                จัดการข้อมูล
-                              </div>
-                            </div>
-
-                            {/* Dropdown menu */}
-                            {isDropdownOpen === menu.ID && (
-                              <div className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none">
-                                <div className="py-1">
-                                  <button
-                                    onClick={() => {
-                                      setCurrentMenuId(menu.ID)
-                                      setMenuDetails({
-                                        ID: menu.ID || '',
-                                        name: menu.Name || '',
-                                        nameEn: menu.NameEn || '',
-                                        nameCh: menu.NameCh || '',
-                                        price: menu.Price || 0,
-                                        description: menu.Description || '',
-                                        descriptionEn: menu.DescriptionEn || '',
-                                        descriptionCh: menu.DescriptionCh || '',
-                                        categoryId: menu.CategoryID || '',
-                                        optionGroups: Array.isArray(
-                                          menu.OptionGroups
-                                        )
-                                          ? menu.OptionGroups.map((group) => ({
-                                              ID: group.ID || '',
-                                              name: group.Name || '',
-                                              nameEn: group.NameEn || '',
-                                              nameCh: group.NameCh || '',
-                                              MaxSelections:
-                                                group.MaxSelections || 1,
-                                              isRequired:
-                                                group.IsRequired || false,
-                                              options: Array.isArray(
-                                                group.Options
-                                              )
-                                                ? group.Options.map(
-                                                    (option) => ({
-                                                      ID: option.ID || '',
-                                                      name: option.Name || '',
-                                                      nameEn:
-                                                        option.NameEn || '',
-                                                      nameCh:
-                                                        option.NameCh || '',
-                                                      price: option.Price || 0,
-                                                    })
-                                                  )
-                                                : [],
-                                            }))
-                                          : [],
-                                      })
-                                      setIsDropdownOpen(false)
-                                      setShowEditMenuModal(true)
-                                    }}
-                                    className="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100"
-                                    role="menuitem"
-                                  >
-                                    <Edit className="inline w-4 h-4 mr-2" />
-                                    แก้ไขเมนู
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setIsDropdownOpen(false)
-                                      setCurrentMenuId(menu.ID)
-                                      setShowUploadModal(true)
-                                    }}
-                                    className="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100"
-                                    role="menuitem"
-                                  >
-                                    <Image className="inline w-4 h-4 mr-2" />
-                                    อัปโหลดรูปภาพ
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setIsDropdownOpen(false)
-                                      setMenuToDelete(menu)
-                                      setIsDeleteModalOpen(true)
-                                    }}
-                                    className="text-red-500 block px-4 py-2 text-sm hover:bg-gray-100"
-                                    role="menuitem"
-                                  >
-                                    <Trash2 className="inline w-4 h-4 mr-2" />
-                                    ลบเมนู
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="8" className="text-center p-4">
-                      ไม่พบเมนู
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {/* สิ้นสุดตารางแสดงข้อมูลสินค้า */}
-        <ConfirmDeleteModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)} // ปิด modal เมื่อกด 'ยกเลิก'
-          onConfirm={deleteMenu} // เรียกฟังก์ชัน deleteMenu เมื่อกด 'ลบ'
-          menuName={menuToDelete?.Name || 'ไม่พบชื่อเมนู'} // ส่งชื่อเมนูที่ต้องการลบ
-        />
-
-        {/* ตารางแสดง promotion */}
-        {activeTab === 'promotion' && <Promotions></Promotions>}
-
-        {/* สิ้นสุดตารางแสดง options */}
-
-        {activeTab === 'restore' && <MenuRestore></MenuRestore>}
-      </div>
-
-      {/* Modal สำหรับอัพโหลดรูปภาพ */}
-      {showUploadModal && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-lg w-96">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-bold">อัพโหลดรูปภาพ</h2>
-              <button
-                className="text-red-500"
-                onClick={() => setShowUploadModal(false)} // ปิด modal
-              >
-                <X />
-              </button>
-            </div>
-            <div className="mt-4">
-              <input
-                type="file"
-                id="imageInput"
-                onChange={handleFileChange}
-                className="border p-2 w-full"
-              />
-            </div>
-            {selectedImage && (
-              <div className="mt-4">
-                <img
-                  src={selectedImage}
-                  alt="Preview"
-                  className="w-32 h-32 object-cover"
-                />
-              </div>
-            )}
-            <div className="mt-4 flex justify-between">
-              <button
-                className="bg-blue-500 text-white px-4 py-2 rounded-lg"
-                onClick={handleUploadImage}
-              >
-                ยืนยัน
-              </button>
-              <button
-                className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg"
-                onClick={() => setShowUploadModal(false)} // ปิด modal
-              >
-                ยกเลิก
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* สิ้นสุด Modal สำหรับอัพโหลดรูปภาพ */}
-
-      {/* Modal สำหรับเพิ่มเมนูอาหาร */}
-      {showAddMenuModal && (
-        <AddMenuModal
-          onClose={() => setShowAddMenuModal(false)}
-          onMenuAdded={() => fetchMenus('getAll')}
-        />
-      )}
-
-      {/* Modal สำหรับแก้ไขเมนูอาหาร */}
-      {showEditMenuModal && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-lg sm:w-8/12 md:w-8/12 lg:w-6/12 ml-12 h-screen overflow-y-auto">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">แก้ไขข้อมูลเมนู</h2>
-              <button
-                className="text-red-500"
-                onClick={() => setShowEditMenuModal(false)} // ปิด Modal
-              >
-                <X />
-              </button>
-            </div>
-
-            {/* ฟอร์มแก้ไขเมนู */}
-
-            <div className="mb-4 text-xl">
-              <label>รหัสสินค้า : {menuDetails.ID}</label>
-            </div>
-            <label className="text-lg">ชื่อเมนูอาหาร</label>
-            <div className="flex px-4 border">
-              <div className="my-5 mr-2">
-                <label>ชื่อเมนู (ไทย)</label>
-                <input
-                  type="text"
-                  value={menuDetails.name}
-                  onChange={(e) =>
-                    setMenuDetails({ ...menuDetails, name: e.target.value })
-                  }
-                  className="border p-2 w-full mt-2"
-                />
-              </div>
-              <div className="mt-4 mx-2">
-                <label className="text-lg">ชื่อเมนู (อังกฤษ)</label>
-                <input
-                  type="text"
-                  value={menuDetails.nameEn}
-                  onChange={(e) =>
-                    setMenuDetails({ ...menuDetails, nameEn: e.target.value })
-                  }
-                  className="border p-2 w-full mt-2"
-                />
-              </div>
-              <div className="mt-4 mx-2">
-                <label className="text-lg">ชื่อเมนู (จีน)</label>
-                <input
-                  type="text"
-                  value={menuDetails.nameCh}
-                  onChange={(e) =>
-                    setMenuDetails({ ...menuDetails, nameCh: e.target.value })
-                  }
-                  className="border p-2 w-full mt-2"
-                />
-              </div>
-            </div>
-            <div className="mt-4">
-              <label className="text-lg">ราคา</label>
-              <input
-                type="number"
-                value={menuDetails.price}
-                onChange={(e) =>
-                  setMenuDetails({ ...menuDetails, price: e.target.value })
-                }
-                className="border p-2 w-full "
-              />
-            </div>
-            <div className="mt-4 text-lg">คำอธิบายของอาหาร</div>
-            <div className="border p-4">
-              <div className="mt-4">
-                <label>คำอธิบาย (ไทย)</label>
-                <textarea
-                  value={menuDetails.description}
-                  onChange={(e) =>
-                    setMenuDetails({
-                      ...menuDetails,
-                      description: e.target.value,
-                    })
-                  }
-                  className="border p-2 w-full mt-2"
-                />
-              </div>
-              <div className="mt-4">
-                <label>คำอธิบาย (อังกฤษ)</label>
-                <textarea
-                  value={menuDetails.descriptionEn}
-                  onChange={(e) =>
-                    setMenuDetails({
-                      ...menuDetails,
-                      descriptionEn: e.target.value,
-                    })
-                  }
-                  className="border p-2 w-full mt-2"
-                />
-              </div>
-              <div className="mt-4">
-                <label>คำอธิบาย (จีน)</label>
-                <textarea
-                  value={menuDetails.descriptionCh}
-                  onChange={(e) =>
-                    setMenuDetails({
-                      ...menuDetails,
-                      descriptionCh: e.target.value,
-                    })
-                  }
-                  className="border p-2 w-full mt-2"
-                />
-              </div>
-            </div>
-
-            {/* หมวดหมู่ */}
-            <div className="mt-6">
-              <label className="text-lg">หมวดหมู่</label>
+            <div className="flex-1 min-w-[200px]">
               <select
-                value={menuDetails.categoryId || ''}
-                onChange={(e) =>
-                  setMenuDetails({
-                    ...menuDetails,
-                    categoryId: e.target.value ? Number(e.target.value) : null,
-                  })
-                }
-                className="border p-2 w-full mt-2"
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer bg-white"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
               >
-                <option value="">กรุณาเลือกหมวดหมู่</option>
+                <option value="">ค้นหาตามหมวดหมู่</option>
                 {categories.map((category) => (
                   <option key={category.ID} value={category.ID}>
                     {category.Name}
@@ -1226,271 +735,768 @@ const MenuManagement = () => {
                 ))}
               </select>
             </div>
-
-            {/* Option Groups */}
-            <div className="mt-6 mb-2 text-lg">
-              ข้อมูลกลุ่มตัวเลือกและตัวเลือกของเมนูอาหาร
-            </div>
-            <div className="mt-6">
-              <button
-                className="bg-green-500 text-white px-4 py-2 rounded-lg mt-4"
-                onClick={handleAddOptionGroup}
+            <div className="flex-1 min-w-[200px]">
+              <select
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer bg-white"
+                value={optionGroupFilter}
+                onChange={(e) => setOptionGroupFilter(e.target.value)}
               >
-                เพิ่มกลุ่มตัวเลือก
-              </button>
+                <option value="">ตัวเลือกทั้งหมด</option>
+                {menus.flatMap((menu) =>
+                  menu.OptionGroups.map((group) => (
+                    <option key={group.ID} value={group.ID}>
+                      {group.Name}
+                    </option>
+                  ))
+                )}
+              </select>
             </div>
-            {menuDetails.optionGroups.length > 0 ? (
-              menuDetails.optionGroups.map((group, groupIndex) => (
-                <div key={groupIndex}>
-                  <div className="border border-black p-2 pb-8 mt-2">
-                    <label>รหัสกลุ่มตัวเลือก : {group.ID}</label>
-                    <button
-                      className="text-red-500"
-                      onClick={() => handleDeleteOptionGroup(groupIndex)}
-                    >
-                      ลบกลุ่ม
-                    </button>
+            <button
+              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
+              onClick={() => setShowAddMenuModal(true)}
+            >
+              <Plus size={20} />
+              เพิ่มเมนูอาหาร
+            </button>
+          </div>
 
-                    <div className="mt-4 bg-gray-300 p-2">
-                      ชื่อกลุ่มตัวเลือกภายในเมนู
-                    </div>
-                    <div className="flex px-2 border border-gray-300">
-                      <div className="mt-4 mb-4">
-                        <label>ชื่อกลุ่มตัวเลือก (ไทย)</label>
-                        <input
-                          type="text"
-                          value={group.name}
-                          onChange={(e) => {
-                            const updatedGroups = [...menuDetails.optionGroups]
-                            updatedGroups[groupIndex].name = e.target.value
-                            setMenuDetails({
-                              ...menuDetails,
-                              optionGroups: updatedGroups,
-                            })
-                          }}
-                          className="border p-2 w-full mt-2"
-                        />
-                      </div>
-                      <div className="mt-4 mx-2">
-                        <label>ชื่อกลุ่มตัวเลือก (อังกฤษ)</label>
-                        <input
-                          type="text"
-                          value={group.nameEn}
-                          onChange={(e) => {
-                            const updatedGroups = [...menuDetails.optionGroups]
-                            updatedGroups[groupIndex].nameEn = e.target.value
-                            setMenuDetails({
-                              ...menuDetails,
-                              optionGroups: updatedGroups,
-                            })
-                          }}
-                          className="border p-2 w-full mt-2"
-                        />
-                      </div>
-                      <div className="mt-4">
-                        <label>ชื่อกลุ่มตัวเลือก (จีน)</label>
-                        <input
-                          type="text"
-                          value={group.nameCh}
-                          onChange={(e) => {
-                            const updatedGroups = [...menuDetails.optionGroups]
-                            updatedGroups[groupIndex].nameCh = e.target.value
-                            setMenuDetails({
-                              ...menuDetails,
-                              optionGroups: updatedGroups,
-                            })
-                          }}
-                          className="border p-2 w-full mt-2"
-                        />
-                      </div>
-                      <div className="mt-4">
-                        <label>จำนวนที่เลือกได้</label>
-                        <input
-                          type="number"
-                          value={group.MaxSelections || ''}
-                          onChange={(e) => {
-                            const updatedGroups = [...menuDetails.optionGroups]
-                            updatedGroups[groupIndex].MaxSelections = Number(
-                              e.target.value
-                            ) // แปลงเป็นตัวเลข
-                            setMenuDetails({
-                              ...menuDetails,
-                              optionGroups: updatedGroups,
-                            })
-                          }}
-                          className="border p-2 w-10 "
-                        />
-                      </div>
-                      <div className="mt-4">
-                        <label>ต้องเลือกหรือไม่</label>
-                        <input
-                          type="checkbox"
-                          checked={group.isRequired}
-                          onChange={(e) => {
-                            setMenuDetails((prevDetails) => {
-                              const updatedGroups = [
-                                ...prevDetails.optionGroups,
-                              ]
-                              updatedGroups[groupIndex] = {
-                                ...updatedGroups[groupIndex],
-                                isRequired: e.target.checked,
-                              }
-                              return {
-                                ...prevDetails,
-                                optionGroups: updatedGroups,
-                              }
-                            })
-                          }}
-                          className="mt-2 ml-1"
-                        />
-                      </div>
-                    </div>
-
-                    {/* ฟอร์มสำหรับแก้ไข Option ใน Option Group */}
-                    {group.options.length > 0 ? (
-                      group.options.map((option, optionIndex) => (
-                        <div key={optionIndex}>
-                          <div className="mt-4 bg-gray-200 p-1">
-                            ชื่อตัวเลือกภายในเมนู
+          {/* Menu Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+                  <th className="px-4 py-3 text-center rounded-tl-lg">สถานะ</th>
+                  <th className="px-4 py-3">รหัสสินค้า</th>
+                  <th className="px-4 py-3">รูปสินค้า</th>
+                  <th className="px-4 py-3">ชื่อเมนู</th>
+                  <th className="px-4 py-3">คำอธิบาย</th>
+                  <th className="px-4 py-3">หมวดหมู่</th>
+                  <th className="px-4 py-3">ราคา (THB)</th>
+                  <th className="px-4 py-3">ตัวเลือก</th>
+                  <th className="px-4 py-3 rounded-tr-lg">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.isArray(filteredMenus) && filteredMenus.length > 0 ? (
+                  filteredMenus.map((menu, index) => (
+                    <React.Fragment key={menu.ID}>
+                      <tr className={`border-b border-gray-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}>
+                        <td className="px-4 py-3 text-center">
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="sr-only peer"
+                              checked={menu.Is_available}
+                              onChange={() => toggleMenuStatus(menu.ID)}
+                            />
+                            <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                          </label>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="font-medium text-gray-700 bg-gray-100 px-3 py-1 rounded-full">
+                            {menu.ID}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          {menu.Image ? (
+                            <div className="group relative">
+                              <img
+                                src={`data:image/png;base64,${menu.Image}`}
+                                alt={menu.Name}
+                                className="w-32 h-32 object-cover rounded-xl shadow-md transition-transform transform hover:scale-105"
+                              />
+                              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-xl transition-all duration-200">
+                                <button
+                                  onClick={() => {
+                                    setCurrentMenuId(menu.ID)
+                                    setShowUploadModal(true)
+                                  }}
+                                  className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100"
+                                >
+                                  <div className="bg-white p-2 rounded-lg shadow-lg">
+                                    <Image className="w-5 h-5 text-gray-600" />
+                                  </div>
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="w-32 h-32 bg-gray-100 rounded-xl flex flex-col items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors cursor-pointer"
+                                 onClick={() => {
+                                   setCurrentMenuId(menu.ID)
+                                   setShowUploadModal(true)
+                                 }}>
+                              <Image className="w-8 h-8 mb-2" />
+                              <span className="text-sm">เพิ่มรูปภาพ</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="space-y-1">
+                            <p className="font-medium text-gray-800 text-lg">{menu.Name}</p>
+                            <p className="text-sm text-gray-600">{menu.NameEn}</p>
+                            <p className="text-sm text-gray-600">{menu.NameCh}</p>
                           </div>
-                          <button
-                            className="text-red-500 text-sm hover:underline"
-                            onClick={() => {
-                              if (
-                                window.confirm(
-                                  'คุณต้องการลบตัวเลือกนี้หรือไม่?'
-                                )
-                              ) {
-                                deleteOption(option.ID)
-                                handleDeleteOption(groupIndex, optionIndex) // อัปเดต UI
-                              }
-                            }}
-                          >
-                            ลบตัวเลือกนี้
-                          </button>
-
-                          <div className="flex px-4 border border-black/50">
-                            <div className="my-2 mx-2">
-                              <label>ชื่อตัวเลือก (ไทย)</label>
-                              <input
-                                type="text"
-                                value={option.name}
-                                onChange={(e) => {
-                                  const updatedGroups = [
-                                    ...menuDetails.optionGroups,
-                                  ]
-                                  updatedGroups[groupIndex].options[
-                                    optionIndex
-                                  ].name = e.target.value
-                                  setMenuDetails({
-                                    ...menuDetails,
-                                    optionGroups: updatedGroups,
-                                  })
-                                }}
-                                className="border p-2 w-full mt-2"
-                              />
-                            </div>
-                            <div className="mt-2 mr-2">
-                              <label>ชื่อตัวเลือก (อังกฤษ)</label>
-                              <input
-                                type="text"
-                                value={option.nameEn}
-                                onChange={(e) => {
-                                  const updatedGroups = [
-                                    ...menuDetails.optionGroups,
-                                  ]
-                                  updatedGroups[groupIndex].options[
-                                    optionIndex
-                                  ].nameEn = e.target.value
-                                  setMenuDetails({
-                                    ...menuDetails,
-                                    optionGroups: updatedGroups,
-                                  })
-                                }}
-                                className="border p-2 w-full mt-2"
-                              />
-                            </div>
-                            <div className="mt-2 mr-2">
-                              <label>ชื่อตัวเลือก (จีน)</label>
-                              <input
-                                type="text"
-                                value={option.nameCh}
-                                onChange={(e) => {
-                                  const updatedGroups = [
-                                    ...menuDetails.optionGroups,
-                                  ]
-                                  updatedGroups[groupIndex].options[
-                                    optionIndex
-                                  ].nameCh = e.target.value
-                                  setMenuDetails({
-                                    ...menuDetails,
-                                    optionGroups: updatedGroups,
-                                  })
-                                }}
-                                className="border p-2 w-full mt-2"
-                              />
-                            </div>
-                            <div className="mt-2">
-                              <label>ราคา Option</label>
-                              <input
-                                type="number"
-                                value={option.price}
-                                onChange={(e) => {
-                                  const updatedGroups = [
-                                    ...menuDetails.optionGroups,
-                                  ]
-                                  updatedGroups[groupIndex].options[
-                                    optionIndex
-                                  ].price = e.target.value
-                                  setMenuDetails({
-                                    ...menuDetails,
-                                    optionGroups: updatedGroups,
-                                  })
-                                }}
-                                className="border p-2 w-16 mt-2"
-                              />
-                              THB
-                            </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="space-y-2">
+                            <p className="text-sm text-gray-800">{menu.Description || '-'}</p>
+                            <p className="text-sm text-gray-600">{menu.DescriptionEn || '-'}</p>
+                            <p className="text-sm text-gray-600">{menu.DescriptionCh || '-'}</p>
                           </div>
-                        </div>
-                      ))
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="px-4 py-2 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-800 rounded-lg text-sm font-medium shadow-sm">
+                            {getCategoryNameById(menu.CategoryID)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="font-medium text-lg text-gray-800">
+                            {menu.Price.toLocaleString()} ฿
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {Array.isArray(menu.OptionGroups) && menu.OptionGroups.length > 0 ? (
+                            <button
+                              onClick={() => toggleOptions(menu.ID)}
+                              className="px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors flex items-center justify-between w-full"
+                            >
+                              <span className="text-sm font-medium text-gray-700">
+                                {menu.OptionGroups.length} กลุ่มตัวเลือก
+                              </span>
+                              <svg
+                                className={`w-5 h-5 text-gray-500 transform transition-transform ${
+                                  expandedOptions[menu.ID] ? 'rotate-180' : ''
+                                }`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                          ) : (
+                            <div className="text-gray-400 italic text-sm">ไม่มีตัวเลือก</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="relative">
+                            <button
+                              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                              onClick={() => toggleDropdown(menu.ID)}
+                            >
+                              <Ellipsis />
+                            </button>
+                            {isDropdownOpen === menu.ID && (
+                              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 z-10 overflow-hidden">
+                                <button
+                                  onClick={() => {
+                                    setCurrentMenuId(menu.ID)
+                                    setMenuDetails({
+                                      ID: menu.ID,
+                                      name: menu.Name,
+                                      nameEn: menu.NameEn,
+                                      nameCh: menu.NameCh,
+                                      price: menu.Price,
+                                      description: menu.Description,
+                                      descriptionEn: menu.DescriptionEn,
+                                      descriptionCh: menu.DescriptionCh,
+                                      categoryId: menu.CategoryID,
+                                      optionGroups: menu.OptionGroups.map((group) => ({
+                                        ID: group.ID,
+                                        name: group.Name,
+                                        nameEn: group.NameEn,
+                                        nameCh: group.NameCh,
+                                        MaxSelections: group.MaxSelections,
+                                        isRequired: group.IsRequired,
+                                        options: group.Options.map((option) => ({
+                                          ID: option.ID,
+                                          name: option.Name,
+                                          nameEn: option.NameEn,
+                                          nameCh: option.NameCh,
+                                          price: option.Price,
+                                        })),
+                                      })),
+                                    })
+                                    setIsDropdownOpen(false)
+                                    setShowEditMenuModal(true)
+                                  }}
+                                  className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 border-b border-gray-100"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                  แก้ไขเมนู
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setIsDropdownOpen(false)
+                                    setCurrentMenuId(menu.ID)
+                                    setShowUploadModal(true)
+                                  }}
+                                  className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 border-b border-gray-100"
+                                >
+                                  <Image className="w-4 h-4" />
+                                  อัปโหลดรูปภาพ
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setIsDropdownOpen(false)
+                                    setMenuToDelete(menu)
+                                    setIsDeleteModalOpen(true)
+                                  }}
+                                  className="w-full px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  ลบเมนู
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                      {/* Option Groups Row */}
+                      {expandedOptions[menu.ID] && menu.OptionGroups.length > 0 && (
+                        <tr className="border-b border-gray-200">
+                          <td colSpan="9" className="px-6 py-4 bg-gradient-to-r from-blue-50/80 to-white">
+                            <div className="space-y-4">
+                              {menu.OptionGroups.map((group) => (
+                                <div key={group.ID} className="bg-white rounded-lg shadow-md border-2 border-gray-100 overflow-hidden hover:border-blue-200 transition-all duration-200">
+                                  <div className="px-4 py-3 bg-gradient-to-r from-blue-100/50 to-blue-50/50 border-b-2 border-gray-100">
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <h4 className="font-medium text-gray-800">{group.Name}</h4>
+                                        <div className="flex items-center space-x-2 mt-1">
+                                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                            group.IsRequired ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-green-100 text-green-700 border border-green-200'
+                                          }`}>
+                                            {group.IsRequired ? 'บังคับเลือก' : 'เลือกได้'}
+                                          </span>
+                                          <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium border border-blue-200">
+                                            เลือกได้ {group.MaxSelections} รายการ
+                                          </span>
+                                        </div>
+                                      </div>
+                                      {group.NameEn && group.NameCh && (
+                                        <div className="text-sm text-gray-500">
+                                          <div>{group.NameEn}</div>
+                                          <div>{group.NameCh}</div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="p-4 bg-gradient-to-b from-white to-gray-50">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                      {group.Options.map((option) => (
+                                        <div key={option.ID} className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200">
+                                          <div className="flex justify-between items-start">
+                                            <div>
+                                              <div className="font-medium text-gray-800">{option.Name}</div>
+                                              {(option.NameEn || option.NameCh) && (
+                                                <div className="text-sm text-gray-500 mt-1">
+                                                  {option.NameEn && <div>{option.NameEn}</div>}
+                                                  {option.NameCh && <div>{option.NameCh}</div>}
+                                                </div>
+                                              )}
+                                            </div>
+                                            <div className="text-green-600 font-medium bg-green-50 px-2 py-1 rounded-lg border border-green-100">
+                                              +{option.Price.toLocaleString()} ฿
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="9" className="px-4 py-8 text-center text-gray-500 bg-gray-50 border-b border-gray-200">
+                      ไม่พบเมนู
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'promotion' && <Promotions />}
+      {activeTab === 'restore' && <MenuRestore />}
+
+      {/* Modals */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 transform transition-all">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-800">อัพโหลดรูปภาพ</h2>
+                <button
+                  onClick={() => setShowUploadModal(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                  <input
+                    type="file"
+                    id="imageInput"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="imageInput"
+                    className="cursor-pointer block"
+                  >
+                    {selectedImage ? (
+                      <img
+                        src={selectedImage}
+                        alt="Preview"
+                        className="max-w-full h-48 object-contain mx-auto"
+                      />
                     ) : (
-                      <p>ไม่มีตัวเลือกในกลุ่มนี้</p>
+                      <div className="py-8">
+                        <Image className="mx-auto h-12 w-12 text-gray-400" />
+                        <p className="mt-2 text-sm text-gray-600">
+                          คลิกเพื่อเลือกรูปภาพ
+                        </p>
+                      </div>
                     )}
-                    {/* ปุ่มเพิ่ม Option */}
-                    <div className="mt-4">
-                      <button
-                        className="bg-blue-500 text-white px-4 py-2 rounded-lg"
-                        onClick={() => handleAddOption(groupIndex)} // เรียกใช้ฟังก์ชันในการเพิ่ม Option
-                      >
-                        เพิ่มตัวเลือก
-                      </button>
-                    </div>
-                  </div>
+                  </label>
                 </div>
-              ))
-            ) : (
-              <p>ยังไม่มีกลุ่มตัวเลือก</p>
-            )}
+              </div>
 
-            <div className="mt-4 flex justify-end">
-              <button
-                className="mx-2 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg"
-                onClick={() => setShowEditMenuModal(false)} // ปิด Modal
-              >
-                ยกเลิก
-              </button>
-              <button
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
-                onClick={handleEditMenu} // เรียกฟังก์ชันแก้ไขเมนู
-              >
-                บันทึก
-              </button>
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  onClick={() => setShowUploadModal(false)}
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  className="px-4 py-2 text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors"
+                  onClick={handleUploadImage}
+                >
+                  อัพโหลด
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
-      {/* สิ้นสุด Modal สำหรับแก้ไขเมนูอาหาร */}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={deleteMenu}
+        menuName={menuToDelete?.Name}
+      />
+
+      {/* Add Menu Modal */}
+      {showAddMenuModal && (
+        <AddMenuModal
+          onClose={() => setShowAddMenuModal(false)}
+          onMenuAdded={() => fetchMenus('getAll')}
+        />
+      )}
+
+      {/* Edit Menu Modal */}
+      {showEditMenuModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6 border-b pb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-800">แก้ไขข้อมูลเมนู</h2>
+                  <p className="text-sm text-gray-600">รหัสสินค้า: {menuDetails.ID}</p>
+                </div>
+                <button
+                  onClick={() => setShowEditMenuModal(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* ข้อมูลพื้นฐาน */}
+                <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-700">ข้อมูลพื้นฐาน</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        ชื่อเมนู (ไทย)
+                      </label>
+                      <input
+                        type="text"
+                        value={menuDetails.name}
+                        onChange={(e) => setMenuDetails({ ...menuDetails, name: e.target.value })}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        ชื่อเมนู (อังกฤษ)
+                      </label>
+                      <input
+                        type="text"
+                        value={menuDetails.nameEn}
+                        onChange={(e) => setMenuDetails({ ...menuDetails, nameEn: e.target.value })}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        ชื่อเมนู (จีน)
+                      </label>
+                      <input
+                        type="text"
+                        value={menuDetails.nameCh}
+                        onChange={(e) => setMenuDetails({ ...menuDetails, nameCh: e.target.value })}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        ราคา (บาท)
+                      </label>
+                      <input
+                        type="number"
+                        value={menuDetails.price}
+                        onChange={(e) => setMenuDetails({ ...menuDetails, price: e.target.value })}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        หมวดหมู่
+                      </label>
+                      <select
+                        value={menuDetails.categoryId || ''}
+                        onChange={(e) => setMenuDetails({
+                          ...menuDetails,
+                          categoryId: e.target.value ? Number(e.target.value) : null,
+                        })}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">กรุณาเลือกหมวดหมู่</option>
+                        {categories.map((cat) => (
+                          <option key={cat.ID} value={cat.ID}>
+                            {cat.Name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* คำอธิบาย */}
+                <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-700">คำอธิบายเมนู</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        คำอธิบาย (ไทย)
+                      </label>
+                      <textarea
+                        value={menuDetails.description}
+                        onChange={(e) => setMenuDetails({
+                          ...menuDetails,
+                          description: e.target.value,
+                        })}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows="2"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        คำอธิบาย (อังกฤษ)
+                      </label>
+                      <textarea
+                        value={menuDetails.descriptionEn}
+                        onChange={(e) => setMenuDetails({
+                          ...menuDetails,
+                          descriptionEn: e.target.value,
+                        })}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows="2"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        คำอธิบาย (จีน)
+                      </label>
+                      <textarea
+                        value={menuDetails.descriptionCh}
+                        onChange={(e) => setMenuDetails({
+                          ...menuDetails,
+                          descriptionCh: e.target.value,
+                        })}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows="2"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ตัวเลือก */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-gray-700">ตัวเลือกเพิ่มเติม</h3>
+                    <button
+                      type="button"
+                      onClick={handleAddOptionGroup}
+                      className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      เพิ่มกลุ่มตัวเลือก
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {menuDetails.optionGroups.map((group, groupIndex) => (
+                      <div key={groupIndex} className="border border-gray-200 rounded-lg p-4 bg-white">
+                        <div className="flex justify-between items-center mb-4">
+                          <div className="flex items-center space-x-2">
+                            <h4 className="text-md font-medium text-gray-700">
+                              กลุ่มตัวเลือกที่ {groupIndex + 1}
+                            </h4>
+                            {group.ID && (
+                              <span className="text-sm text-gray-500">
+                                (รหัส: {group.ID})
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteOptionGroup(groupIndex)}
+                            className="text-red-500 hover:text-red-700 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              จำนวนที่เลือกได้สูงสุด
+                            </label>
+                            <input
+                              type="number"
+                              value={group.MaxSelections}
+                              onChange={(e) => {
+                                const updatedGroups = [...menuDetails.optionGroups]
+                                updatedGroups[groupIndex].MaxSelections = Number(e.target.value)
+                                setMenuDetails({
+                                  ...menuDetails,
+                                  optionGroups: updatedGroups,
+                                })
+                              }}
+                              min="1"
+                              className="w-full p-2 border border-gray-300 rounded-lg"
+                            />
+                          </div>
+                          <div className="flex items-center">
+                            <label className="flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={group.isRequired}
+                                onChange={(e) => {
+                                  const updatedGroups = [...menuDetails.optionGroups]
+                                  updatedGroups[groupIndex].isRequired = e.target.checked
+                                  setMenuDetails({
+                                    ...menuDetails,
+                                    optionGroups: updatedGroups,
+                                  })
+                                }}
+                                className="form-checkbox h-5 w-5 text-blue-500"
+                              />
+                              <span className="ml-2 text-sm text-gray-700">บังคับให้เลือก</span>
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              ชื่อกลุ่ม (ไทย)
+                            </label>
+                            <input
+                              type="text"
+                              value={group.name}
+                              onChange={(e) => {
+                                const updatedGroups = [...menuDetails.optionGroups]
+                                updatedGroups[groupIndex].name = e.target.value
+                                setMenuDetails({
+                                  ...menuDetails,
+                                  optionGroups: updatedGroups,
+                                })
+                              }}
+                              className="w-full p-2 border border-gray-300 rounded-lg"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              ชื่อกลุ่ม (อังกฤษ)
+                            </label>
+                            <input
+                              type="text"
+                              value={group.nameEn}
+                              onChange={(e) => {
+                                const updatedGroups = [...menuDetails.optionGroups]
+                                updatedGroups[groupIndex].nameEn = e.target.value
+                                setMenuDetails({
+                                  ...menuDetails,
+                                  optionGroups: updatedGroups,
+                                })
+                              }}
+                              className="w-full p-2 border border-gray-300 rounded-lg"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              ชื่อกลุ่ม (จีน)
+                            </label>
+                            <input
+                              type="text"
+                              value={group.nameCh}
+                              onChange={(e) => {
+                                const updatedGroups = [...menuDetails.optionGroups]
+                                updatedGroups[groupIndex].nameCh = e.target.value
+                                setMenuDetails({
+                                  ...menuDetails,
+                                  optionGroups: updatedGroups,
+                                })
+                              }}
+                              className="w-full p-2 border border-gray-300 rounded-lg"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="border-t pt-4">
+                          <div className="flex justify-between items-center mb-4">
+                            <h5 className="text-sm font-medium text-gray-700">ตัวเลือกในกลุ่ม</h5>
+                            <button
+                              type="button"
+                              onClick={() => handleAddOption(groupIndex)}
+                              className="flex items-center px-3 py-1 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors"
+                            >
+                              <Plus className="w-4 h-4 mr-1" />
+                              เพิ่มตัวเลือก
+                            </button>
+                          </div>
+
+                          <div className="space-y-4">
+                            {group.options.map((option, optionIndex) => (
+                              <div key={optionIndex} className="flex items-center space-x-4 bg-gray-50 p-3 rounded-lg">
+                                <div className="grid grid-cols-4 gap-4 flex-grow">
+                                  <input
+                                    type="text"
+                                    placeholder="ชื่อ (ไทย)"
+                                    value={option.name}
+                                    onChange={(e) => {
+                                      const updatedGroups = [...menuDetails.optionGroups]
+                                      updatedGroups[groupIndex].options[optionIndex].name = e.target.value
+                                      setMenuDetails({
+                                        ...menuDetails,
+                                        optionGroups: updatedGroups,
+                                      })
+                                    }}
+                                    className="w-full p-2 border border-gray-300 rounded-lg"
+                                  />
+                                  <input
+                                    type="text"
+                                    placeholder="ชื่อ (อังกฤษ)"
+                                    value={option.nameEn}
+                                    onChange={(e) => {
+                                      const updatedGroups = [...menuDetails.optionGroups]
+                                      updatedGroups[groupIndex].options[optionIndex].nameEn = e.target.value
+                                      setMenuDetails({
+                                        ...menuDetails,
+                                        optionGroups: updatedGroups,
+                                      })
+                                    }}
+                                    className="w-full p-2 border border-gray-300 rounded-lg"
+                                  />
+                                  <input
+                                    type="text"
+                                    placeholder="ชื่อ (จีน)"
+                                    value={option.nameCh}
+                                    onChange={(e) => {
+                                      const updatedGroups = [...menuDetails.optionGroups]
+                                      updatedGroups[groupIndex].options[optionIndex].nameCh = e.target.value
+                                      setMenuDetails({
+                                        ...menuDetails,
+                                        optionGroups: updatedGroups,
+                                      })
+                                    }}
+                                    className="w-full p-2 border border-gray-300 rounded-lg"
+                                  />
+                                  <div className="flex items-center space-x-2">
+                                    <input
+                                      type="number"
+                                      placeholder="ราคา"
+                                      value={option.price}
+                                      onChange={(e) => {
+                                        const updatedGroups = [...menuDetails.optionGroups]
+                                        updatedGroups[groupIndex].options[optionIndex].price = e.target.value
+                                        setMenuDetails({
+                                          ...menuDetails,
+                                          optionGroups: updatedGroups,
+                                        })
+                                      }}
+                                      className="w-full p-2 border border-gray-300 rounded-lg"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteOption(groupIndex, optionIndex)}
+                                      className="text-red-500 hover:text-red-700 transition-colors"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-4 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => setShowEditMenuModal(false)}
+                  className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEditMenu}
+                  className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  บันทึก
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1558,14 +1564,14 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
 
   // ฟังก์ชันเพิ่มตัวเลือกในกลุ่ม
   const handleAddOption = (groupIndex) => {
-    const updatedOptions = [...options]
-    updatedOptions[groupIndex].options.push({
+    const updatedGroups = [...options]
+    updatedGroups[groupIndex].options.push({
       name: '',
-      name_en: '',
-      name_ch: '',
+      nameEn: '',
+      nameCh: '',
       price: 0,
     })
-    setOptions(updatedOptions)
+    setOptions(updatedGroups)
   }
 
   // ฟังก์ชันแก้ไขข้อมูลของตัวเลือกในกลุ่ม
@@ -1656,290 +1662,291 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
 
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50 py-4">
-      <div className="bg-white p-6 rounded-lg lg:w-6/12 sm:w-8/12 md:8/12 ml-12 h-screen overflow-y-auto ">
-        <div className="flex justify-between">
-          <h2 className="text-xl font-bold mb-4">เพิ่มเมนูอาหาร</h2>
-          <button onClick={onClose} className="  right-2 text-red-500">
-            <X />
+      <div className="bg-white p-8 rounded-xl lg:w-6/12 sm:w-8/12 md:8/12 ml-12 h-screen overflow-y-auto shadow-2xl">
+        <div className="flex justify-between items-center border-b pb-4">
+          <h2 className="text-2xl font-bold text-gray-800">เพิ่มเมนูอาหาร</h2>
+          <button onClick={onClose} className="hover:bg-gray-100 p-2 rounded-full transition-colors">
+            <X className="text-gray-500 hover:text-red-500" />
           </button>
         </div>
-        <form onSubmit={handleAddMenu}>
-          {/* ชื่อเมนู */}
-          <label className="block mb-2">
-            ชื่อเมนู (ไทย)
-            <input
-              type="text"
-              value={menuName}
-              onChange={(e) => setMenuName(e.target.value)}
-              className="w-full p-2 border rounded"
-              required
-            />
-          </label>
-
-          {/* ชื่อเมนู (อังกฤษ) */}
-          <label className="block mb-2">
-            ชื่อเมนู (อังกฤษ)
-            <input
-              type="text"
-              value={menuNameEn}
-              onChange={(e) => setMenuNameEn(e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-          </label>
-
-          {/* ชื่อเมนู (จีน) */}
-          <label className="block mb-2">
-            ชื่อเมนู (จีน)
-            <input
-              type="text"
-              value={menuNameCh}
-              onChange={(e) => setMenuNameCh(e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-          </label>
-
-          {/* ราคา */}
-          <label className="block mb-2">ราคา</label>
-          <input
-            type="number"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            onWheel={(e) => e.preventDefault()} // ป้องกันการเลื่อนเมาส์
-            className="w-full p-2 border rounded"
-          />
-
-          {/* คำอธิบาย */}
-          <label className="block mb-2">
-            คำอธิบาย (ไทย)
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-          </label>
-
-          {/* คำอธิบาย (อังกฤษ) */}
-          <label className="block mb-2">
-            คำอธิบาย (อังกฤษ)
-            <textarea
-              value={descriptionEn}
-              onChange={(e) => setDescriptionEn(e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-          </label>
-
-          {/* คำอธิบาย (จีน) */}
-          <label className="block mb-2">
-            คำอธิบาย (จีน)
-            <textarea
-              value={descriptionCh}
-              onChange={(e) => setDescriptionCh(e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-          </label>
-
-          {/* หมวดหมู่ */}
-          <label className="block mb-2">
-            หมวดหมู่
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full p-2 border rounded"
-            >
-              <option value="">เลือกหมวดหมู่</option>
-              {categories.length > 0 ? (
-                categories.map((category) => (
-                  <option key={category.ID} value={category.ID}>
-                    {category.Name}
-                  </option>
-                ))
-              ) : (
-                <option disabled>ไม่พบหมวดหมู่</option>
-              )}
-            </select>
-          </label>
-
-          {/* กลุ่มตัวเลือก */}
-          <div className="mb-4">
-            {options.map((group, groupIndex) => (
-              <div key={groupIndex} className="border border-black p-2 mt-2">
-                <h1 className="text-xl bg-gray-200 p-2">กลุ่มตัวเลือก</h1>
-                <label className="block mb-2 ">
-                  จำนวนตัวเลือกสูงสุด
-                  <input
-                    type="number"
-                    value={group.MaxSelections}
-                    onChange={(e) =>
-                      handleOptionGroupChange(
-                        groupIndex,
-                        'MaxSelections',
-                        e.target.value
-                      )
-                    }
-                    min={1} // ตั้งค่าจำนวนขั้นต่ำเป็น 1
-                    className="ml-2 w-16 p-2 border rounded"
-                  />
+        <form onSubmit={handleAddMenu} className="mt-6 space-y-6">
+          {/* ส่วนข้อมูลพื้นฐาน */}
+          <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+            <h3 className="text-lg font-semibold text-gray-700 mb-4">ข้อมูลพื้นฐาน</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  ชื่อเมนู (ไทย) <span className="text-red-500">*</span>
                 </label>
-                <label className="block mb-2">
-                  บังคับให้เลือกตัวเลือกหรือไม่?
-                  <input
-                    type="checkbox"
-                    checked={group.is_required}
-                    onChange={(e) =>
-                      handleOptionGroupChange(
-                        groupIndex,
-                        'is_required',
-                        e.target.checked
-                      )
-                    }
-                    className="ml-2"
-                  />
-                </label>
-                {/* ฟิลด์ของกลุ่มตัวเลือก */}
                 <input
                   type="text"
-                  placeholder="ชื่อกลุ่ม"
-                  value={group.name}
-                  onChange={(e) =>
-                    handleOptionGroupChange(groupIndex, 'name', e.target.value)
-                  }
+                  value={menuName}
+                  onChange={(e) => setMenuName(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                  placeholder="กรุณากรอกชื่อเมนู"
                 />
-                <input
-                  type="text"
-                  placeholder="ชื่อกลุ่ม (อังกฤษ)"
-                  value={group.name_en}
-                  onChange={(e) =>
-                    handleOptionGroupChange(
-                      groupIndex,
-                      'name_en',
-                      e.target.value
-                    )
-                  }
-                />
-                <input
-                  type="text"
-                  placeholder="ชื่อกลุ่ม (จีน)"
-                  value={group.name_ch}
-                  onChange={(e) =>
-                    handleOptionGroupChange(
-                      groupIndex,
-                      'name_ch',
-                      e.target.value
-                    )
-                  }
-                />
-                {/* ตัวเลือกภายในกลุ่ม */}
-                <button
-                  type="button"
-                  className="bg-green-500 text-white rounded-md p-2 mt-2"
-                  onClick={() => handleAddOption(groupIndex)}
-                >
-                  เพิ่มตัวเลือกในกลุ่มนี้
-                </button>
-                {group.options.map((option, optionIndex) => (
-                  <div
-                    key={optionIndex}
-                    className="border border-gray-300 p-2 mt-2"
-                  >
-                    <h1 className="text-md bg-gray-200/70 p-2">
-                      ตัวเลือกในกลุ่ม
-                    </h1>
-                    <input
-                      type="text"
-                      placeholder="ชื่อตัวเลือก"
-                      value={option.name}
-                      onChange={(e) =>
-                        handleOptionChange(
-                          groupIndex,
-                          optionIndex,
-                          'name',
-                          e.target.value
-                        )
-                      }
-                    />
-                    <input
-                      type="text"
-                      placeholder="ชื่อ (อังกฤษ)"
-                      value={option.name_en}
-                      onChange={(e) =>
-                        handleOptionChange(
-                          groupIndex,
-                          optionIndex,
-                          'name_en',
-                          e.target.value
-                        )
-                      }
-                    />
-                    <input
-                      type="text"
-                      placeholder="ชื่อ (จีน)"
-                      value={option.name_ch}
-                      onChange={(e) =>
-                        handleOptionChange(
-                          groupIndex,
-                          optionIndex,
-                          'name_ch',
-                          e.target.value
-                        )
-                      }
-                    />
-
-                    <p>ราคา</p>
-                    <input
-                      type="number"
-                      placeholder="ราคา"
-                      value={option.price}
-                      onChange={(e) =>
-                        handleOptionChange(
-                          groupIndex,
-                          optionIndex,
-                          'price',
-                          e.target.value
-                        )
-                      }
-                    />
-                    <button
-                      className="bg-red-500 text-white rounded-md p-2 mt-2 ml-2"
-                      type="button"
-                      onClick={() =>
-                        handleRemoveOption(groupIndex, optionIndex)
-                      }
-                    >
-                      ลบตัวเลือกนี้
-                    </button>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  className="bg-red-500 text-white rounded-md p-2 mt-2"
-                  onClick={() => handleRemoveOptionGroup(groupIndex)}
-                >
-                  ลบกลุ่มตัวเลือกนี้
-                </button>
               </div>
-            ))}
-            <button
-              type="button"
-              onClick={handleAddOptionGroup}
-              className="bg-blue-500 p-2 rounded-md text-white mt-2"
-            >
-              เพิ่มกลุ่มตัวเลือก
-            </button>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  ชื่อเมนู (อังกฤษ)
+                </label>
+                <input
+                  type="text"
+                  value={menuNameEn}
+                  onChange={(e) => setMenuNameEn(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter menu name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  ชื่อเมนู (จีน)
+                </label>
+                <input
+                  type="text"
+                  value={menuNameCh}
+                  onChange={(e) => setMenuNameCh(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="输入菜单名称"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  ราคา (บาท) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  onWheel={(e) => e.preventDefault()}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  หมวดหมู่ <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">เลือกหมวดหมู่</option>
+                  {categories.map((cat) => (
+                    <option key={cat.ID} value={cat.ID}>
+                      {cat.Name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
-          {/* ปุ่มเพิ่มเมนู */}
-          <div className="flex justify-end">
+          {/* ส่วนคำอธิบาย */}
+          <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+            <h3 className="text-lg font-semibold text-gray-700 mb-4">คำอธิบายเมนู</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  คำอธิบาย (ไทย)
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows="2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  คำอธิบาย (อังกฤษ)
+                </label>
+                <textarea
+                  value={descriptionEn}
+                  onChange={(e) => setDescriptionEn(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows="2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  คำอธิบาย (จีน)
+                </label>
+                <textarea
+                  value={descriptionCh}
+                  onChange={(e) => setDescriptionCh(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows="2"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ส่วนตัวเลือก */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-700">ตัวเลือกเพิ่มเติม</h3>
+              <button
+                type="button"
+                onClick={handleAddOptionGroup}
+                className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                เพิ่มกลุ่มตัวเลือก
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {options.map((group, groupIndex) => (
+                <div key={groupIndex} className="border border-gray-200 rounded-lg p-4 bg-white">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-md font-medium text-gray-700">กลุ่มตัวเลือกที่ {groupIndex + 1}</h4>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveOptionGroup(groupIndex)}
+                      className="text-red-500 hover:text-red-700 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        จำนวนที่เลือกได้สูงสุด
+                      </label>
+                      <input
+                        type="number"
+                        value={group.MaxSelections}
+                        onChange={(e) => handleOptionGroupChange(groupIndex, 'MaxSelections', e.target.value)}
+                        min="1"
+                        className="w-full p-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                    <div className="flex items-center">
+                      <label className="flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={group.is_required}
+                          onChange={(e) => handleOptionGroupChange(groupIndex, 'is_required', e.target.checked)}
+                          className="form-checkbox h-5 w-5 text-blue-500"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">บังคับให้เลือก</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <input
+                      type="text"
+                      placeholder="ชื่อกลุ่ม (ไทย)"
+                      value={group.name}
+                      onChange={(e) => handleOptionGroupChange(groupIndex, 'name', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-lg"
+                    />
+                    <input
+                      type="text"
+                      placeholder="ชื่อกลุ่ม (อังกฤษ)"
+                      value={group.nameEn}
+                      onChange={(e) => handleOptionGroupChange(groupIndex, 'name_en', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-lg"
+                    />
+                    <input
+                      type="text"
+                      placeholder="ชื่อกลุ่ม (จีน)"
+                      value={group.nameCh}
+                      onChange={(e) => handleOptionGroupChange(groupIndex, 'name_ch', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+
+                  <div className="border-t pt-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h5 className="text-sm font-medium text-gray-700">ตัวเลือกในกลุ่ม</h5>
+                      <button
+                        type="button"
+                        onClick={() => handleAddOption(groupIndex)}
+                        className="flex items-center px-3 py-1 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        เพิ่มตัวเลือก
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {group.options.map((option, optionIndex) => (
+                        <div key={optionIndex} className="flex items-center space-x-4 bg-gray-50 p-3 rounded-lg">
+                          <div className="grid grid-cols-4 gap-4 flex-grow">
+                            <input
+                              type="text"
+                              placeholder="ชื่อ (ไทย)"
+                              value={option.name}
+                              onChange={(e) => handleOptionChange(groupIndex, optionIndex, 'name', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-lg"
+                            />
+                            <input
+                              type="text"
+                              placeholder="ชื่อ (อังกฤษ)"
+                              value={option.nameEn}
+                              onChange={(e) => handleOptionChange(groupIndex, optionIndex, 'name_en', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-lg"
+                            />
+                            <input
+                              type="text"
+                              placeholder="ชื่อ (จีน)"
+                              value={option.nameCh}
+                              onChange={(e) => handleOptionChange(groupIndex, optionIndex, 'name_ch', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-lg"
+                            />
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="number"
+                                placeholder="ราคา"
+                                value={option.price}
+                                onChange={(e) => handleOptionChange(groupIndex, optionIndex, 'price', e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-lg"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveOption(groupIndex, optionIndex)}
+                                className="text-red-500 hover:text-red-700 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ปุ่มดำเนินการ */}
+          <div className="flex justify-end space-x-4 pt-4 border-t">
             <button
+              type="button"
               onClick={onClose}
-              className="w-1/5 bg-gray-400 hover:bg-gray-500 text-white py-2 rounded mx-2"
+              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
             >
               ยกเลิก
             </button>
             <button
               type="submit"
-              className="w-1/5 bg-blue-500 hover:bg-blue-700 text-white py-2 rounded"
+              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
-              เพิ่มเมนู
+              บันทึก
             </button>
           </div>
         </form>
