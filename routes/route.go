@@ -61,6 +61,7 @@ func SetupRoutes(app *fiber.App) {
 	menu := api.Group("/menu")
 	{
 		// เมนูพื้นฐาน
+		menu.Post("/import", api_handlers.ImportMenuFromExcel)
 		menu.Post("/", api_handlers.CreateMenuItemHandler)
 		menu.Get("/ActiveMenu", api_handlers.GetActiveMenu)
 		menu.Get("/", api_handlers.GetMenu)

@@ -1,5 +1,37 @@
 basePath: /
 definitions:
+  api_handlers.Active_PromotionResponse:
+    properties:
+      description:
+        type: string
+      end_date:
+        type: string
+      id:
+        example: 1
+        type: integer
+      is_active:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/api_handlers.PromotionItemResponse'
+        type: array
+      max_selections:
+        type: integer
+      min_selections:
+        type: integer
+      name:
+        example: ลด 20% ทุกเมนูข้าว
+        type: string
+      nameCh:
+        type: string
+      nameEn:
+        type: string
+      start_date:
+        type: string
+      type:
+        example: single_discount
+        type: string
+    type: object
   api_handlers.AssignCategoryRequest:
     properties:
       category_ids:
@@ -135,6 +167,49 @@ definitions:
       user:
         $ref: '#/definitions/api_handlers.UserProfile'
     type: object
+  api_handlers.MenuImportError:
+    properties:
+      data:
+        $ref: '#/definitions/api_handlers.MenuImportRow'
+      message:
+        type: string
+      row:
+        type: integer
+    type: object
+  api_handlers.MenuImportResponse:
+    properties:
+      errors:
+        items:
+          $ref: '#/definitions/api_handlers.MenuImportError'
+        type: array
+      success:
+        items:
+          $ref: '#/definitions/api_handlers.MenuImportRow'
+        type: array
+    type: object
+  api_handlers.MenuImportRow:
+    properties:
+      category_name:
+        type: string
+      description:
+        type: string
+      description_ch:
+        type: string
+      description_en:
+        type: string
+      name:
+        type: string
+      name_ch:
+        type: string
+      name_en:
+        type: string
+      option_groups:
+        items:
+          $ref: '#/definitions/api_handlers.OptionGroupImport'
+        type: array
+      price:
+        type: number
+    type: object
   api_handlers.MenuItemBasic:
     properties:
       id:
@@ -152,6 +227,34 @@ definitions:
         type: string
       price:
         type: integer
+    type: object
+  api_handlers.OptionGroupImport:
+    properties:
+      is_required:
+        type: boolean
+      max_selections:
+        type: integer
+      name:
+        type: string
+      name_ch:
+        type: string
+      name_en:
+        type: string
+      options:
+        items:
+          $ref: '#/definitions/api_handlers.OptionImport'
+        type: array
+    type: object
+  api_handlers.OptionImport:
+    properties:
+      name:
+        type: string
+      name_ch:
+        type: string
+      name_en:
+        type: string
+      price:
+        type: number
     type: object
   api_handlers.OrderItemOptionRequest:
     properties:
@@ -2354,6 +2457,40 @@ paths:
       summary: อัพเดทรูปภาพเมนู
       tags:
       - menu
+  /api/menu/import:
+    post:
+      consumes:
+      - multipart/form-data
+      description: นำเข้าเมนูพร้อมกลุ่มตัวเลือกและตัวเลือกเสริมจากไฟล์ Excel (.xlsx,
+        .xls)
+      parameters:
+      - description: ไฟล์ Excel สำหรับนำเข้าเมนู
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ผลการนำเข้าเมนู
+          schema:
+            $ref: '#/definitions/api_handlers.MenuImportResponse'
+        "400":
+          description: ข้อมูลไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: เกิดข้อผิดพลาดในการนำเข้า
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: นำเข้าเมนูจากไฟล์ Excel
+      tags:
+      - menu
   /api/menu/option-groups:
     post:
       consumes:
@@ -3870,7 +4007,7 @@ paths:
           description: รายการโปรโมชั่นที่กำลังใช้งาน
           schema:
             items:
-              $ref: '#/definitions/api_handlers.PromotionResponse'
+              $ref: '#/definitions/api_handlers.Active_PromotionResponse'
             type: array
         "401":
           description: ไม่ได้รับอนุญาต

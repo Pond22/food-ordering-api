@@ -1141,6 +1141,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/menu/import": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "นำเข้าเมนูพร้อมกลุ่มตัวเลือกและตัวเลือกเสริมจากไฟล์ Excel (.xlsx, .xls)",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "นำเข้าเมนูจากไฟล์ Excel",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "ไฟล์ Excel สำหรับนำเข้าเมนู",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ผลการนำเข้าเมนู",
+                        "schema": {
+                            "$ref": "#/definitions/api_handlers.MenuImportResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการนำเข้า",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/menu/option-groups": {
             "post": {
                 "security": [
@@ -3541,7 +3592,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/api_handlers.PromotionResponse"
+                                "$ref": "#/definitions/api_handlers.Active_PromotionResponse"
                             }
                         }
                     },
@@ -5004,6 +5055,53 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "api_handlers.Active_PromotionResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api_handlers.PromotionItemResponse"
+                    }
+                },
+                "max_selections": {
+                    "type": "integer"
+                },
+                "min_selections": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "ลด 20% ทุกเมนูข้าว"
+                },
+                "nameCh": {
+                    "type": "string"
+                },
+                "nameEn": {
+                    "type": "string"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "single_discount"
+                }
+            }
+        },
         "api_handlers.AssignCategoryRequest": {
             "type": "object",
             "required": [
@@ -5202,6 +5300,72 @@ const docTemplate = `{
                 }
             }
         },
+        "api_handlers.MenuImportError": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/api_handlers.MenuImportRow"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "row": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api_handlers.MenuImportResponse": {
+            "type": "object",
+            "properties": {
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api_handlers.MenuImportError"
+                    }
+                },
+                "success": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api_handlers.MenuImportRow"
+                    }
+                }
+            }
+        },
+        "api_handlers.MenuImportRow": {
+            "type": "object",
+            "properties": {
+                "category_name": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "description_ch": {
+                    "type": "string"
+                },
+                "description_en": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "name_ch": {
+                    "type": "string"
+                },
+                "name_en": {
+                    "type": "string"
+                },
+                "option_groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api_handlers.OptionGroupImport"
+                    }
+                },
+                "price": {
+                    "type": "number"
+                }
+            }
+        },
         "api_handlers.MenuItemBasic": {
             "type": "object",
             "properties": {
@@ -5227,6 +5391,49 @@ const docTemplate = `{
                 },
                 "price": {
                     "type": "integer"
+                }
+            }
+        },
+        "api_handlers.OptionGroupImport": {
+            "type": "object",
+            "properties": {
+                "is_required": {
+                    "type": "boolean"
+                },
+                "max_selections": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "name_ch": {
+                    "type": "string"
+                },
+                "name_en": {
+                    "type": "string"
+                },
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api_handlers.OptionImport"
+                    }
+                }
+            }
+        },
+        "api_handlers.OptionImport": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "name_ch": {
+                    "type": "string"
+                },
+                "name_en": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
                 }
             }
         },

@@ -31,9 +31,9 @@ const POSVerifyRoute = () => {
       }
 
       // เก็บ token ลงใน localStorage
-      localStorage.setItem('posToken', data.token);
-      localStorage.setItem('posSessionId', data.session_id);
-      localStorage.setItem('staffId', data.staff_id);
+      localStorage.setItem('posToken', data.token); //ใช้อันนี้เป็น JWT token
+      localStorage.setItem('posSessionId', data.session_id); //เก็บไว้เฉยๆ
+      localStorage.setItem('staffId', data.staff_id); //id พนักงานเอาไว้ใช้ request ตอนคิดเงินไรงี้
 
       // นำทางไปยังหน้า POS
       navigate('/pos');

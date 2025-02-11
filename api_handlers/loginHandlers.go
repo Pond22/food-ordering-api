@@ -189,3 +189,4 @@ func AuthMiddleware() fiber.Handler {
 		return c.Next()
 	}
 }
+

@@ -167,13 +167,28 @@ func CreatePromotion(c *fiber.Ctx) error {
 	return c.JSON(completePromo)
 }
 
+type Active_PromotionResponse struct {
+	ID            uint                    `json:"id" example:"1"`
+	Name          string                  `json:"name" example:"ลด 20% ทุกเมนูข้าว"`
+	NameEn        string                  `json:"nameEn"`
+	NameCh        string                  `json:"nameCh"`
+	Description   string                  `json:"description"`
+	Type          string                  `json:"type" example:"single_discount"`
+	StartDate     time.Time               `json:"start_date"`
+	EndDate       time.Time               `json:"end_date"`
+	IsActive      bool                    `json:"is_active"`
+	MaxSelections int                     `json:"max_selections"`
+	MinSelections int                     `json:"min_selections"`
+	Items         []PromotionItemResponse `json:"items"`
+}
+
 // @Summary ดึงรายการโปรโมชั่นที่กำลังใช้งาน
 // @Description ดึงรายการโปรโมชั่นทั้งหมดที่กำลังใช้งานอยู่ (IsActive=true) และอยู่ในช่วงวันที่ที่กำหนด
 // @Tags promotions
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {array} PromotionResponse "รายการโปรโมชั่นที่กำลังใช้งาน"
+// @Success 200 {array} Active_PromotionResponse "รายการโปรโมชั่นที่กำลังใช้งาน"
 // @Failure 401 {object} ErrorResponse "ไม่ได้รับอนุญาต"
 // @Failure 403 {object} ErrorResponse "ไม่มีสิทธิ์เข้าถึง"
 // @Failure 500 {object} ErrorResponse "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์"

@@ -22,6 +22,7 @@ import ErrorBoundary from './ErrorBoundary'
 import OrderConfirmation from './components/OrderConfirmation'
 import Reprint from './components/Reprint'
 import ReservationConfig from './components/ReservationConfig';
+import MenuImportPage from './components/MenuImportPage'
 
 const Section = ({ isLoggedIn, user, handleLogout, token }) => {
   const location = useLocation()
@@ -209,6 +210,17 @@ const Section = ({ isLoggedIn, user, handleLogout, token }) => {
                         </Link>
 
                         <Link
+                          to="/MenuImportPage"
+                          className={`${styles.navLink} ${
+                            location.pathname === '/MenuImportPage'
+                              ? styles.activeLink
+                              : ''
+                          }`}
+                        >
+                          เพิ่มรายการอาหาร via excel
+                        </Link>
+
+                        <Link
                           to="/addCategory"
                           className={`${styles.navLink} ${
                             location.pathname === '/addCategory'
@@ -333,6 +345,17 @@ const Section = ({ isLoggedIn, user, handleLogout, token }) => {
               element={
                 isLoggedIn && user?.role === 'manager' ? (
                   <AddMenu />
+                ) : (
+                  <Navigate to="/login" />
+                )
+              }
+            />
+
+            <Route
+              path="/MenuImportPage"
+              element={
+                isLoggedIn && user?.role === 'manager' ? (
+                  <MenuImportPage />
                 ) : (
                   <Navigate to="/login" />
                 )
