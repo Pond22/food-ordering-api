@@ -15,13 +15,13 @@ type UserRole string
 const (
 	RoleStaff   UserRole = "staff"
 	RoleManager UserRole = "manager"
-	RoleChef    UserRole = "chef"
+	RoleOwner   UserRole = "owner"
 )
 
 // Value - Implementation for driver.Valuer interface
 func (r UserRole) Value() (driver.Value, error) {
 	switch r {
-	case RoleStaff, RoleManager, RoleChef:
+	case RoleStaff, RoleManager, RoleOwner:
 		return string(r), nil
 	default:
 		return nil, errors.New("invalid role")
@@ -40,7 +40,7 @@ func (r *UserRole) Scan(value interface{}) error {
 	}
 
 	switch UserRole(str) {
-	case RoleStaff, RoleManager, RoleChef:
+	case RoleStaff, RoleManager, RoleOwner:
 		*r = UserRole(str)
 		return nil
 	default:
@@ -50,7 +50,7 @@ func (r *UserRole) Scan(value interface{}) error {
 
 func (r UserRole) IsValid() bool {
 	switch r {
-	case RoleStaff, RoleManager, RoleChef:
+	case RoleStaff, RoleManager, RoleOwner:
 		return true
 	}
 	return false
@@ -225,7 +225,7 @@ type Users struct {
 	ID        uint     `gorm:"primaryKey"`
 	Username  string   `gorm:"unique;not null"`
 	Password  string   `gorm:"not null"`
-	Role      UserRole `gorm:"type:varchar(10);not null;check:role in ('staff', 'manager', 'chef')"`
+	Role      UserRole `gorm:"type:varchar(10);not null"`
 	Name      string   `gorm:"not null"`
 	CreatedAt time.Time
 	UpdatedAt time.Time

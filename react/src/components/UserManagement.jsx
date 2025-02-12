@@ -4,7 +4,8 @@ import { ShieldCheck, Plus, Search, Filter, X, User, Edit, Trash2 } from 'lucide
 
 const API_BASE_URL = 'http://127.0.0.1:8080/api/member'; // URL ของ API
 
-const userRoles = ['manager', 'business owner', 'staff'];
+// กำหนดค่า role ที่อนุญาตให้ใช้งาน
+const userRoles = ['staff', 'manager', 'owner'];
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -21,13 +22,25 @@ const UserManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const token = localStorage.getItem('token');
 
   // ดึงข้อมูลผู้ใช้จาก API
   useEffect(() => {
+    if (!token) {
+      // ถ้าไม่มี token ให้ redirect ไปหน้า login
+      window.location.href = '/login';
+      return;
+    }
+    
     const fetchUsers = async () => {
       setIsLoading(true);
       try {
-        const response = await axios.get(`${API_BASE_URL}`);
+        const response = await axios.get(`${API_BASE_URL}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
         setUsers(response.data);
       } catch (error) {
         console.error('Error fetching users:', error);
@@ -38,7 +51,7 @@ const UserManagement = () => {
     };
 
     fetchUsers();
-  }, []);
+  }, [token]);
 
   const updateUsers = (newUserList) => {
     setUsers(newUserList);
@@ -51,11 +64,20 @@ const UserManagement = () => {
     }
 
     try {
-      const response = await axios.post(`${API_BASE_URL}`, newUser, {
+      const userData = {
+        username: newUser.username,
+        password: newUser.password,
+        name: newUser.name,
+        role: newUser.role,
+      };
+
+      const response = await axios.post(`${API_BASE_URL}`, userData, {
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
+      
       const addedUser = response.data;
       setUsers([...users, addedUser]);
       setIsAddModalOpen(false);
@@ -63,7 +85,9 @@ const UserManagement = () => {
       alert('เพิ่มผู้ใช้สำเร็จ');
     } catch (error) {
       console.error('Error adding user:', error);
-      if (error.response?.status === 409) {
+      if (error.response?.data?.error) {
+        alert(error.response.data.error);
+      } else if (error.response?.status === 409) {
         alert('ชื่อผู้ใช้นี้มีอยู่ในระบบแล้ว');
       } else {
         alert('เกิดข้อผิดพลาดในการเพิ่มผู้ใช้');
@@ -84,7 +108,12 @@ const UserManagement = () => {
   
     try {
       // ส่งคำขอลบผู้ใช้ไปยัง API โดยใช้ URL ที่มีรูปแบบใหม่
-      const response = await axios.delete(`${API_BASE_URL}/${userId}/delete-member`);
+      const response = await axios.delete(`${API_BASE_URL}/${userId}/delete-member`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       console.log('User deleted:', response.data); // ตรวจสอบข้อมูลที่ตอบกลับจาก server
   
       // อัพเดทสถานะผู้ใช้หลังจากลบสำเร็จ
@@ -192,7 +221,7 @@ const UserManagement = () => {
                   <td className="p-4">
                     <span
                       className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                        user.role === 'business owner'
+                        user.role === 'owner'
                           ? 'bg-red-100 text-red-800'
                           : user.role === 'manager'
                           ? 'bg-yellow-100 text-yellow-800'

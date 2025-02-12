@@ -82,9 +82,16 @@ func CreateUser(c *fiber.Ctx) error {
 			"error": "Password must be at least 6 characters",
 		})
 	}
-	if !req.Role.IsValid() {
+
+	// ตรวจสอบค่า role ที่ส่งมา
+	validRoles := map[models.UserRole]bool{
+		models.RoleStaff:   true,
+		models.RoleManager: true,
+		models.RoleOwner:   true,
+	}
+	if !validRoles[req.Role] {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid role",
+			"error": "Invalid role. Role must be 'staff', 'manager', or 'owner'",
 		})
 	}
 

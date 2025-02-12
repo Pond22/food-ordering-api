@@ -50,15 +50,15 @@ func IsManager(c *fiber.Ctx) bool {
 	return role == string(models.RoleManager)
 }
 
-// IsChef ตรวจสอบว่าผู้ใช้เป็น chef หรือไม่
-func IsChef(c *fiber.Ctx) bool {
+// IsOwner ตรวจสอบว่าผู้ใช้เป็น owner หรือไม่
+func IsOwner(c *fiber.Ctx) bool {
 	claims, err := GetUserFromToken(c)
 	if err != nil {
 		return false
 	}
 
 	role := (*claims)["role"].(string)
-	return role == string(models.RoleChef)
+	return role == string(models.RoleOwner)
 }
 
 // IsStaff ตรวจสอบว่าผู้ใช้เป็น staff หรือไม่
@@ -204,26 +204,28 @@ func InitAPIKeys() {
 
 	// เพิ่ม key เฉพาะเมื่อมีค่าใน environment
 	if tableKey := os.Getenv("WS_TABLE_KEY"); tableKey != "" {
-		fmt.Printf("Initializing table key: %s\n", tableKey) // เพิ่ม log
+		fmt.Printf("Initializing table key: %s\n", tableKey)
 		APIKeyStore[tableKey] = APIKeyConfig{
 			Key:      tableKey,
 			Type:     "websocket_table",
 			IsActive: true,
 		}
 	} else {
-		fmt.Println("Warning: WS_TABLE_KEY not found in environment") // เพิ่ม log
+		fmt.Println("Warning: WS_TABLE_KEY not found in environment")
 	}
 
 	if printerKey := os.Getenv("WS_PRINTER_KEY"); printerKey != "" {
-		fmt.Printf("Initializing printer key: %s\n", printerKey) // เพิ่ม log
+		fmt.Printf("Initializing printer key: %s\n", printerKey)
 		APIKeyStore[printerKey] = APIKeyConfig{
 			Key:      printerKey,
 			Type:     "websocket_printer",
 			IsActive: true,
 		}
+	} else {
+		fmt.Println("Warning: WS_PRINTER_KEY not found in environment") // เพิ่ม log นี้
 	}
 
-	fmt.Printf("Initialized API Key Store: %v\n", APIKeyStore) // เพิ่ม log
+	fmt.Printf("Initialized API Key Store: %v\n", APIKeyStore)
 }
 
 // APIKeyStore เก็บ API Keys ที่อนุญาต
@@ -242,20 +244,42 @@ func ValidateAPIKeyByType(key string, keyType string) bool {
 }
 
 // WebSocketAPIKeyMiddleware สำหรับ WebSocket โดยเฉพาะ
-func WebSocketAPIKeyMiddleware(c *fiber.Ctx) error {
-	apiKey := c.Get("X-API-Key")
-	if apiKey == "" {
-		apiKey = c.Query("api_key")
+func WebSocketAPIKeyMiddleware(wsType string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		apiKey := c.Get("X-API-Key")
+		if apiKey == "" {
+			apiKey = c.Query("api_key")
+		}
+
+		fmt.Printf("Received API Key: %s\n", apiKey)
+		fmt.Printf("API Key Store: %v\n", APIKeyStore)
+
+		if !ValidateAPIKeyByType(apiKey, wsType) {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": fmt.Sprintf("Invalid %s API Key", wsType),
+			})
+		}
+
+		return c.Next()
 	}
+}
 
-	fmt.Printf("Received API Key: %s\n", apiKey)   // เพิ่ม log
-	fmt.Printf("API Key Store: %v\n", APIKeyStore) // เพิ่ม log เพื่อดู APIKeyStore
+// PrinterAPIKeyMiddleware สำหรับ Printer req แบบ http
+func PrinterAPIKeyMiddleware() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		apiKey := c.Get("X-API-Key")
+		if apiKey == "" {
+			apiKey = c.Query("api_key")
+		}
 
-	if !ValidateAPIKeyByType(apiKey, "websocket_table") { // แก้ไขประเภทให้ตรงกับที่กำหนดใน InitAPIKeys
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Invalid WebSocket API Key",
-		})
+		fmt.Printf("Received Printer API Key: %s\n", apiKey)
+
+		if !ValidateAPIKeyByType(apiKey, "websocket_printer") {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Invalid Printer API Key",
+			})
+		}
+
+		return c.Next()
 	}
-
-	return c.Next()
 }

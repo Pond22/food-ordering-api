@@ -46,7 +46,7 @@ func SetupRoutes(app *fiber.App) {
 
 	// User Routes
 	// user := api.Group("/member", utils.AuthRequired())
-	user := api.Group("/member") //เอา middleware ออก deploy อย่าลืมเอาใส่
+	user := api.Group("/member", utils.AuthRequired()) //เอา middleware ออก deploy อย่าลืมเอาใส่
 	{
 		user.Post("/", api_handlers.CreateUser, utils.RoleRequired(models.RoleManager))
 		user.Get("/", api_handlers.GetUsers, utils.RoleRequired(models.RoleManager))
@@ -61,13 +61,13 @@ func SetupRoutes(app *fiber.App) {
 	menu := api.Group("/menu")
 	{
 		// เมนูพื้นฐาน
-		menu.Post("/import", api_handlers.ImportMenuFromExcel)
-		menu.Post("/", api_handlers.CreateMenuItemHandler)
+		menu.Post("/import", utils.AuthRequired(), api_handlers.ImportMenuFromExcel)
+		menu.Post("/", utils.AuthRequired(), api_handlers.CreateMenuItemHandler)
 		menu.Get("/ActiveMenu", api_handlers.GetActiveMenu)
-		menu.Get("/", api_handlers.GetMenu)
-		menu.Put("/:id", api_handlers.UpdateMenuItem)
-		menu.Put("/image/:id", api_handlers.UpdateMenuImage)
-		menu.Delete("/:id", api_handlers.SoftDelete_Menu)
+		menu.Get("/", utils.AuthRequired(), api_handlers.GetMenu)
+		menu.Put("/:id", utils.AuthRequired(), api_handlers.UpdateMenuItem)
+		menu.Put("/image/:id", utils.AuthRequired(), api_handlers.UpdateMenuImage)
+		menu.Delete("/:id", utils.AuthRequired(), api_handlers.SoftDelete_Menu)
 
 		// Option Groups
 		menu.Get("/option-groups/:id", api_handlers.GetOptionByid)
@@ -76,30 +76,30 @@ func SetupRoutes(app *fiber.App) {
 		menu.Delete("/option-groups/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.SoftDelete_OptionGroup)
 
 		// Options
-		menu.Post("/options", api_handlers.AddMoreMenuOption)
-		app.Put("/api/menu/:menu_id/options/:option_id", api_handlers.UpdateOptionByMenuID) //อัปเดตผ่านไอดีัอาหาร
-		menu.Put("/options/:id", api_handlers.UpdateOption)
-		menu.Delete("/options/:id", api_handlers.SoftDelete_Option)
+		menu.Post("/options", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.AddMoreMenuOption)
+		app.Put("/api/menu/:menu_id/options/:option_id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.UpdateOptionByMenuID) //อัปเดตผ่านไอดีัอาหารไม่ได้ใช้
+		menu.Put("/options/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.UpdateOption)
+		menu.Delete("/options/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.SoftDelete_Option)
 
 		// Deleted Items Management
-		menu.Get("/deleted", api_handlers.GetDeletedMenus) //ดูเมน฿ที่ถูก softdelete
-		menu.Post("/restore/:id", api_handlers.RestoreMenu)
-		menu.Post("/restore-group/:id", api_handlers.RestoreOptionGroup)
-		menu.Post("/restore-option/:id", api_handlers.RestoreOption)
+		menu.Get("/deleted", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.GetDeletedMenus) //ดูเมน฿ที่ถูก softdelete
+		menu.Post("/restore/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.RestoreMenu)
+		menu.Post("/restore-group/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.RestoreOptionGroup)
+		menu.Post("/restore-option/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.RestoreOption)
 
-		menu.Put("/status/:id", api_handlers.UpdateMenuStatus)
+		menu.Put("/status/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.UpdateMenuStatus)
 	}
 
 	promotion := api.Group("/promotions")
 	{
-		promotion.Post("/", api_handlers.CreatePromotion)
-		promotion.Get("/", api_handlers.GetAllPromotion)
+		promotion.Post("/", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.CreatePromotion)
+		promotion.Get("/", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.GetAllPromotion)
 		promotion.Get("/Active", api_handlers.GetActivePromotions)
-		promotion.Patch("/status/:id", api_handlers.UpdatePromotionStatus)
-		promotion.Put("/image/:id", api_handlers.UpdatePromotionImage)
-		promotion.Put("/:id", api_handlers.UpdatePromotion)
-		promotion.Delete("/:id", api_handlers.DeletePromotion)
-		promotion.Get("/:id", api_handlers.GetPromotionByID)
+		promotion.Patch("/status/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.UpdatePromotionStatus)
+		promotion.Put("/image/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.UpdatePromotionImage)
+		promotion.Put("/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.UpdatePromotion)
+		promotion.Delete("/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.DeletePromotion)
+		promotion.Get("/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.GetPromotionByID)
 	}
 
 	// Category Management Routes - ต้องการการยืนยันตัวตน และต้องเป็น manager
@@ -171,8 +171,9 @@ func SetupRoutes(app *fiber.App) {
 		// printer.Get("/:id", api_handlers.GetPrinterByID)
 		printer.Get("/", api_handlers.GetAllPrinters)
 
-		printer.Get("/pending-jobs", api_handlers.GetPendingPrintJobs)
-		printer.Put("/status/:id", api_handlers.UpdatePrintJobStatus)
+		// เฉพาะ endpoints ที่ต้องการใช้ API key
+		printer.Get("/pending-jobs", utils.PrinterAPIKeyMiddleware(), api_handlers.GetPendingPrintJobs)
+		printer.Put("/status/:id", utils.PrinterAPIKeyMiddleware(), api_handlers.UpdatePrintJobStatus)
 	}
 
 	payment := api.Group("/payment")

@@ -77,11 +77,11 @@ func main() {
 
 	app.Get("/swagger/*", swagger.HandlerDefault)
 
-	app.Get("/ws/tables", utils.WebSocketAPIKeyMiddleware, api_handlers.TableWebSocketHandler(db.DB))
+	app.Get("/ws/tables", utils.WebSocketAPIKeyMiddleware("websocket_table"), api_handlers.TableWebSocketHandler(db.DB))
 
 	// app.Use("/ws/printer", api_handlers.HandlePrinterWebSocket)
-	app.Use("/ws/printer", service.HandlePrinterWebSocket)
-
+	// app.Use("/ws/printer", utils.PrinterKeyMiddleware(), service.HandlePrinterWebSocket)
+	app.Use("/ws/printer", utils.WebSocketAPIKeyMiddleware("websocket_printer"), service.HandlePrinterWebSocket)
 	routes.SetupRoutes(app)
 
 	if err := app.Listen(":8080"); err != nil {

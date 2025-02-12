@@ -11,7 +11,7 @@ services:
       - DB_HOST=postgres
       - DB_PORT=${DB_PORT}
       - WS_TABLE_KEY=${WS_TABLE_KEY}
-      - WS_PRINTER_KEY=${ws_key_printer_123}
+      - WS_PRINTER_KEY=${WS_PRINTER_KEY}
     depends_on:
       - postgres
 
