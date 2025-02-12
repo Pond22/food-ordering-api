@@ -55,74 +55,59 @@ export default function MenuBar({ tableID, uuid }) {
     calculateTotal()
   }, [cart])
 
-  const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0)
+  const totalQuantity =
+    cart.reduce((sum, item) => sum + item.quantity, 0) +
+    promotions.reduce((promoSum, promo) => promoSum + promo.quantity, 0) // Adding promo quantity
 
+  // Create the order data with items and promotions
   const confirmOrder = async () => {
     console.log('Table ID:', tableID)
     console.log('UUID:', uuid)
 
-    // Create the order data with items and promotions
+    // สร้าง orderData สำหรับรายการอาหารปกติ
     const orderData = cart
       .map((item) => {
-        // Calculate the total price for options
-        const totalOptionsPrice = item.options.reduce(
-          (acc, option) => acc + option.price,
-          0
-        )
-
         if (item.quantity > 0) {
-          const orderItem = {
+          return {
             menu_item_id: item.menuItem.ID,
             quantity: item.quantity,
-            notes: item.notes,
+            notes: item.notes || '',
             options: item.options.map((option) => ({
               menu_option_id: option.menu_option_id,
-              price: option.price,
             })),
-            total_price:
-              item.menuItem.Price * item.quantity + totalOptionsPrice,
           }
-
-          // Log the item info for debugging
-          console.log(
-            `Adding item to order: ${item.menuItem.Name}, Quantity: ${item.quantity}, Notes: ${item.notes}`
-          )
-          item.options.forEach((option) => {
-            console.log(`Option: ${option.name}, Price: ${option.price}฿`)
-          })
-
-          return orderItem
-        } else {
-          console.log(
-            `Skipping item: ${item.menuItem.Name}, Quantity: ${item.quantity} or invalid options`
-          )
-          return null
         }
+        return null
       })
       .filter((item) => item !== null)
 
-    // Add promotions to the order data
+    // สร้าง promotionData สำหรับโปรโมชัน
     const promotionData = promotions.map((promo) => ({
       promotion_id: promo.promotion_id,
-      quantity: promo.quantity,
-      menu_item_ids: promo.selectedOptions,
+      menu_item_ids: promo.selectedOptions.map((opt) => opt.id),
     }))
 
-    // Combine the order items and promotions
-    const requestPayload = {
-      table_id: tableID,
-      uuid: uuid,
-      items: orderData,
-      use_promo: promotionData, // Send promotions data
-    }
-
-    // Show the order data for debugging
-    console.log('Order Data:', requestPayload)
-
-    if (orderData.length === 0) {
-      console.error('No items in the order!')
+    // ตรวจสอบว่ามีรายการสั่งอาหารหรือโปรโมชันหรือไม่
+    if (orderData.length === 0 && promotionData.length === 0) {
+      alert(
+        language === 'th'
+          ? 'กรุณาเลือกรายการอาหารหรือโปรโมชัน'
+          : language === 'en'
+          ? 'Please select food items or promotions'
+          : '请选择食品或促销项目'
+      )
       return
     }
+
+    // สร้าง payload ตามโครงสร้างที่ API ต้องการ
+    const requestPayload = {
+      table_id: parseInt(tableID),
+      uuid: uuid,
+      items: orderData,
+      use_promo: promotionData,
+    }
+
+    console.log('Request Payload:', requestPayload)
 
     try {
       const response = await axios.post(
@@ -132,24 +117,57 @@ export default function MenuBar({ tableID, uuid }) {
 
       if (response.status === 200) {
         console.log('Order successfully placed!', response.data)
-        useCartStore.getState().clearCart()
+        useCartStore.getState().clearAllCart()
         setOpenCartModal(false)
+
+        alert(
+          language === 'th'
+            ? 'สั่งอาหารสำเร็จ!'
+            : language === 'en'
+            ? 'Order placed successfully!'
+            : '订单已成功提交！'
+        )
       } else {
         console.error('Failed to place order', response.data)
         alert(
-          'Failed to place order: ' + response.data.error || 'Unknown error'
+          language === 'th'
+            ? 'ไม่สามารถสั่งอาหารได้: ' +
+                (response.data.error || 'ข้อผิดพลาดที่ไม่ทราบสาเหตุ')
+            : language === 'en'
+            ? 'Failed to place order: ' +
+              (response.data.error || 'Unknown error')
+            : '下单失败：' + (response.data.error || '未知错误')
         )
       }
     } catch (error) {
       if (error.response) {
         console.error('Error placing order:', error.response.data)
-        alert('Error: ' + error.response.data.error || 'Unknown error')
+        alert(
+          language === 'th'
+            ? 'ข้อผิดพลาด: ' +
+                (error.response.data.error || 'ข้อผิดพลาดที่ไม่ทราบสาเหตุ')
+            : language === 'en'
+            ? 'Error: ' + (error.response.data.error || 'Unknown error')
+            : '错误：' + (error.response.data.error || '未知错误')
+        )
       } else if (error.request) {
         console.error('No response from server:', error.request)
-        alert('No response from server, please try again later.')
+        alert(
+          language === 'th'
+            ? 'ไม่ได้รับการตอบสนองจากเซิร์ฟเวอร์ กรุณาลองใหม่อีกครั้ง'
+            : language === 'en'
+            ? 'No response from server, please try again later.'
+            : '服务器无响应，请稍后重试。'
+        )
       } else {
         console.error('Unexpected error:', error.message)
-        alert('An unexpected error occurred. Please try again.')
+        alert(
+          language === 'th'
+            ? 'เกิดข้อผิดพลาดที่ไม่คาดคิด กรุณาลองใหม่อีกครั้ง'
+            : language === 'en'
+            ? 'An unexpected error occurred. Please try again.'
+            : '发生意外错误。请重试。'
+        )
       }
     }
   }
@@ -266,7 +284,6 @@ export default function MenuBar({ tableID, uuid }) {
                         </button>
                       </div>
                       <hr className="mt-4" />
-
                       <div className="flex-1 overflow-y-auto py-2">
                         {cart.map((item, i) => (
                           <div
@@ -345,23 +362,45 @@ export default function MenuBar({ tableID, uuid }) {
                           >
                             <div className="flex flex-col gap-1">
                               <h6 className="text-lg font-medium">
-                                {promo.promotion.Name}
+                                {language === 'th'
+                                  ? promo.promotion.Name
+                                  : language === 'en'
+                                  ? promo.promotion.NameEn
+                                  : promo.promotion.NameCh}
                               </h6>
                               <span className="text-sm text-gray-600">
-                                {promo.promotion.Description}
+                                {language === 'th'
+                                  ? promo.promotion.Description
+                                  : language === 'en'
+                                  ? promo.promotion.DescriptionEn
+                                  : promo.promotion.DescriptionCh}
                               </span>
-                              {/* แสดง selectedOptions ของโปรโมชัน */}
                               {promo.selectedOptions &&
                                 promo.selectedOptions.length > 0 && (
                                   <div className="mt-2">
                                     <h6 className="font-medium text-gray-800">
-                                      ตัวเลือกที่เลือก:
+                                      {language === 'th'
+                                        ? 'ตัวเลือกที่เลือก:'
+                                        : language === 'en'
+                                        ? 'Selected options:'
+                                        : '已选择的选项:'}
                                     </h6>
                                     <ul className="list-disc pl-5 text-sm text-gray-500">
                                       {promo.selectedOptions.map(
                                         (option, index) => (
                                           <li key={index}>
-                                            {option.name} (+{option.price} บาท)
+                                            {language === 'th'
+                                              ? option.name
+                                              : language === 'en'
+                                              ? option.nameEn
+                                              : option.nameCh}
+                                            (+{option.price}{' '}
+                                            {language === 'th'
+                                              ? 'บาท'
+                                              : language === 'en'
+                                              ? 'THB'
+                                              : '泰铢'}
+                                            )
                                           </li>
                                         )
                                       )}
@@ -371,7 +410,12 @@ export default function MenuBar({ tableID, uuid }) {
                             </div>
                             <div>
                               {/* แสดงราคาโปรโมชัน */}
-                              {promo.promotion.Price * promo.quantity} บาท
+                              {promo.promotion.Price * promo.quantity}{' '}
+                              {language === 'th'
+                                ? 'บาท'
+                                : language === 'en'
+                                ? 'THB'
+                                : '泰铢'}
                               <div className="flex justify-between items-center gap-3">
                                 <button
                                   className="bg-gray-200 hover:bg-gray-300 disabled:opacity-70 disabled:hover:bg-gray-200 p-2 rounded-md text-black"
@@ -405,19 +449,33 @@ export default function MenuBar({ tableID, uuid }) {
                           </div>
                         ))}
                       </div>
-
                       <div className="flex flex-col gap-4 px-2 pt-4 border-t border-gray-200">
                         <div className="flex justify-between items-center">
-                          <span className="text-xl font-bold">รวมทั้งหมด</span>
                           <span className="text-xl font-bold">
-                            {calculateTotal()} บาท
+                            {language === 'th'
+                              ? 'รวมทั้งหมด'
+                              : language === 'en'
+                              ? 'Total'
+                              : '总计'}
+                          </span>
+                          <span className="text-xl font-bold">
+                            {calculateTotal()}{' '}
+                            {language === 'th'
+                              ? 'บาท'
+                              : language === 'en'
+                              ? 'THB'
+                              : '泰铢'}
                           </span>
                         </div>
                         <button
                           className="px-4 py-3 w-full rounded-md text-white font-semibold bg-[#4bcc37] hover:bg-[#4aac3b]"
-                          onClick={confirmOrder} // Add the onClick event to trigger the API call
+                          onClick={confirmOrder}
                         >
-                          ยืนยันการสั่งอาหาร
+                          {language === 'th'
+                            ? 'ยืนยันการสั่งอาหาร'
+                            : language === 'en'
+                            ? 'Confirm Order'
+                            : '确认订单'}
                         </button>
                       </div>
                     </div>

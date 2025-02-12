@@ -10,7 +10,7 @@ const MenuItem = ({ item, language }) => {
   
   const [quantity, setQuantity] = useState(1)
 
-  const { addToCart } = useCartStore()
+  const { addToCart, getMenuItemOrderedQuantity } = useCartStore()
 
   const handleIncrease = () => setQuantity((prev) => prev + 1) // เพิ่มจำนวน
   const handleDecrease = () => {
@@ -23,13 +23,22 @@ const MenuItem = ({ item, language }) => {
   // Handle adding item to cart
   const handleAddToCart = () => {
     if (quantity > 0) {
-      // เพิ่มการตรวจสอบว่า selectedOptions ถูกต้องหรือไม่
-      console.log('Selected Options:', selectedOptions) // ตรวจสอบข้อมูลของ selectedOptions
-      addToCart(item, quantity, note, Object.values(selectedOptions)) // ส่ง selectedOptions ไปด้วย
-      setNote('') // ล้างข้อมูล note หลังจากเพิ่มลงตะกร้า
-      setSelectedOptions({}) // ล้าง selectedOptions
-      setQuantity(1) // รีเซ็ตปริมาณ
-      togglePopup() // ปิด popup
+      const currentOrdered = getMenuItemOrderedQuantity(item.ID)
+      const maxAvailable = item.MaxQuantity || Infinity // ถ้าไม่มีการกำหนด MaxQuantity ให้สั่งได้ไม่จำกัด
+
+      if (currentOrdered + quantity > maxAvailable) {
+        alert(
+          language === 'th'
+            ? `ไม่สามารถสั่งเพิ่มได้ เนื่องจากเกินจำนวนที่กำหนด (สูงสุด ${maxAvailable} รายการ)`
+            : language === 'en'
+            ? `Cannot order more. Exceeds maximum limit (${maxAvailable} items)`
+            : `无法订购更多。超过最大限制（${maxAvailable}项）`
+        )
+        return
+      }
+
+      addToCart(item, quantity, note, Object.values(selectedOptions))
+      // ... existing code ...
     }
   }
 

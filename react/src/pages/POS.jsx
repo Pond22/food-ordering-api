@@ -1,88 +1,92 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Power,
   AlertTriangle,
   Loader2,
   Clock,
   UserCircle,
-  MonitorSmartphone
-} from 'lucide-react';
+  MonitorSmartphone,
+} from 'lucide-react'
+import TableManager from '../components/TableManager'
 
 const POS = () => {
-  const navigate = useNavigate();
-  const [sessionStatus, setSessionStatus] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const navigate = useNavigate()
+  const [sessionStatus, setSessionStatus] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   // ตรวจสอบ session status ทุก 1 นาที
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/pos/session-status', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('posToken')}`,
-          },
-        });
+        const response = await fetch(
+          'http://localhost:8080/api/pos/session-status',
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('posToken')}`,
+            },
+          }
+        )
 
         if (!response.ok) {
-          throw new Error('Session check failed');
+          throw new Error('Session check failed')
         }
 
-        const data = await response.json();
-        setSessionStatus(data);
+        const data = await response.json()
+        setSessionStatus(data)
 
         // ถ้า session ไม่ active ให้ redirect ไปหน้า login
         if (!data.is_active) {
-          alert('POS session expired. Please verify with a new code.');
+          alert('POS session expired. Please verify with a new code.')
           // เคลียร์ token เก่าออก
-          localStorage.removeItem('posToken');
-          localStorage.removeItem('posSessionId');
+          localStorage.removeItem('posToken')
+          localStorage.removeItem('posSessionId')
           // ทำการ redirect ไปที่หน้าหลักของร้าน (ให้พนักงานขอ code ใหม่)
-          navigate('/');
+          navigate('/')
         }
       } catch (error) {
-        console.error('Session check error:', error);
-        localStorage.removeItem('posToken');
-        localStorage.removeItem('posSessionId');
-        navigate('/');
+        console.error('Session check error:', error)
+        localStorage.removeItem('posToken')
+        localStorage.removeItem('posSessionId')
+        navigate('/')
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
+    }
 
-    checkSession();
-    const interval = setInterval(checkSession, 60000); // ทุก 1 นาที
+    checkSession()
+    const interval = setInterval(checkSession, 60000) // ทุก 1 นาที
 
-    return () => clearInterval(interval);
-  }, [navigate]);
+    return () => clearInterval(interval)
+  }, [navigate])
 
   const handleLogout = async () => {
-    setIsLoggingOut(true);
+    setIsLoggingOut(true)
     try {
       const response = await fetch('http://localhost:8080/api/pos/logout', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('posToken')}`,
+          Authorization: `Bearer ${localStorage.getItem('posToken')}`,
         },
-      });
+      })
 
       if (!response.ok) {
-        throw new Error('Logout failed');
+        throw new Error('Logout failed')
       }
 
       // ลบข้อมูล session จาก localStorage
-      localStorage.removeItem('posToken');
-      localStorage.removeItem('posSessionId');
-      navigate('/pos/verify');
+      localStorage.removeItem('posToken')
+      localStorage.removeItem('posSessionId')
+      navigate('/pos/verify')
     } catch (error) {
-      alert('Failed to logout. Please try again.');
+      alert('Failed to logout. Please try again.')
     } finally {
-      setIsLoggingOut(false);
-      setShowLogoutDialog(false);
+      setIsLoggingOut(false)
+      setShowLogoutDialog(false)
     }
-  };
+  }
 
   if (isLoading) {
     return (
@@ -92,7 +96,7 @@ const POS = () => {
           <p className="text-sm text-gray-500">Loading POS system...</p>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -136,6 +140,7 @@ const POS = () => {
       {/* Main POS content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Add your POS content here */}
+        <TableManager posToken={localStorage.getItem('posToken')} />
       </main>
 
       {/* Logout confirmation dialog */}
@@ -147,7 +152,8 @@ const POS = () => {
               <h2 className="text-lg font-semibold">Confirm Logout</h2>
             </div>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to end this POS session? This action cannot be undone.
+              Are you sure you want to end this POS session? This action cannot
+              be undone.
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -176,7 +182,7 @@ const POS = () => {
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default POS;
+export default POS

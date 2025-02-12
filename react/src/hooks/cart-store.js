@@ -10,6 +10,37 @@ const useCartStore = create(
       promotions: [],
       tableId: null,
       uuid: null,
+      clearAllCart: () => set({ cart: [], promotions: [] }),
+
+      // เพิ่มฟังก์ชันสำหรับตรวจสอบจำนวนที่สั่งได้ของเมนูปกติ
+      getMenuItemOrderedQuantity: (menuItemId) => {
+        const { cart, tableId, uuid } = get()
+        return cart.reduce((total, item) => {
+          if (
+            item.menu_item_id === menuItemId &&
+            item.tableId === tableId &&
+            item.uuid === uuid
+          ) {
+            return total + item.quantity
+          }
+          return total
+        }, 0)
+      },
+
+      // เพิ่มฟังก์ชันสำหรับตรวจสอบจำนวนที่สั่งได้ของโปรโมชัน
+      getPromotionOrderedQuantity: (promotionId) => {
+        const { promotions, tableId, uuid } = get()
+        return promotions.reduce((total, promo) => {
+          if (
+            promo.promotion_id === promotionId &&
+            promo.tableId === tableId &&
+            promo.uuid === uuid
+          ) {
+            return total + promo.quantity
+          }
+          return total
+        }, 0)
+      },
 
       setTableData: (newTableId, newUuid) => {
         const { tableId, uuid, clearCart } = get()
@@ -25,6 +56,7 @@ const useCartStore = create(
       addToCart: (item, quantity, note, selectedOptions) =>
         set((state) => {
           const timestamp = new Date().getTime()
+          const { tableId, uuid } = state
 
           // ตรวจสอบรายการในตะกร้าว่ามีสินค้านี้หรือไม่
           const existingItem = state.cart.find(
@@ -69,6 +101,8 @@ const useCartStore = create(
                   })),
                   quantity: quantity,
                   timestamp,
+                  tableId,
+                  uuid,
                 },
               ],
             }
@@ -78,46 +112,35 @@ const useCartStore = create(
       addPromotion: (promotion, quantity) => {
         set((state) => {
           const timestamp = new Date().getTime()
+          const { tableId, uuid } = state
 
-          // ตรวจสอบว่ามีโปรโมชั่นนี้ในตะกร้าหรือไม่
+          // ตรวจสอบว่ามีโปรโมชั่นที่เหมือนกันในตะกร้าหรือไม่
           const existingPromotion = state.promotions.find(
-            (p) => p.promotion_id === promotion.ID
+            (p) =>
+              p.promotion_id === promotion.ID &&
+              JSON.stringify(p.selectedOptions.sort((a, b) => a.id - b.id)) ===
+                JSON.stringify(
+                  promotion.selectedOptions.sort((a, b) => a.id - b.id)
+                )
           )
 
           if (existingPromotion) {
-            // ตรวจสอบว่า selectedOptions มีการเปลี่ยนแปลงหรือไม่
-            const isSelectedOptionsSame =
-              JSON.stringify(existingPromotion.selectedOptions) ===
-              JSON.stringify(promotion.selectedOptions || [])
-
-            if (isSelectedOptionsSame) {
-              // ถ้า selectedOptions ไม่มีการเปลี่ยนแปลง, รวมจำนวนโปรโมชั่นเข้าด้วยกัน
-              return {
-                promotions: state.promotions.map((p) =>
-                  p.promotion_id === promotion.ID &&
-                  JSON.stringify(p.selectedOptions) ===
-                    JSON.stringify(promotion.selectedOptions || [])
-                    ? { ...p, quantity: p.quantity + quantity, timestamp }
-                    : p
-                ),
-              }
-            } else {
-              // ถ้ามีการเปลี่ยนแปลงใน selectedOptions, เพิ่มเป็นโปรโมชันใหม่
-              return {
-                promotions: [
-                  ...state.promotions,
-                  {
-                    promotion_id: promotion.ID,
-                    promotion: promotion,
-                    quantity: quantity,
-                    timestamp,
-                    selectedOptions: promotion.selectedOptions || [], // เพิ่ม selectedOptions ใหม่
-                  },
-                ],
-              }
+            // ถ้ามีโปรโมชั่นที่เหมือนกันอยู่แล้ว ให้เพิ่มจำนวน
+            return {
+              promotions: state.promotions.map((p) =>
+                p.promotion_id === promotion.ID &&
+                JSON.stringify(
+                  p.selectedOptions.sort((a, b) => a.id - b.id)
+                ) ===
+                  JSON.stringify(
+                    promotion.selectedOptions.sort((a, b) => a.id - b.id)
+                  )
+                  ? { ...p, quantity: p.quantity + quantity, timestamp }
+                  : p
+              ),
             }
           } else {
-            // ถ้าไม่มีโปรโมชั่นนี้ในตะกร้า, เพิ่มโปรโมชั่นใหม่
+            // ถ้าไม่มี ให้เพิ่มโปรโมชั่นใหม่
             return {
               promotions: [
                 ...state.promotions,
@@ -126,7 +149,9 @@ const useCartStore = create(
                   promotion: promotion,
                   quantity: quantity,
                   timestamp,
-                  selectedOptions: promotion.selectedOptions || [], // เพิ่ม selectedOptions ใหม่
+                  selectedOptions: promotion.selectedOptions || [],
+                  tableId,
+                  uuid,
                 },
               ],
             }

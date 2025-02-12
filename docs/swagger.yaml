@@ -148,6 +148,32 @@ definitions:
       token:
         type: string
     type: object
+  api_handlers.ImportError:
+    properties:
+      error:
+        type: string
+      input_data:
+        type: string
+      row:
+        type: integer
+      suggestion:
+        type: string
+    type: object
+  api_handlers.ImportResponse:
+    properties:
+      failed:
+        type: integer
+      failed_items:
+        items:
+          $ref: '#/definitions/api_handlers.ImportError'
+        type: array
+      success:
+        type: integer
+      success_items:
+        items:
+          $ref: '#/definitions/api_handlers.MenuImportRow'
+        type: array
+    type: object
   api_handlers.LoginRequest:
     properties:
       password:
@@ -166,26 +192,6 @@ definitions:
         type: string
       user:
         $ref: '#/definitions/api_handlers.UserProfile'
-    type: object
-  api_handlers.MenuImportError:
-    properties:
-      data:
-        $ref: '#/definitions/api_handlers.MenuImportRow'
-      message:
-        type: string
-      row:
-        type: integer
-    type: object
-  api_handlers.MenuImportResponse:
-    properties:
-      errors:
-        items:
-          $ref: '#/definitions/api_handlers.MenuImportError'
-        type: array
-      success:
-        items:
-          $ref: '#/definitions/api_handlers.MenuImportRow'
-        type: array
     type: object
   api_handlers.MenuImportRow:
     properties:
@@ -2475,7 +2481,7 @@ paths:
         "200":
           description: ผลการนำเข้าเมนู
           schema:
-            $ref: '#/definitions/api_handlers.MenuImportResponse'
+            $ref: '#/definitions/api_handlers.ImportResponse'
         "400":
           description: ข้อมูลไม่ถูกต้อง
           schema:
@@ -2546,6 +2552,41 @@ paths:
       tags:
       - menu
   /api/menu/option-groups/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: ฟังก์ชันนี้ใช้สำหรับลบกลุ่มตัวเลือกโดยจะเป็นการ soft delete
+      parameters:
+      - description: ID ของกลุ่มตัวเลือกนั้นๆ
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ลบกลุ่มตัวเลือกสำเร็จ
+        "400":
+          description: เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: ไม่ได้รับอนุญาต
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: ไม่มีสิทธิ์เข้าถึง
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ลบกลุ่มตัวเลือกอาหาร
+      tags:
+      - menu
     get:
       description: ฟังก์ชันนี้ใช้สำหรับเรียกดู Option ตามไอดีอาหาร
       parameters:
@@ -3691,6 +3732,21 @@ paths:
           schema:
             $ref: '#/definitions/models.Printer'
       summary: กำหนดหมวดหมู่ให้เครื่องพิมพ์
+      tags:
+      - Printer
+  /api/printers/failed-jobs:
+    get:
+      description: ดึงรายการงานพิมพ์ที่มีสถานะ failed
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api_handlers.PrintJobResponse'
+            type: array
+      summary: ดึงรายการงานพิมพ์ที่ล้มเหลว
       tags:
       - Printer
   /api/printers/pending-jobs:

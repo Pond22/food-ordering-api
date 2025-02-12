@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import styles from '../styles/TableDetail.module.css'
 import { X, CalendarDays, Edit, Trash2, Plus, Split } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import PaymentTables from './PaymentTables'
-import ReservationManagement from './ReservationManagement';
-import ReservationCheckin from './ReservationCheckin';
-import QRCodeReprint from './QRCodeReprint';
+import ReservationManagement from './ReservationManagement'
+import ReservationCheckin from './ReservationCheckin'
+import QRCodeReprint from './QRCodeReprint'
+import OrderSummaryDetail from './OrderSummaryDetail'
 
 // Helper component for displaying table info
 const TableInfo = ({ label, value }) => (
@@ -16,9 +17,8 @@ const TableInfo = ({ label, value }) => (
   </div>
 )
 
-const TableManager = () => {
+const TableManager = ({ posToken }) => {
   const [tables, setTables] = useState([])
-  const socketRef = useRef(null)  // เพิ่ม useRef สำหรับเก็บ socket connection
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [newTableName, setNewTableName] = useState('')
   const [newTableCapacity, setNewTableCapacity] = useState(0)
@@ -34,15 +34,16 @@ const TableManager = () => {
 
   // Reservation Dialog States
   const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false)
-  const [customerName, setCustomerName] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [customerCount, setCustomerCount] = useState(0);
-  const [reservationTime, setReservationTime] = useState('');
-  const [selectedTable, setSelectedTable] = useState(null);
+  const [customerName, setCustomerName] = useState('')
+  const [phoneNumber, setPhoneNumber] = useState('')
+  const [customerCount, setCustomerCount] = useState(0)
+  const [reservationTime, setReservationTime] = useState('')
+  const [selectedTable, setSelectedTable] = useState(null)
   const [selectedGroupId, setSelectedGroupId] = useState(null)
 
-  //จัดการการจองต่างๆ 
-  const [isReservationManagementOpen, setIsReservationManagementOpen] = useState(false);
+  //จัดการการจองต่างๆ
+  const [isReservationManagementOpen, setIsReservationManagementOpen] =
+    useState(false)
 
   const [qrData, setQrData] = useState(null)
   const [isTableOpen, setIsTableOpen] = useState(false) // ใช้เพื่อแสดงสถานะโต๊ะ
@@ -62,8 +63,8 @@ const TableManager = () => {
 
     // ดึง UUID ของโต๊ะที่เลือก
     const uuid = uuidMap[tableID]
-     const table = tables.find((t) => t.ID === tableID) // หาตัวโต๊ะที่ตรงกับ tableID
-     const tableName = table ? table.Name : 'ไม่พบชื่อโต๊ะ'
+    const table = tables.find((t) => t.ID === tableID) // หาตัวโต๊ะที่ตรงกับ tableID
+    const tableName = table ? table.Name : 'ไม่พบชื่อโต๊ะ'
 
     // ส่งข้อมูลโต๊ะทั้งหมดที่มีสถานะ occupied พร้อมกับ tableID และ uuid ไปยังหน้า PaymentTables
     navigate('/payment-tables', {
@@ -71,13 +72,11 @@ const TableManager = () => {
     })
   }
 
-
   // Fetch tables from API and sort by ID
   useEffect(() => {
     const connectWebSocket = () => {
       try {
-        const socket = new WebSocket(`ws://localhost:8080/ws/tables?api_key=${import.meta.env.VITE_WS_TABLE_KEY}`)
-        socketRef.current = socket  // เก็บ socket ไว้ใน ref
+        const socket = new WebSocket('ws://localhost:8080/ws/tables')
 
         socket.onopen = () => {
           console.log('WebSocket connected successfully!')
@@ -118,10 +117,7 @@ const TableManager = () => {
     const socket = connectWebSocket()
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.close()
-        socketRef.current = null
-      }
+      socket.close() // ปิดการเชื่อมต่อเมื่อคอมโพเนนต์ unmount
     }
   }, [])
 
@@ -163,87 +159,89 @@ const TableManager = () => {
 
   const handleTableAction = async (action, table) => {
     if (!table || !table.ID) {
-      alert('ข้อมูลโต๊ะไม่ถูกต้อง');
-      return;
+      alert('ข้อมูลโต๊ะไม่ถูกต้อง')
+      return
     }
-  
+
     // ตรวจสอบความถูกต้องของข้อมูลสำหรับการจอง
     if (action === 'reserve') {
       if (!customerName || !phoneNumber || !customerCount || !reservationTime) {
-        alert('กรุณากรอกข้อมูลให้ครบถ้วน');
-        return;
+        alert('กรุณากรอกข้อมูลให้ครบถ้วน')
+        return
       }
-  
+
       // ตรวจสอบวันที่และเวลา
-      const reservationDateTime = new Date(reservationTime);
+      const reservationDateTime = new Date(reservationTime)
       if (isNaN(reservationDateTime.getTime())) {
-        alert('วันที่และเวลาไม่ถูกต้อง');
-        return;
+        alert('วันที่และเวลาไม่ถูกต้อง')
+        return
       }
-  
+
       // ตรวจสอบว่าไม่ใช่วันที่ในอดีต
       if (reservationDateTime < new Date()) {
-        alert('ไม่สามารถจองย้อนหลังได้');
-        return;
+        alert('ไม่สามารถจองย้อนหลังได้')
+        return
       }
     }
-  
-    const endpoint = action === 'reserve' 
-      ? `http://localhost:8080/api/table/reservedTable/${table.ID}`
-      : action === 'unreserve'
-      ? `http://localhost:8080/api/table/unreservedTable/${table.ID}`
-      : null;
-  
+
+    const endpoint =
+      action === 'reserve'
+        ? `http://localhost:8080/api/table/reservedTable/${table.ID}`
+        : action === 'unreserve'
+        ? `http://localhost:8080/api/table/unreservedTable/${table.ID}`
+        : null
+
     if (!endpoint) {
-      console.warn('Unsupported action:', action);
-      return;
+      console.warn('Unsupported action:', action)
+      return
     }
-  
+
     try {
       // สร้างข้อมูลสำหรับการจอง
-      const requestData = action === 'reserve' ? {
-        customer_name: customerName,
-        phone_number: phoneNumber,
-        guest_count: parseInt(customerCount),
-        reserved_for: new Date(reservationTime).toISOString() // แปลงวันที่ให้อยู่ในรูปแบบที่ถูกต้อง
-      } : {};
-  
-      console.log('Sending reservation data:', requestData); // Debug log
-  
-      const response = await axios.post(endpoint, requestData);
-      
-      alert(response.data.message || 'ดำเนินการสำเร็จ');
-      
+      const requestData =
+        action === 'reserve'
+          ? {
+              customer_name: customerName,
+              phone_number: phoneNumber,
+              guest_count: parseInt(customerCount),
+              reserved_for: new Date(reservationTime).toISOString(), // แปลงวันที่ให้อยู่ในรูปแบบที่ถูกต้อง
+            }
+          : {}
+
+      console.log('Sending reservation data:', requestData) // Debug log
+
+      const response = await axios.post(endpoint, requestData)
+
+      alert(response.data.message || 'ดำเนินการสำเร็จ')
+
       // อัพเดทสถานะโต๊ะ
-      setTables(prevTables =>
-        prevTables.map(t =>
+      setTables((prevTables) =>
+        prevTables.map((t) =>
           t.ID === table.ID
             ? { ...t, Status: action === 'reserve' ? 'reserved' : 'available' }
             : t
         )
-      );
-  
+      )
+
       // เคลียร์ข้อมูลการจองหลังจากจองสำเร็จ
       if (action === 'reserve') {
-        setCustomerName('');
-        setPhoneNumber('');
-        setCustomerCount(0);
-        setReservationTime('');
-        setIsReservationDialogOpen(false);
+        setCustomerName('')
+        setPhoneNumber('')
+        setCustomerCount(0)
+        setReservationTime('')
+        setIsReservationDialogOpen(false)
       }
-  
     } catch (error) {
-      console.error(`Error processing ${action}:`, error);
-      
-      // แสดงข้อความ error ที่ได้จาก backend
-      const errorMessage = error.response?.data?.error 
-        ? `เกิดข้อผิดพลาด: ${error.response.data.error}`
-        : 'เกิดข้อผิดพลาดในการดำเนินการ';
-      
-      alert(errorMessage);
-    }
-  };
+      console.error(`Error processing ${action}:`, error)
 
+      // แสดงข้อความ error ที่ได้จาก backend
+      const errorMessage = error.response?.data?.error
+        ? `เกิดข้อผิดพลาด: ${error.response.data.error}`
+        : 'เกิดข้อผิดพลาดในการดำเนินการ'
+
+      alert(errorMessage)
+    }
+  }
 
   // Create a new table
   const createTable = async () => {
@@ -514,7 +512,6 @@ const TableManager = () => {
 
       // ตรวจสอบว่า qrResponse.data มีข้อมูลที่จำเป็น
       if (!qrResponse.data || !qrResponse.data.uuid) {
-        alert('ไม่พบข้อมูล UUID ของโต๊ะ')
         return
       }
 
@@ -535,11 +532,12 @@ const TableManager = () => {
   // Table rendering
   const renderTableActionButtons = (table) => {
     const status = table.Status || 'available'
-    const tableStyles = status === 'reserved' 
-      ? styles.reservedTable 
-      : status === 'merged' 
-      ? styles.mergedTable 
-      : styles.availableTable
+    const tableStyles =
+      status === 'reserved'
+        ? styles.reservedTable
+        : status === 'merged'
+        ? styles.mergedTable
+        : styles.availableTable
 
     return (
       <div className={tableStyles}>
@@ -552,8 +550,8 @@ const TableManager = () => {
                     className="bg-white text-black p-2 border rounded-full hover:bg-gray-100"
                     onClick={() => {
                       // เซ็ต selectedTable ก่อนเปิด dialog
-                      setSelectedTable(table);
-                      setIsReservationDialogOpen(true);
+                      setSelectedTable(table)
+                      setIsReservationDialogOpen(true)
                     }}
                   >
                     <CalendarDays></CalendarDays>
@@ -598,20 +596,18 @@ const TableManager = () => {
               </div>
             </>
           )}
-        {status === 'reserved' && (
-          <ReservationCheckin
-            table={table}
-            onCheckinSuccess={({ table }) => {
-              // อัพเดทสถานะโต๊ะใน tables state
-              setTables(prevTables =>
-                prevTables.map(t =>
-                  t.ID === table.ID ? table : t
+          {status === 'reserved' && (
+            <ReservationCheckin
+              table={table}
+              onCheckinSuccess={({ table }) => {
+                // อัพเดทสถานะโต๊ะใน tables state
+                setTables((prevTables) =>
+                  prevTables.map((t) => (t.ID === table.ID ? table : t))
                 )
-              );
-            }}
-            onUnreserve={(table) => handleTableAction('unreserve', table)}
-          />
-        )}
+              }}
+              onUnreserve={(table) => handleTableAction('unreserve', table)}
+            />
+          )}
           {status === 'unavailable' && (
             <>
               <button
@@ -626,19 +622,22 @@ const TableManager = () => {
           )}
           {status === 'occupied' && (
             <>
-              <button onClick={() => handleCheckBillClick(table.ID)}>
+              <button
+                className="p-1 border rounded-md mr-1 bg-blue-500/90 text-white hover:bg-blue-600"
+                onClick={() => handleCheckBillClick(table.ID, posToken)}
+              >
                 เช็คบิล
               </button>
-              <button onClick={() => handleMoveTable(table.ID)}>
+              <button
+                className="p-1 border rounded-md mr-1 bg-blue-500/90 text-white hover:bg-blue-600"
+                onClick={() => handleMoveTable(table.ID)}
+              >
                 ย้ายโต๊ะ
               </button>
-                          {/* เพิ่มปุ่มพิมพ์ QR Code ใหม่ */}
-            {uuidMap[table.ID] && (
-              <QRCodeReprint 
-                tableId={table.ID} 
-                uuid={uuidMap[table.ID]} 
-              />
-            )}
+              {/* เพิ่มปุ่มพิมพ์ QR Code ใหม่ */}
+              {uuidMap[table.ID] && (
+                <QRCodeReprint tableId={table.ID} uuid={uuidMap[table.ID]} />
+              )}
             </>
           )}
           {table.GroupID && (
@@ -743,12 +742,12 @@ const TableManager = () => {
 
       {/* componet การจองต่างๆ*/}
       <button
-          onClick={() => setIsReservationManagementOpen(true)}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
-          จัดการการจอง
-        </button>
-        
+        onClick={() => setIsReservationManagementOpen(true)}
+        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+      >
+        จัดการการจอง
+      </button>
+
       <button
         onClick={() => setIsDialogOpen(true)}
         className={styles.btnAction}
@@ -774,7 +773,7 @@ const TableManager = () => {
               } 
               ${
                 table.Status === 'unavailable'
-                  ? 'bg-red-200 border-orange-500'
+                  ? 'bg-red-200 border-orange-500 hover:bg-orange-400'
                   : ''
               }
               ${
@@ -783,7 +782,7 @@ const TableManager = () => {
                   : ''
               }${
                 table.Status === 'occupied'
-                  ? 'bg-yellow-100 border-orange-500'
+                  ? 'bg-red-100 border-orange-500 hover:bg-red-200'
                   : ''
               }`}
             >
@@ -801,86 +800,86 @@ const TableManager = () => {
         {renderTransferDialog()}
       </div>
 
-    {/* Reservation Dialog */}
-    {isReservationDialogOpen && (
-      <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
-        <div className="bg-white p-6 rounded-lg shadow-lg w-96">
-          <h3 className="text-xl mb-4">จองโต๊ะ</h3>
-          
-          <input
-            type="text"
-            value={customerName}
-            onChange={(e) => setCustomerName(e.target.value)}
-            className="border p-2 mb-4 w-full"
-            placeholder="ชื่อผู้จอง"
-            required
-          />
+      {/* Reservation Dialog */}
+      {isReservationDialogOpen && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+            <h3 className="text-xl mb-4">จองโต๊ะ</h3>
 
-          <input
-            type="tel"
-            value={phoneNumber}
-            onChange={(e) => setPhoneNumber(e.target.value)}
-            className="border p-2 mb-4 w-full"
-            placeholder="เบอร์โทรศัพท์"
-            required
-          />
-
-          <input
-            type="number"
-            value={customerCount}
-            onChange={(e) => setCustomerCount(parseInt(e.target.value) || 0)}
-            className="border p-2 mb-4 w-full"
-            placeholder="จำนวนคน"
-            min="1"
-            required
-          />
-
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              วันและเวลาที่จอง
-            </label>
             <input
-              type="datetime-local"
-              value={reservationTime}
-              onChange={(e) => {
-                const selectedDate = new Date(e.target.value);
-                // ตรวจสอบความถูกต้องของวันที่
-                if (!isNaN(selectedDate.getTime())) {
-                  setReservationTime(e.target.value);
-                }
-              }}
-              className="border p-2 w-full rounded-md"
+              type="text"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              className="border p-2 mb-4 w-full"
+              placeholder="ชื่อผู้จอง"
               required
-              // กำหนดค่าต่ำสุดเป็นวันที่ปัจจุบัน
-              min={new Date().toISOString().slice(0, 16)}
             />
-          </div>
 
-          <div className="flex justify-between">
-            <button
-              onClick={() => handleTableAction('reserve', selectedTable)}
-              className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-            >
-              ยืนยันการจอง
-            </button>
-            <button
-              onClick={() => {
-                setIsReservationDialogOpen(false);
-                setCustomerName('');
-                setPhoneNumber('');
-                setCustomerCount(0);
-                setReservationTime('');
-                setSelectedTable(null);
-              }}
-              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-            >
-              ยกเลิก
-            </button>
+            <input
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              className="border p-2 mb-4 w-full"
+              placeholder="เบอร์โทรศัพท์"
+              required
+            />
+
+            <input
+              type="number"
+              value={customerCount}
+              onChange={(e) => setCustomerCount(parseInt(e.target.value) || 0)}
+              className="border p-2 mb-4 w-full"
+              placeholder="จำนวนคน"
+              min="1"
+              required
+            />
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                วันและเวลาที่จอง
+              </label>
+              <input
+                type="datetime-local"
+                value={reservationTime}
+                onChange={(e) => {
+                  const selectedDate = new Date(e.target.value)
+                  // ตรวจสอบความถูกต้องของวันที่
+                  if (!isNaN(selectedDate.getTime())) {
+                    setReservationTime(e.target.value)
+                  }
+                }}
+                className="border p-2 w-full rounded-md"
+                required
+                // กำหนดค่าต่ำสุดเป็นวันที่ปัจจุบัน
+                min={new Date().toISOString().slice(0, 16)}
+              />
+            </div>
+
+            <div className="flex justify-between">
+              <button
+                onClick={() => handleTableAction('reserve', selectedTable)}
+                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+              >
+                ยืนยันการจอง
+              </button>
+              <button
+                onClick={() => {
+                  setIsReservationDialogOpen(false)
+                  setCustomerName('')
+                  setPhoneNumber('')
+                  setCustomerCount(0)
+                  setReservationTime('')
+                  setSelectedTable(null)
+                }}
+                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+              >
+                ยกเลิก
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    )}
-    
+      )}
+
       {/* Merge Dialog */}
       {isMergeDialogOpen && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
@@ -1034,11 +1033,10 @@ const TableManager = () => {
           </div>
         </div>
       )}
-          <ReservationManagement
-            isOpen={isReservationManagementOpen}
-            onClose={() => setIsReservationManagementOpen(false)}
-          />
-
+      <ReservationManagement
+        isOpen={isReservationManagementOpen}
+        onClose={() => setIsReservationManagementOpen(false)}
+      />
     </div>
   )
 }

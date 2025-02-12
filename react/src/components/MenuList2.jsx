@@ -16,7 +16,7 @@ export default function MenuList({ language }) {
   const [selectedOptions, setSelectedOptions] = useState([])
 
   const scrollRef = useRef(null)
-  const { addPromotion } = useCartStore()
+  const { addPromotion, getPromotionOrderedQuantity } = useCartStore()
 
   const handleCategoryClick = (category) => {
     setActiveLink(category)
@@ -36,22 +36,33 @@ export default function MenuList({ language }) {
 
   // แก้ไขฟังก์ชัน handleAddToCart
   const handleAddToCart = () => {
-    if (displayItem) {
-      // ตรวจสอบจำนวนรายการที่เลือกขั้นต่ำ
-      if (selectedOptions.length < displayItem.MinSelections) {
-        alert(`กรุณาเลือกอย่างน้อย ${displayItem.MinSelections} รายการ`)
-        return
-      }
+    if (quantity > 0 && displayItem) {
+      const currentOrdered = getPromotionOrderedQuantity(displayItem.ID)
+      const maxAvailable = displayItem.MaxQuantity || Infinity
 
-      // ตรวจสอบจำนวนรายการที่เลือกสูงสุด
-      if (selectedOptions.length > displayItem.MaxSelections) {
+      if (currentOrdered + quantity > maxAvailable) {
         alert(
-          `คุณสามารถเลือกได้สูงสุด ${displayItem.MaxSelections} รายการเท่านั้น`
+          language === 'th'
+            ? `ไม่สามารถสั่งเพิ่มได้ เนื่องจากเกินจำนวนที่กำหนด (สูงสุด ${maxAvailable} รายการ)`
+            : language === 'en'
+            ? `Cannot order more. Exceeds maximum limit (${maxAvailable} items)`
+            : `无法订购更多。超过最大限制（${maxAvailable}项）`
         )
         return
       }
 
-      console.log('Selected Options:', selectedOptions)
+      // ตรวจสอบจำนวนที่เลือกว่าครบตามที่กำหนดหรือไม่
+      if (selectedOptions.length < displayItem.MinSelections) {
+        alert(
+          language === 'th'
+            ? `กรุณาเลือกอย่างน้อย ${displayItem.MinSelections} รายการ`
+            : language === 'en'
+            ? `Please select at least ${displayItem.MinSelections} items`
+            : `请至少选择${displayItem.MinSelections}个项目`
+        )
+        return
+      }
+
       const promotion = {
         ...displayItem,
         Price: displayItem.Price || 0,
@@ -291,6 +302,24 @@ export default function MenuList({ language }) {
                 <p className="text-black text-xl font-semibold mb-6">
                   {displayItem.Price} THB
                 </p>
+
+                {/* แสดงจำนวนที่ต้องเลือก */}
+                <div className="mb-4 p-3 bg-gray-100 rounded-lg">
+                  <p className="text-sm text-gray-600">
+                    {language === 'th'
+                      ? `ต้องเลือกอย่างน้อย ${displayItem.MinSelections} รายการ และไม่เกิน ${displayItem.MaxSelections} รายการ`
+                      : language === 'en'
+                      ? `Select minimum ${displayItem.MinSelections} and maximum ${displayItem.MaxSelections} items`
+                      : `最少选择 ${displayItem.MinSelections} 项，最多选择 ${displayItem.MaxSelections} 项`}
+                  </p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {language === 'th'
+                      ? `เลือกแล้ว: ${selectedOptions.length} รายการ`
+                      : language === 'en'
+                      ? `Selected: ${selectedOptions.length} items`
+                      : `已选择: ${selectedOptions.length} 项`}
+                  </p>
+                </div>
 
                 {/* Menu Options */}
                 {displayItem &&

@@ -1172,7 +1172,7 @@ const docTemplate = `{
                     "200": {
                         "description": "ผลการนำเข้าเมนู",
                         "schema": {
-                            "$ref": "#/definitions/api_handlers.MenuImportResponse"
+                            "$ref": "#/definitions/api_handlers.ImportResponse"
                         }
                     },
                     "400": {
@@ -1395,6 +1395,59 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "ไม่พบ Option Group ที่ต้องการอัพเดท",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ฟังก์ชันนี้ใช้สำหรับลบกลุ่มตัวเลือกโดยจะเป็นการ soft delete",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "ลบกลุ่มตัวเลือกอาหาร",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของกลุ่มตัวเลือกนั้นๆ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ลบกลุ่มตัวเลือกสำเร็จ"
+                    },
+                    "400": {
+                        "description": "เกิดข้อผิดพลาดจากข้อมูลที่ไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -3277,6 +3330,29 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/models.Printer"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/printers/failed-jobs": {
+            "get": {
+                "description": "ดึงรายการงานพิมพ์ที่มีสถานะ failed",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Printer"
+                ],
+                "summary": "ดึงรายการงานพิมพ์ที่ล้มเหลว",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api_handlers.PrintJobResponse"
+                            }
                         }
                     }
                 }
@@ -5271,6 +5347,46 @@ const docTemplate = `{
                 }
             }
         },
+        "api_handlers.ImportError": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "input_data": {
+                    "type": "string"
+                },
+                "row": {
+                    "type": "integer"
+                },
+                "suggestion": {
+                    "type": "string"
+                }
+            }
+        },
+        "api_handlers.ImportResponse": {
+            "type": "object",
+            "properties": {
+                "failed": {
+                    "type": "integer"
+                },
+                "failed_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api_handlers.ImportError"
+                    }
+                },
+                "success": {
+                    "type": "integer"
+                },
+                "success_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api_handlers.MenuImportRow"
+                    }
+                }
+            }
+        },
         "api_handlers.LoginRequest": {
             "type": "object",
             "required": [
@@ -5297,37 +5413,6 @@ const docTemplate = `{
                 },
                 "user": {
                     "$ref": "#/definitions/api_handlers.UserProfile"
-                }
-            }
-        },
-        "api_handlers.MenuImportError": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "$ref": "#/definitions/api_handlers.MenuImportRow"
-                },
-                "message": {
-                    "type": "string"
-                },
-                "row": {
-                    "type": "integer"
-                }
-            }
-        },
-        "api_handlers.MenuImportResponse": {
-            "type": "object",
-            "properties": {
-                "errors": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/api_handlers.MenuImportError"
-                    }
-                },
-                "success": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/api_handlers.MenuImportRow"
-                    }
                 }
             }
         },
