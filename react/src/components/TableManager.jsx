@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import styles from '../styles/TableDetail.module.css'
 import { X, CalendarDays, Edit, Trash2, Plus, Split } from 'lucide-react'
@@ -18,6 +18,7 @@ const TableInfo = ({ label, value }) => (
 
 const TableManager = () => {
   const [tables, setTables] = useState([])
+  const socketRef = useRef(null)  // เพิ่ม useRef สำหรับเก็บ socket connection
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [newTableName, setNewTableName] = useState('')
   const [newTableCapacity, setNewTableCapacity] = useState(0)
@@ -75,7 +76,8 @@ const TableManager = () => {
   useEffect(() => {
     const connectWebSocket = () => {
       try {
-        const socket = new WebSocket('ws://localhost:8080/ws/tables')
+        const socket = new WebSocket(`ws://localhost:8080/ws/tables?api_key=${import.meta.env.VITE_WS_TABLE_KEY}`)
+        socketRef.current = socket  // เก็บ socket ไว้ใน ref
 
         socket.onopen = () => {
           console.log('WebSocket connected successfully!')
@@ -116,7 +118,10 @@ const TableManager = () => {
     const socket = connectWebSocket()
 
     return () => {
-      socket.close() // ปิดการเชื่อมต่อเมื่อคอมโพเนนต์ unmount
+      if (socketRef.current) {
+        socketRef.current.close()
+        socketRef.current = null
+      }
     }
   }, [])
 

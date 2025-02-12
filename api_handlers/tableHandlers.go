@@ -398,6 +398,42 @@ func MoveTable(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not find active QR code for source table"})
 	}
 
+	// ดึงข้อมูลเครื่องพิมพ์ทั้งหมดที่ไม่ใช่ main
+	var printers []models.Printer
+	if err := tx.Where("name != ?", "main").Find(&printers).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch printers",
+		})
+	}
+
+	// สร้าง print jobs สำหรับแต่ละเครื่องพิมพ์
+	for _, printer := range printers {
+		// สร้างเนื้อหาที่จะพิมพ์
+		content := fmt.Sprintf("แจ้งเตือนการย้ายโต๊ะ\n"+
+			"โต๊ะ %s ถูกย้ายไปที่โต๊ะ %s\n"+
+			"เวลา: %s\n"+
+			"--------------------------------\n",
+			fromTable.Name,
+			toTable.Name,
+			time.Now().Format("02/01/2006 15:04:05"))
+
+		// สร้าง print job
+		printJob := models.PrintJob{
+			PrinterID: printer.ID,
+			Content:   []byte(content),
+			Status:    "pending",
+			JobType:   "table_move",
+		}
+
+		if err := tx.Create(&printJob).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to create print job",
+			})
+		}
+	}
+
 	// 4. อัพเดตสถานะโต๊ะ
 	if err := tx.Model(&fromTable).Update("status", "available").Error; err != nil {
 		tx.Rollback()
@@ -945,4 +981,64 @@ func GetAllReservations(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(reservations)
+}
+
+// @Summary ดึงรายการงานพิมพ์ที่ล้มเหลว
+// @Description ดึงรายการงานพิมพ์ที่มีสถานะ failed
+// @Produce json
+// @Success 200 {array} PrintJobResponse
+// @Router /api/printers/failed-jobs [get]
+// @Tags Printer
+func GetFailedPrintJobs(c *fiber.Ctx) error {
+	var jobs []models.PrintJob
+
+	if err := db.DB.Where("status = ?", "failed").
+		Preload("Order.Items.MenuItem").
+		Preload("Order.Items.Options.MenuOption.OptionGroup").
+		Preload("Receipt.Orders.Items.MenuItem").
+		Preload("Receipt.Orders.Items.Options.MenuOption").
+		Preload("Receipt.Discounts.DiscountType").
+		Preload("Receipt.Charges.ChargeType").
+		Preload("Printer").
+		Find(&jobs).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch failed print jobs",
+		})
+	}
+
+	var responses []PrintJobResponse
+	for _, job := range jobs {
+		// แปลง job เป็น response เหมือนใน GetPendingPrintJobs
+		response := preparePrintJobResponse(job)
+		responses = append(responses, response)
+	}
+
+	return c.JSON(responses)
+}
+
+func preparePrintJobResponse(job models.PrintJob) PrintJobResponse {
+	return PrintJobResponse{
+		ID:        job.ID,
+		PrinterID: job.PrinterID,
+		OrderID:   job.OrderID,
+		Content:   job.Content,
+		Status:    job.Status,
+		CreatedAt: job.CreatedAt,
+		UpdatedAt: job.UpdatedAt,
+		Order:     job.Order,
+		Receipt:   job.Receipt,
+		JobType:   job.JobType,
+		Printer: PrinterResponse{
+			ID:         job.Printer.ID,
+			Name:       job.Printer.Name,
+			Type:       job.Printer.Type,
+			IPAddress:  job.Printer.IPAddress,
+			Port:       job.Printer.Port,
+			VendorID:   job.Printer.VendorID,
+			ProductID:  job.Printer.ProductID,
+			PaperSize:  job.Printer.PaperSize,
+			Status:     job.Printer.Status,
+			Categories: job.Printer.Categories,
+		},
+	}
 }

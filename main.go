@@ -6,6 +6,7 @@ import (
 	_ "food-ordering-api/docs"
 	"food-ordering-api/routes"
 	service "food-ordering-api/services"
+	utils "food-ordering-api/utility"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
@@ -40,6 +41,7 @@ import (
 // @tags tables - การจัดกโต๊ะ
 func main() {
 	db.InitDatabase()
+	utils.InitAPIKeys()
 
 	// printerIP := "192.168.1.100" // เปลี่ยนเป็น IP จริงของเครื่องพิมพ์
 	// port := 9100
@@ -64,7 +66,7 @@ func main() {
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     "*",
 		AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
-		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Requested-With",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Requested-With, X-API-Key",
 		ExposeHeaders:    "Content-Length, Access-Control-Allow-Origin",
 		AllowCredentials: false,
 		MaxAge:           300,
@@ -75,7 +77,7 @@ func main() {
 
 	app.Get("/swagger/*", swagger.HandlerDefault)
 
-	app.Get("/ws/tables", api_handlers.TableWebSocketHandler(db.DB))
+	app.Get("/ws/tables", utils.WebSocketAPIKeyMiddleware, api_handlers.TableWebSocketHandler(db.DB))
 
 	// app.Use("/ws/printer", api_handlers.HandlePrinterWebSocket)
 	app.Use("/ws/printer", service.HandlePrinterWebSocket)

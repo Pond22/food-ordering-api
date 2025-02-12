@@ -10,6 +10,8 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_HOST=postgres
       - DB_PORT=${DB_PORT}
+      - WS_TABLE_KEY=${WS_TABLE_KEY}
+      - WS_PRINTER_KEY=${ws_key_printer_123}
     depends_on:
       - postgres
 
@@ -23,7 +25,9 @@ services:
       - ./react:/app
       - /app/node_modules
     environment:
-      - VITE_API_URL=http://localhost:8080  # เพิ่ม API URL สำหรับ frontend
+      - VITE_API_URL=http://localhost:8080
+      - VITE_WS_TABLE_KEY=${VITE_WS_TABLE_KEY}
+      - VITE_WS_PRINTER_KEY=${VITE_WS_PRINTER_KEY}
     depends_on:
       - app
 

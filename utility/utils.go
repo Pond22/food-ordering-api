@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"food-ordering-api/models"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -190,4 +191,71 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 
 func ConvertUintToString(id uint) string {
 	return strconv.FormatUint(uint64(id), 10)
+}
+
+type APIKeyConfig struct {
+	Key      string
+	Type     string // ประเภทของ key เช่น "websocket", "api"
+	IsActive bool
+}
+
+func InitAPIKeys() {
+	APIKeyStore = map[string]APIKeyConfig{}
+
+	// เพิ่ม key เฉพาะเมื่อมีค่าใน environment
+	if tableKey := os.Getenv("WS_TABLE_KEY"); tableKey != "" {
+		fmt.Printf("Initializing table key: %s\n", tableKey) // เพิ่ม log
+		APIKeyStore[tableKey] = APIKeyConfig{
+			Key:      tableKey,
+			Type:     "websocket_table",
+			IsActive: true,
+		}
+	} else {
+		fmt.Println("Warning: WS_TABLE_KEY not found in environment") // เพิ่ม log
+	}
+
+	if printerKey := os.Getenv("WS_PRINTER_KEY"); printerKey != "" {
+		fmt.Printf("Initializing printer key: %s\n", printerKey) // เพิ่ม log
+		APIKeyStore[printerKey] = APIKeyConfig{
+			Key:      printerKey,
+			Type:     "websocket_printer",
+			IsActive: true,
+		}
+	}
+
+	fmt.Printf("Initialized API Key Store: %v\n", APIKeyStore) // เพิ่ม log
+}
+
+// APIKeyStore เก็บ API Keys ที่อนุญาต
+var APIKeyStore map[string]APIKeyConfig
+
+// ValidateAPIKey ตรวจสอบว่า API Key ถูกต้องไหม
+func ValidateAPIKey(key string) bool {
+	config, exists := APIKeyStore[key]
+	return exists && config.IsActive
+}
+
+// ValidateAPIKeyByType ตรวจสอบ API Key ตามประเภท
+func ValidateAPIKeyByType(key string, keyType string) bool {
+	config, exists := APIKeyStore[key]
+	return exists && config.IsActive && config.Type == keyType
+}
+
+// WebSocketAPIKeyMiddleware สำหรับ WebSocket โดยเฉพาะ
+func WebSocketAPIKeyMiddleware(c *fiber.Ctx) error {
+	apiKey := c.Get("X-API-Key")
+	if apiKey == "" {
+		apiKey = c.Query("api_key")
+	}
+
+	fmt.Printf("Received API Key: %s\n", apiKey)   // เพิ่ม log
+	fmt.Printf("API Key Store: %v\n", APIKeyStore) // เพิ่ม log เพื่อดู APIKeyStore
+
+	if !ValidateAPIKeyByType(apiKey, "websocket_table") { // แก้ไขประเภทให้ตรงกับที่กำหนดใน InitAPIKeys
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid WebSocket API Key",
+		})
+	}
+
+	return c.Next()
 }

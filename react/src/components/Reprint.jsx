@@ -84,19 +84,26 @@ const Reprint = () => {
     endDate: endOfMonth.toISOString().split('T')[0],
     searchTerm: ''
   });
+  const [jobType, setJobType] = useState('reprintable');
 
   const fetchJobs = async () => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      if (filters.type) params.append('type', filters.type);
-      if (filters.startDate) params.append('start_date', filters.startDate);
-      if (filters.endDate) params.append('end_date', filters.endDate);
-      
-      const response = await fetch(
-        `http://localhost:8080/api/printers/reprintable-jobs?${params.toString()}`
-      );
+      const endpoint = jobType === 'failed' 
+        ? 'http://localhost:8080/api/printers/failed-jobs'
+        : 'http://localhost:8080/api/printers/reprintable-jobs'
+
+      let url = endpoint
+      if (jobType === 'reprintable' && (filters.type || filters.startDate || filters.endDate)) {
+        const params = new URLSearchParams()
+        if (filters.type) params.append('type', filters.type)
+        if (filters.startDate) params.append('start_date', filters.startDate)
+        if (filters.endDate) params.append('end_date', filters.endDate)
+        url += `?${params.toString()}`
+      }
+
+      const response = await fetch(url);
       
       if (!response.ok) {
         throw new Error(`Request failed with status ${response.status}`);
@@ -170,7 +177,7 @@ const Reprint = () => {
 
   useEffect(() => {
     fetchJobs();
-  }, [filters.type, filters.startDate, filters.endDate]);
+  }, [jobType, filters.type, filters.startDate, filters.endDate]);
   
   return (
     <div className="p-6">
@@ -178,32 +185,65 @@ const Reprint = () => {
       
       <div className="space-y-6">
         <div className="flex flex-wrap gap-4">
-          <select
-            value={filters.type}
-            onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
-            className="border rounded-md px-3 py-2 min-w-[200px]"
-          >
-            <option value="">ทั้งหมด</option>
-            <option value="order">ออเดอร์</option>
-            <option value="receipt">ใบเสร็จ</option>
-            <option value="cancelation">ยกเลิกรายการ</option>
-            <option value="qr_code">QR Code</option>
-          </select>
-          
-          <input
-            type="date"
-            value={filters.startDate}
-            onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
-            className="border rounded-md px-3 py-2"  
-          />
-          
-          <input
-            type="date"
-            value={filters.endDate}
-            onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
-            className="border rounded-md px-3 py-2"
-          />  
-          
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setJobType('reprintable')
+                setFilters(prev => ({...prev, type: '', searchTerm: ''}))
+              }}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                jobType === 'reprintable' 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-100 text-gray-700'
+              }`}
+            >
+              งานปกติ
+            </button>
+            <button
+              onClick={() => {
+                setJobType('failed')
+                setFilters(prev => ({...prev, type: '', searchTerm: ''}))
+              }}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                jobType === 'failed'
+                  ? 'bg-red-500 text-white'
+                  : 'bg-gray-100 text-gray-700'
+              }`}
+            >
+              งานที่ล้มเหลว
+            </button>
+          </div>
+
+          {jobType === 'reprintable' && (
+            <>
+              <select
+                value={filters.type}
+                onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
+                className="border rounded-md px-3 py-2 min-w-[200px]"
+              >
+                <option value="">ทั้งหมด</option>
+                <option value="order">ออเดอร์</option>
+                <option value="receipt">ใบเสร็จ</option>
+                <option value="cancelation">ยกเลิกรายการ</option>
+                <option value="qr_code">QR Code</option>
+              </select>
+              
+              <input
+                type="date"
+                value={filters.startDate}
+                onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                className="border rounded-md px-3 py-2"  
+              />
+              
+              <input
+                type="date"
+                value={filters.endDate}
+                onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                className="border rounded-md px-3 py-2"
+              />
+            </>
+          )}
+
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
             <input
