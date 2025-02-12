@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Carousel } from 'flowbite-react'
 import MenuItem from './MenuItem'
-import { Plus, Minus, PlusIcon, Languages } from 'lucide-react'
+import { Plus, Minus, PlusIcon } from 'lucide-react'
 import useCartStore from '../hooks/cart-store'
-// import PromotionItem from './PromotionItem'
 
 export default function MenuList({ language }) {
   const [categories, setCategories] = useState([])
@@ -13,52 +12,103 @@ export default function MenuList({ language }) {
   const [quantity, setQuantity] = useState(1)
   const [note, setNote] = useState('')
   const [isPopupOpen, setIsPopupOpen] = useState(false)
-  const [displayItem, setDisplayItem] = useState(null) // ใช้เก็บข้อมูลโปรโมชันที่เลือก
-  // const [language, setLanguage] = useState('th') 
+  const [displayItem, setDisplayItem] = useState(null)
+  const [selectedOptions, setSelectedOptions] = useState([])
+
   const scrollRef = useRef(null)
-  const { addToCart } = useCartStore()
+  const { addPromotion } = useCartStore()
 
   const handleCategoryClick = (category) => {
     setActiveLink(category)
   }
 
-  // ฟังก์ชันเพิ่มจำนวน
   const handleIncrease = () => setQuantity((prev) => prev + 1)
-
-  // ฟังก์ชันลดจำนวน
   const handleDecrease = () => {
     setQuantity((prev) => (prev > 1 ? prev - 1 : 1))
   }
 
-  // ฟังก์ชันเปิดปิด popup
   const togglePopup = () => setIsPopupOpen((prev) => !prev)
 
-  // ฟังก์ชันคลิกโปรโมชันเพื่อแสดงข้อมูลใน popup
   const handlePromotionClick = (promotion) => {
     setDisplayItem(promotion)
     setIsPopupOpen(true)
   }
 
-  // ฟังก์ชันเพิ่มสินค้าในตะกร้า
+  // แก้ไขฟังก์ชัน handleAddToCart
   const handleAddToCart = () => {
     if (displayItem) {
-      const finalItem = {
+      // ตรวจสอบจำนวนรายการที่เลือกขั้นต่ำ
+      if (selectedOptions.length < displayItem.MinSelections) {
+        alert(`กรุณาเลือกอย่างน้อย ${displayItem.MinSelections} รายการ`)
+        return
+      }
+
+      // ตรวจสอบจำนวนรายการที่เลือกสูงสุด
+      if (selectedOptions.length > displayItem.MaxSelections) {
+        alert(
+          `คุณสามารถเลือกได้สูงสุด ${displayItem.MaxSelections} รายการเท่านั้น`
+        )
+        return
+      }
+
+      console.log('Selected Options:', selectedOptions)
+      const promotion = {
         ...displayItem,
         Price: displayItem.Price || 0,
+        selectedOptions: selectedOptions,
       }
-      addToCart(finalItem, quantity, note)
-      setNote('') // Clear note
-      setQuantity(1) // Reset quantity
-      setIsPopupOpen(false) // Close popup
+
+      addPromotion(promotion, quantity)
+
+      // Reset the state after adding to cart
+      setNote('')
+      setQuantity(1)
+      setSelectedOptions([])
+      setIsPopupOpen(false)
     }
   }
 
-  // ฟังก์ชันเลือกตัวเลือก
-  const handleOptionChange = (groupName, optionName, price) => {
-    setSelectedOptions((prev) => ({
-      ...prev,
-      [groupName]: { optionName, price },
-    }))
+  // ... existing code ...
+
+  // แก้ไขฟังก์ชัน handleOptionChange
+  const handleOptionChange = (menuItem) => {
+    const isSelected = selectedOptions.some((opt) => opt.id === menuItem.ID)
+
+    if (isSelected) {
+      // ลบออกจาก selectedOptions
+      setSelectedOptions((prev) => prev.filter((opt) => opt.id !== menuItem.ID))
+    } else {
+      // เช็คว่าเลือกได้ไหมตาม MaxSelections
+      if (selectedOptions.length < displayItem.MaxSelections) {
+        // เช็คว่าเมนูนี้ถูกเลือกไปกี่ครั้งแล้ว
+        const currentItemCount = selectedOptions.filter(
+          (opt) => opt.id === menuItem.ID
+        ).length
+        const itemInPromotion = displayItem.Items.find(
+          (item) => item.MenuItem.ID === menuItem.ID
+        )
+
+        if (currentItemCount < itemInPromotion.Quantity) {
+          setSelectedOptions((prev) => [
+            ...prev,
+            {
+              id: menuItem.ID,
+              name: menuItem.Name,
+              price: menuItem.Price,
+              quantity: 1,
+            },
+          ])
+        } else {
+          alert(
+            `คุณไม่สามารถเลือกเมนู ${menuItem.Name} ได้มากกว่า ${itemInPromotion.Quantity} ครั้ง`
+          )
+        }
+      } else {
+        alert(
+          `คุณสามารถเลือกได้สูงสุด ${displayItem.MaxSelections} รายการเท่านั้น`
+        )
+      }
+    }
   }
 
   useEffect(() => {
@@ -108,31 +158,18 @@ export default function MenuList({ language }) {
     fetchPromotionData()
   }, [])
 
-  // ฟังก์ชันเปลี่ยนภาษา
-  const handleLanguageChange = (lang) => {
-    setLanguage(lang)
-  }
-
   return (
-    <div
-      className="mt-[5.5rem] bg-gray-50  max-w-screen-xl mx-auto"
-      style={{
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }}
-    >
-
+    <div className="mt-[5.5rem] bg-gray-50 max-w-screen-xl mx-auto">
       {/* CATEGORY */}
       <div
         className="mt-2 flex justify-start items-center gap-2 overflow-x-auto cursor-grab scrollbar-hidden"
         ref={scrollRef}
-        style={{ whiteSpace: 'nowrap' }}
       >
         <button
           className={
             activeLink === 0
-              ? 'bg-red-500 hover:bg-red-600 transition-colors px-4 py-1.5 rounded-md text-white'
-              : 'bg-gray-300 hover:bg-gray-400 transition-colors px-4 py-1.5 rounded-md text-black'
+              ? 'bg-red-500 text-white'
+              : 'bg-gray-300 text-black'
           }
           onClick={() => handleCategoryClick(0)}
         >
@@ -144,8 +181,8 @@ export default function MenuList({ language }) {
             key={item.ID}
             className={
               activeLink === item.ID
-                ? 'bg-red-500 hover:bg-red-600 transition-colors px-4 py-1.5 rounded-md text-white'
-                : 'bg-gray-300 hover:bg-gray-400 transition-colors px-4 py-1.5 rounded-md text-black'
+                ? 'bg-red-500 text-white'
+                : 'bg-gray-300 text-black'
             }
             onClick={() => handleCategoryClick(item.ID)}
           >
@@ -184,10 +221,43 @@ export default function MenuList({ language }) {
         </Carousel>
       </div>
 
-      {/* Popup แสดงรายละเอียดโปรโมชัน */}
+      {/* Menu items, category filtering and display */}
+      <div className="my-4">
+        {categories.map((category) => {
+          const filteredMenus =
+            activeLink === 0
+              ? menus
+              : menus.filter((menu) => menu.Category.ID === activeLink)
+
+          const categoryMenus = filteredMenus.filter(
+            (menu) => menu.Category.ID === category.ID
+          )
+
+          if (categoryMenus.length === 0) return null
+
+          return (
+            <div key={category.ID} className="mb-6">
+              <h2 className="text-2xl font-semibold mb-2">
+                {language === 'th'
+                  ? category.Name
+                  : language === 'en'
+                  ? category.NameEn
+                  : category.NameCh}
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {categoryMenus.map((menu) => (
+                  <MenuItem key={menu.ID} item={menu} language={language} />
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Modal to add item to cart */}
       {isPopupOpen && displayItem && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-gray/50 rounded-xl w-full max-w-xl overflow-y-auto max-h-screen">
+          <div className="bg-white rounded-xl w-full max-w-xl overflow-y-auto max-h-screen">
             <div className="relative">
               <button
                 onClick={togglePopup}
@@ -208,170 +278,112 @@ export default function MenuList({ language }) {
                 </svg>
               </button>
 
-              {/* แสดงรูปภาพโปรโมชัน */}
-              {displayItem.Image ? (
-                <img
-                  src={`data:image/png;base64,${displayItem.Image}`}
-                  alt={displayItem.Name || 'Item'}
-                  className="w-full aspect-video object-cover"
-                />
-              ) : (
-                <div className="w-full aspect-video bg-zinc-900 flex items-center justify-center">
-                  <span className="text-gold/50 text-lg">
-                    No Image Available
-                  </span>
-                </div>
-              )}
-            </div>
+              <img
+                src={`data:image/png;base64,${displayItem.Image}`}
+                alt={displayItem.Name}
+                className="w-full aspect-video object-cover"
+              />
 
-            {/* แสดงรายละเอียดโปรโมชัน */}
-            <div className="p-6">
-              <div className="flex justify-between">
+              <div className="p-6">
                 <h3 className="text-black text-2xl font-medium mb-2">
-                  {language === 'th'
-                    ? displayItem.Name
-                    : language === 'en'
-                    ? displayItem.NameEn
-                    : displayItem.NameCh}
+                  {displayItem.Name}
                 </h3>
                 <p className="text-black text-xl font-semibold mb-6">
-                  {displayItem.Price || 0} THB
+                  {displayItem.Price} THB
                 </p>
-              </div>
-              <p className="text-gray-400 mb-4">
-                {language === 'th'
-                  ? displayItem.Description
-                  : language === 'en'
-                  ? displayItem.DescriptionEn
-                  : displayItem.DescriptionCh}
-              </p>
-              {/* แสดงตัวเลือกต่างๆ หากมี */}
 
-              {displayItem.Items.map((item, index) => (
-                <div key={index}>
-                  <h4 className="text-black text-lg font-medium">
-                    {
-                      language === 'th'
-                        ? item.MenuItem.Name // ภาษาไทย
-                        : language === 'en'
-                        ? item.MenuItem.NameEn // ภาษาอังกฤษ
-                        : language === 'ch'
-                        ? item.MenuItem.NameCh // ภาษาจีน
-                        : item.MenuItem.Name // หากไม่มีภาษาให้แสดงชื่อในภาษาเริ่มต้น
-                    }
-                  </h4>
-                  {/* <div className="flex flex-col gap-2 mt-2">
-                          {group.Options.map((option) => (
-                            <div
-                              key={option.ID}
-                              className="flex justify-start items-center gap-3 text-black/70 text-base"
-                            >
+                {/* Menu Options */}
+                {displayItem &&
+                  displayItem.Items &&
+                  Array.isArray(displayItem.Items) &&
+                  displayItem.Items.length > 0 && (
+                    <div className="mb-4">
+                      {displayItem.Items.map((item) => (
+                        <div key={item.ID} className="mb-2">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="text-black text-lg font-medium">
+                                {item.MenuItem.Name}-{item.MenuItem.ID}
+                              </h4>
+                              <p className="text-sm text-gray-600">
+                                {item.MenuItem.Price} THB
+                              </p>
+                            </div>
+                            <div className="flex items-center space-x-2">
                               <input
-                                type="radio"
-                                name={group.Name}
-                                value={option.Name}
+                                type="checkbox"
+                                id={`checkbox-${item.MenuItem.ID}`}
+                                checked={selectedOptions.some(
+                                  (opt) => opt.id === item.MenuItem.ID
+                                )}
                                 onChange={() =>
-                                  handleOptionChange(
-                                    group.Name,
-                                    option.Name,
-                                    option.Price
+                                  handleOptionChange(item.MenuItem)
+                                } // Make sure this works for promotion items too
+                                disabled={
+                                  selectedOptions.length >=
+                                    displayItem.MaxSelections &&
+                                  !selectedOptions.some(
+                                    (opt) => opt.id === item.MenuItem.ID
                                   )
                                 }
-                                className=""
                               />
-                              {option.Name} (+{option.Price}฿)
+                              <label
+                                htmlFor={`checkbox-${item.MenuItem.ID}`}
+                                className="text-sm"
+                              >
+                                {selectedOptions.some(
+                                  (opt) => opt.id === item.MenuItem.ID
+                                )
+                                  ? 'Selected'
+                                  : 'Select'}
+                              </label>
                             </div>
-                          ))}
-                        </div> */}
-                </div>
-              ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-              {/* ปรับจำนวน */}
-              <div className="my-4 flex justify-center items-center gap-6">
-                <button
-                  className="bg-gray-200 hover:bg-gray-300 disabled:opacity-70 disabled:hover:bg-gray-200 p-2 rounded-md text-black"
-                  onClick={handleDecrease}
-                  disabled={quantity === 1}
-                >
-                  <Minus className="size-4" />
-                </button>
-                <span className="text-lg text-black font-semibold">
-                  {quantity}
-                </span>
-                <button
-                  className="bg-gray-200 hover:bg-gray-300 p-2 rounded-md text-black"
-                  onClick={handleIncrease}
-                >
-                  <PlusIcon className="size-4" />
-                </button>
-              </div>
-              {/* ช่องรับหมายเหตุ */}
-              <div className="mb-4">
-                <label className="block text-black/50 text-sm font-medium mb-2">
-                  Special Instructions
-                </label>
+                <div className="my-4 flex justify-center items-center gap-6">
+                  <button
+                    className="bg-gray-200 p-2 rounded-md"
+                    onClick={handleDecrease}
+                    disabled={quantity === 1}
+                  >
+                    <Minus className="size-4" />
+                  </button>
+                  <span className="text-lg">{quantity}</span>
+                  <button
+                    className="bg-gray-200 p-2 rounded-md"
+                    onClick={handleIncrease}
+                  >
+                    <PlusIcon className="size-4" />
+                  </button>
+                </div>
+
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Add your special request here..."
-                  className="w-full px-4 py-3 bg-gray-100 border border-gray/30 rounded-lg 
-                   placeholder-gray-500"
+                  className="w-full p-3 bg-gray-100 border border-gray/30 rounded-lg"
                   rows="3"
                 />
-              </div>
 
-              {/* ปุ่มเพิ่มไปยังตะกร้า */}
-              <button
-                onClick={handleAddToCart}
-                className="bg-blue-500 hover:bg-blue-600 text-white py-3 w-full rounded-lg px-4 font-medium transition-colors"
-              >
-                {language === 'th'
-                  ? 'เพิ่มไปยังตะกร้า'
-                  : language === 'en'
-                  ? 'Add to Cart'
-                  : '加入购物车'}
-              </button>
+                <button
+                  onClick={handleAddToCart}
+                  className="bg-blue-500 hover:bg-blue-600 text-white py-3 w-full rounded-lg font-medium"
+                >
+                  {language === 'th'
+                    ? 'เพิ่มไปยังตะกร้า'
+                    : language === 'en'
+                    ? 'Add to Cart'
+                    : '加入购物车'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
-
-      {/* MENU */}
-      <div className="my-4">
-        {categories.map((category) => {
-          const filteredMenus =
-            activeLink === 0
-              ? menus
-              : menus.filter((menu) => menu.Category.ID === activeLink)
-
-          const categoryMenus = filteredMenus.filter(
-            (menu) => menu.Category.ID === category.ID
-          )
-
-          if (categoryMenus.length === 0) return null
-
-          return (
-            <div
-              key={category.ID}
-              id={`category-${category.ID}`}
-              className="mb-6"
-            >
-              <h2 className="text-2xl font-semibold mb-2 bg-gradient-to-t from-yellow-400 to-yellow-600 text-transparent bg-clip-text">
-                {language === 'th'
-                  ? category.Name
-                  : language === 'en'
-                  ? category.NameEn
-                  : category.NameCh}
-              </h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {categoryMenus.map((menu) => (
-                  <MenuItem key={menu.ID} item={menu} language={language} />
-                ))}
-              </div>
-            </div>
-          )
-        })}
-      </div>
     </div>
   )
 }

@@ -14,16 +14,23 @@ import {
 import useCartStore from '../hooks/cart-store'
 import MenuList from './MenuList2'
 
-export default function MenuBar({tableID ,uuid}) {
+export default function MenuBar({ tableID, uuid }) {
   const [openCallModal, setOpenCallModal] = useState(false)
   const [openCartModal, setOpenCartModal] = useState(false)
   const [language, setLanguage] = useState('th') // ภาษาเริ่มต้นคือไทย
-  const { cart, increaseQuantity, decreaseQuantity } = useCartStore()
+  const {
+    cart,
+    promotions,
+    increaseQuantity,
+    decreaseQuantity,
+    increaseQuantityPromo,
+    decreaseQuantityPromo,
+  } = useCartStore()
 
-  console.log(tableID, '+', uuid)
+  // console.log(tableID, '+', uuid)
 
   const calculateTotal = () => {
-    return cart.reduce(
+    let total = cart.reduce(
       (total, item) =>
         total +
         item.menuItem.Price * item.quantity +
@@ -33,6 +40,15 @@ export default function MenuBar({tableID ,uuid}) {
         ), // รวมราคาของ option
       0
     )
+
+    // คำนวณราคาโปรโมชัน
+    total += promotions.reduce(
+      (promoTotal, promo) =>
+        promoTotal + promo.promotion.Price * promo.quantity,
+      0
+    )
+
+    return total
   }
 
   useEffect(() => {
@@ -45,16 +61,15 @@ export default function MenuBar({tableID ,uuid}) {
     console.log('Table ID:', tableID)
     console.log('UUID:', uuid)
 
-    // สร้างข้อมูล order ตามโครงสร้างที่ต้องการ
+    // Create the order data with items and promotions
     const orderData = cart
       .map((item) => {
-        // คำนวณราคา รวมของ options ที่เลือก
+        // Calculate the total price for options
         const totalOptionsPrice = item.options.reduce(
           (acc, option) => acc + option.price,
           0
         )
 
-        // ตรวจสอบว่า quantity มากกว่า 0 และราคาของตัวเลือกไม่เป็น 0
         if (item.quantity > 0) {
           const orderItem = {
             menu_item_id: item.menuItem.ID,
@@ -65,10 +80,10 @@ export default function MenuBar({tableID ,uuid}) {
               price: option.price,
             })),
             total_price:
-              item.menuItem.price * item.quantity + totalOptionsPrice, // คำนวณราคาทั้งหมด
+              item.menuItem.Price * item.quantity + totalOptionsPrice,
           }
 
-          // แสดงข้อมูลที่เพิ่มไปในคำขอ log
+          // Log the item info for debugging
           console.log(
             `Adding item to order: ${item.menuItem.Name}, Quantity: ${item.quantity}, Notes: ${item.notes}`
           )
@@ -84,28 +99,40 @@ export default function MenuBar({tableID ,uuid}) {
           return null
         }
       })
-      .filter((item) => item !== null) // กรองข้อมูลที่เป็น null (ไม่ถูกต้อง) ออก
+      .filter((item) => item !== null)
 
-    // แสดงข้อมูล orderData ทั้งหมดที่สร้างขึ้น
-    console.log('Order Data:', orderData)
+    // Add promotions to the order data
+    const promotionData = promotions.map((promo) => ({
+      promotion_id: promo.promotion_id,
+      quantity: promo.quantity,
+      menu_item_ids: promo.selectedOptions,
+    }))
 
-    // ตรวจสอบว่า orderData มีข้อมูลหรือไม่
+    // Combine the order items and promotions
+    const requestPayload = {
+      table_id: tableID,
+      uuid: uuid,
+      items: orderData,
+      use_promo: promotionData, // Send promotions data
+    }
+
+    // Show the order data for debugging
+    console.log('Order Data:', requestPayload)
+
     if (orderData.length === 0) {
       console.error('No items in the order!')
       return
     }
 
     try {
-      const response = await axios.post('http://localhost:8080/api/orders', {
-        table_id: tableID,
-        uuid: uuid,
-        items: orderData, // ส่ง orderData
-      })
+      const response = await axios.post(
+        'http://localhost:8080/api/orders',
+        requestPayload
+      )
 
       if (response.status === 200) {
         console.log('Order successfully placed!', response.data)
-        // เคลียร์ข้อมูลในตะกร้า
-        useCartStore.getState().clearCart() // เคลียร์ตะกร้าหลังจากการสั่งอาหารสำเร็จ
+        useCartStore.getState().clearCart()
         setOpenCartModal(false)
       } else {
         console.error('Failed to place order', response.data)
@@ -300,6 +327,74 @@ export default function MenuBar({tableID ,uuid}) {
                                       item.menu_item_id,
                                       item.notes,
                                       item.options
+                                    )
+                                  }
+                                >
+                                  <PlusIcon className="size-2" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* แสดงโปรโมชัน */}
+                        {promotions.map((promo, i) => (
+                          <div
+                            key={i}
+                            className="flex justify-between items-center gap-2 p-2 border-b last:border-none"
+                          >
+                            <div className="flex flex-col gap-1">
+                              <h6 className="text-lg font-medium">
+                                {promo.promotion.Name}
+                              </h6>
+                              <span className="text-sm text-gray-600">
+                                {promo.promotion.Description}
+                              </span>
+                              {/* แสดง selectedOptions ของโปรโมชัน */}
+                              {promo.selectedOptions &&
+                                promo.selectedOptions.length > 0 && (
+                                  <div className="mt-2">
+                                    <h6 className="font-medium text-gray-800">
+                                      ตัวเลือกที่เลือก:
+                                    </h6>
+                                    <ul className="list-disc pl-5 text-sm text-gray-500">
+                                      {promo.selectedOptions.map(
+                                        (option, index) => (
+                                          <li key={index}>
+                                            {option.name} (+{option.price} บาท)
+                                          </li>
+                                        )
+                                      )}
+                                    </ul>
+                                  </div>
+                                )}
+                            </div>
+                            <div>
+                              {/* แสดงราคาโปรโมชัน */}
+                              {promo.promotion.Price * promo.quantity} บาท
+                              <div className="flex justify-between items-center gap-3">
+                                <button
+                                  className="bg-gray-200 hover:bg-gray-300 disabled:opacity-70 disabled:hover:bg-gray-200 p-2 rounded-md text-black"
+                                  onClick={() =>
+                                    decreaseQuantityPromo(
+                                      promo.promotion_id,
+                                      1,
+                                      promo.selectedOptions
+                                    )
+                                  }
+                                >
+                                  <Minus className="size-2" />
+                                </button>
+                                <span className="text-sm text-gray-600">
+                                  {promo.quantity}
+                                </span>
+                                <button
+                                  className="bg-gray-200 hover:bg-gray-300 p-2 rounded-md text-black"
+                                  onClick={() =>
+                                    increaseQuantityPromo(
+                                      promo.promotion_id,
+                                      1,
+                                      promo.selectedOptions
                                     )
                                   }
                                 >

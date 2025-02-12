@@ -4,17 +4,17 @@ import { Plus, X, Ellipsis, Trash2, Edit, Image, Search, Calendar, Tag, Clock } 
 
 const Promotions = () => {
   const [promotionData, setPromotionData] = useState({
-    name: '', // ชื่อโปรโมชั่น (ภาษาไทย)
-    nameEn: '', // ชื่อโปรโมชั่น (ภาษาอังกฤษ)
-    nameCh: '', // ชื่อโปรโมชั่น (ภาษาจีน)
-    description: '', // คำอธิบายโปรโมชั่น (ภาษาไทย)
-    descriptionEn: '', // คำอธิบายโปรโมชั่น (ภาษาอังกฤษ)
-    descriptionCh: '', // คำอธิบายโปรโมชั่น (ภาษาจีน)
-    startDate: '', // วันที่เริ่มต้น
-    endDate: '', // วันที่สิ้นสุด
-    price: '', // ราคาของโปรโมชั่น
-    isActive: true, // สถานะโปรโมชั่น (เปิด/ปิด)
-    items: [{ menu_item_id: '', quantity: 1 }], // รายการสินค้าที่ร่วมโปรโมชั่น
+    name: '',
+    nameEn: '',
+    nameCh: '',
+    description: '',
+    startDate: '',
+    endDate: '',
+    price: '',
+    isActive: true,
+    maxSelections: 0, // เพิ่มฟิลด์ใหม่
+    minSelections: 0, // เพิ่มฟิลด์ใหม่
+    items: [{ menu_item_id: '', quantity: 1 }],
   })
 
   const [menuItems, setMenuItems] = useState([]) // State สำหรับเก็บข้อมูลเมนู
@@ -156,48 +156,57 @@ const Promotions = () => {
     setPromotionData((prevData) => ({ ...prevData, items: updatedItems }))
   }
 
+  // แก้ไขฟังก์ชัน handleSubmit
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    const {
-      name,
-      nameEn,
-      nameCh,
-      description,
-      descriptionEn,
-      descriptionCh,
-      startDate,
-      endDate,
-      price,
-      isActive,
-      items,
-    } = promotionData
-
-    const start_date = new Date(startDate).toISOString()
-    const end_date = new Date(endDate).toISOString()
-
-    // ตรวจสอบและแปลงค่าของ `items.quantity` เป็น number
-    const formattedItems = items.map((item) => ({
-      menu_item_id: parseInt(item.menu_item_id, 10),
-      quantity: parseInt(item.quantity, 10), // แปลงค่า quantity เป็น number
-    }))
-
     try {
+      const {
+        name,
+        nameEn,
+        nameCh,
+        description,
+        startDate,
+        endDate,
+        price,
+        maxSelections,
+        minSelections,
+        items,
+      } = promotionData
+
+      // ตรวจสอบว่ามีการเลือกรายการสินค้าอย่างน้อย 1 รายการ
+      if (!items || items.length === 0) {
+        alert('กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ')
+        return
+      }
+
+      // ตรวจสอบว่าทุกรายการมีการเลือกเมนูและระบุจำนวน
+      const isValidItems = items.every(
+        (item) => item.menu_item_id && item.quantity > 0
+      )
+      if (!isValidItems) {
+        alert('กรุณาระบุเมนูและจำนวนให้ครบทุกรายการ')
+        return
+      }
+
       const promotionPayload = {
         name,
         nameEn,
         nameCh,
         description,
-        descriptionEn,
-        descriptionCh,
-        start_date,
-        end_date,
-        price: parseFloat(price), // แปลง price เป็น number
-        is_active: isActive,
-        items: formattedItems,
+        start_date: new Date(startDate).toISOString(),
+        end_date: new Date(endDate).toISOString(),
+        price: parseFloat(price),
+        max_selections: parseInt(maxSelections, 10),
+        min_selections: parseInt(minSelections, 10),
+        items: items.map((item) => ({
+          menu_item_id: parseInt(item.menu_item_id, 10),
+          quantity: parseInt(item.quantity, 10),
+        })),
       }
 
-      // ส่งข้อมูลไปยัง API
+      console.log('Sending payload:', promotionPayload) // เพิ่ม log เพื่อตรวจสอบข้อมูล
+
       const response = await axios.post(
         'http://localhost:8080/api/promotions',
         promotionPayload,
@@ -206,28 +215,18 @@ const Promotions = () => {
         }
       )
 
-      if (response.status === 200) {
-        alert('โปรโมชั่นถูกสร้างสำเร็จ')
-        console.log(response.data)
-      } else {
-        alert(`เกิดข้อผิดพลาด: ${response.data.error}`)
+      if (response.status === 201 || response.status === 200) {
+        alert('เพิ่มโปรโมชันสำเร็จ')
+        setIsPopupOpen(false)
+        resetPromotionData()
+        fetchPromotions()
       }
     } catch (error) {
-      console.error('Error submitting form:', error)
-
-      if (error.response && error.response.data) {
-        console.error('API Error:', error.response.data)
-        alert(
-          `เกิดข้อผิดพลาดในการสร้างโปรโมชั่น: ${
-            error.response.data.error || error.message
-          }`
-        )
-      } else {
-        alert('เกิดข้อผิดพลาดในการสร้างโปรโมชั่น')
-      }
+      console.error('Error creating promotion:', error)
+      const errorMessage = error.response?.data?.message || 'เกิดข้อผิดพลาดในการเพิ่มโปรโมชัน'
+      alert(errorMessage)
     }
   }
-
   // ฟังก์ชันเปิด/ปิด popup
   const togglePopup = () => {
     setIsPopupOpen(!isPopupOpen)
@@ -444,8 +443,12 @@ const Promotions = () => {
       {/* Header Section */}
       <div className="mb-8">
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">จัดการโปรโมชัน</h1>
-          <p className="text-gray-600">จัดการรายการโปรโมชัน เพิ่ม แก้ไข และปรับแต่งรายละเอียดต่างๆ</p>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">
+            จัดการโปรโมชัน
+          </h1>
+          <p className="text-gray-600">
+            จัดการรายการโปรโมชัน เพิ่ม แก้ไข และปรับแต่งรายละเอียดต่างๆ
+          </p>
         </div>
       </div>
 
@@ -454,7 +457,10 @@ const Promotions = () => {
         <div className="flex flex-wrap gap-4 items-center justify-between">
           <div className="flex-1 min-w-[300px]">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <Search
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                size={20}
+              />
               <input
                 type="text"
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
@@ -478,7 +484,10 @@ const Promotions = () => {
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
           {filteredPromotions.map((promotion) => (
-            <div key={promotion.ID} className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200">
+            <div
+              key={promotion.ID}
+              className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200"
+            >
               {/* Promotion Image */}
               <div className="relative h-48 bg-gray-100 rounded-t-lg overflow-hidden">
                 {promotion.Image ? (
@@ -533,13 +542,17 @@ const Promotions = () => {
               {/* Promotion Details */}
               <div className="p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-semibold text-gray-800">{promotion.Name}</h3>
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    {promotion.Name}
+                  </h3>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
                       className="sr-only peer"
                       checked={promotion.IsActive}
-                      onChange={() => toggleStatus(promotion.ID, promotion.IsActive)}
+                      onChange={() =>
+                        toggleStatus(promotion.ID, promotion.IsActive)
+                      }
                     />
                     <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
                   </label>
@@ -553,7 +566,10 @@ const Promotions = () => {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Calendar className="w-4 h-4" />
-                    <span>{new Date(promotion.StartDate).toLocaleDateString()} - {new Date(promotion.EndDate).toLocaleDateString()}</span>
+                    <span>
+                      {new Date(promotion.StartDate).toLocaleDateString()} -{' '}
+                      {new Date(promotion.EndDate).toLocaleDateString()}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Tag className="w-4 h-4" />
@@ -561,7 +577,15 @@ const Promotions = () => {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Clock className="w-4 h-4" />
-                    <span>{promotion.IsActive ? 'กำลังใช้งาน' : 'ปิดใช้งาน'}</span>
+                    <span>
+                      {promotion.IsActive ? 'กำลังใช้งาน' : 'ปิดใช้งาน'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <span>
+                      จำนวนรายการที่เลือกได้: {promotion.MinSelections} -{' '}
+                      {promotion.MaxSelections}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -576,7 +600,9 @@ const Promotions = () => {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6 border-b pb-4">
-                <h2 className="text-xl font-bold text-gray-800">เพิ่มโปรโมชันใหม่</h2>
+                <h2 className="text-xl font-bold text-gray-800">
+                  เพิ่มโปรโมชันใหม่
+                </h2>
                 <button
                   onClick={togglePopup}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -588,7 +614,9 @@ const Promotions = () => {
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Basic Information */}
                 <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-700">ข้อมูลพื้นฐาน</h3>
+                  <h3 className="text-lg font-semibold text-gray-700">
+                    ข้อมูลพื้นฐาน
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -674,7 +702,9 @@ const Promotions = () => {
 
                 {/* Description */}
                 <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-700">คำอธิบาย</h3>
+                  <h3 className="text-lg font-semibold text-gray-700">
+                    คำอธิบาย
+                  </h3>
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -715,10 +745,42 @@ const Promotions = () => {
                   </div>
                 </div>
 
+                {/* เพิ่มฟิลด์ใหม่ */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      จำนวนรายการขั้นต่ำที่เลือกได้
+                    </label>
+                    <input
+                      type="number"
+                      name="minSelections"
+                      value={promotionData.minSelections}
+                      onChange={handleInputChange}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      จำนวนรายการสูงสุดที่เลือกได้
+                    </label>
+                    <input
+                      type="number"
+                      name="maxSelections"
+                      value={promotionData.maxSelections}
+                      onChange={handleInputChange}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      min="0"
+                    />
+                  </div>
+                </div>
+
                 {/* Items */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-gray-700">รายการสินค้า</h3>
+                    <h3 className="text-lg font-semibold text-gray-700">
+                      รายการสินค้า
+                    </h3>
                     <button
                       type="button"
                       onClick={handleAddItem}
@@ -731,7 +793,10 @@ const Promotions = () => {
 
                   <div className="space-y-4">
                     {promotionData.items.map((item, index) => (
-                      <div key={index} className="flex items-center gap-4 bg-white p-4 rounded-lg border border-gray-200">
+                      <div
+                        key={index}
+                        className="flex items-center gap-4 bg-white p-4 rounded-lg border border-gray-200"
+                      >
                         <div className="flex-1">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             เมนู
@@ -807,7 +872,9 @@ const Promotions = () => {
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-gray-800">อัพโหลดรูปภาพ</h2>
+                <h2 className="text-xl font-bold text-gray-800">
+                  อัพโหลดรูปภาพ
+                </h2>
                 <button
                   onClick={() => setIsImageUploadPopupOpen(false)}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -815,7 +882,7 @@ const Promotions = () => {
                   <X size={24} />
                 </button>
               </div>
-              
+
               <div className="space-y-4">
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
                   <input
@@ -824,10 +891,7 @@ const Promotions = () => {
                     className="hidden"
                     id="imageInput"
                   />
-                  <label
-                    htmlFor="imageInput"
-                    className="cursor-pointer block"
-                  >
+                  <label htmlFor="imageInput" className="cursor-pointer block">
                     {selectedImage ? (
                       <img
                         src={selectedImage}
@@ -871,7 +935,9 @@ const Promotions = () => {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6 border-b pb-4">
-                <h2 className="text-xl font-bold text-gray-800">แก้ไขโปรโมชัน</h2>
+                <h2 className="text-xl font-bold text-gray-800">
+                  แก้ไขโปรโมชัน
+                </h2>
                 <button
                   onClick={() => setIsEditPopupOpen(false)}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -883,7 +949,9 @@ const Promotions = () => {
               <form onSubmit={handleUpdatePromotion} className="space-y-6">
                 {/* Basic Information */}
                 <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-700">ข้อมูลพื้นฐาน</h3>
+                  <h3 className="text-lg font-semibold text-gray-700">
+                    ข้อมูลพื้นฐาน
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -969,7 +1037,9 @@ const Promotions = () => {
 
                 {/* Description */}
                 <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-700">คำอธิบาย</h3>
+                  <h3 className="text-lg font-semibold text-gray-700">
+                    คำอธิบาย
+                  </h3>
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1013,7 +1083,9 @@ const Promotions = () => {
                 {/* Items */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-gray-700">รายการสินค้า</h3>
+                    <h3 className="text-lg font-semibold text-gray-700">
+                      รายการสินค้า
+                    </h3>
                     <button
                       type="button"
                       onClick={handleAddItem}
@@ -1026,7 +1098,10 @@ const Promotions = () => {
 
                   <div className="space-y-4">
                     {promotionData.items.map((item, index) => (
-                      <div key={index} className="flex items-center gap-4 bg-white p-4 rounded-lg border border-gray-200">
+                      <div
+                        key={index}
+                        className="flex items-center gap-4 bg-white p-4 rounded-lg border border-gray-200"
+                      >
                         <div className="flex-1">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             เมนู
@@ -1097,7 +1172,9 @@ const Promotions = () => {
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">ยืนยันการลบ</h2>
+            <h2 className="text-xl font-bold text-gray-800 mb-4">
+              ยืนยันการลบ
+            </h2>
             <p className="text-gray-600 mb-6">
               คุณแน่ใจหรือไม่ว่าต้องการลบโปรโมชันนี้?
             </p>
