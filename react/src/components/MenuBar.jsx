@@ -262,7 +262,11 @@ export default function MenuBar({ tableID, uuid }) {
                     <div className="bg-white px-2 pt-2 pb-4 border border-gray/50 rounded-xl w-full max-w-xl min-h-full max-h-screen flex flex-col">
                       <div className="flex top-0 justify-between items-center">
                         <h4 className="text-xl font-semibold text-black">
-                          รายการอาหารที่สั่ง
+                          {language === 'th'
+                            ? 'รายการอาหารที่สั่ง'
+                            : language === 'en'
+                            ? 'Order list'
+                            : '訂購的食物清單'}
                         </h4>
                         <button
                           onClick={() => setOpenCartModal((prev) => !prev)}

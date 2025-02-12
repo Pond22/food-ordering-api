@@ -38,7 +38,7 @@ export default function MenuList({ language }) {
   const handleAddToCart = () => {
     if (quantity > 0 && displayItem) {
       const currentOrdered = getPromotionOrderedQuantity(displayItem.ID)
-      const maxAvailable = displayItem.MaxQuantity || Infinity
+      const maxAvailable = displayItem.Quantity || Infinity
 
       if (currentOrdered + quantity > maxAvailable) {
         alert(

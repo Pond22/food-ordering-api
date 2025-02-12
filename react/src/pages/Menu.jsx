@@ -23,7 +23,7 @@ export default function Menu() {
   }, [tableId, uuid, setTableData])
 
   return (
-    <div className="bg-gray-100 min-h-screen">
+    <div className="bg-gray-900 min-h-screen">
       <MenuBar tableID={tableId} uuid={uuid} />
       {/* <MenuList /> */}
     </div>

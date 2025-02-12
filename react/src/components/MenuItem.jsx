@@ -20,11 +20,46 @@ const MenuItem = ({ item, language }) => {
   // Toggle popup visibility
   const togglePopup = () => setIsPopupOpen((prev) => !prev)
 
+  const validateRequiredOptions = () => {
+    if (!item.OptionGroups) return true
+
+    const missingRequiredGroups = item.OptionGroups.filter(
+      (group) => group.IsRequired
+    ).filter((group) => !selectedOptions[group.ID])
+
+    if (missingRequiredGroups.length > 0) {
+      const missingGroupNames = missingRequiredGroups
+        .map((group) =>
+          language === 'th'
+            ? group.Name
+            : language === 'en'
+            ? group.NameEn
+            : group.NameCh
+        )
+        .join(', ')
+
+      alert(
+        language === 'th'
+          ? `กรุณาเลือกตัวเลือกที่จำเป็นในกลุ่ม: ${missingGroupNames}`
+          : language === 'en'
+          ? `Please select required options in groups: ${missingGroupNames}`
+          : `请选择必需的选项组：${missingGroupNames}`
+      )
+      return false
+    }
+    return true
+  }
+
   // Handle adding item to cart
   const handleAddToCart = () => {
     if (quantity > 0) {
+      // ตรวจสอบ required options ก่อน
+      if (!validateRequiredOptions()) {
+        return
+      }
+
       const currentOrdered = getMenuItemOrderedQuantity(item.ID)
-      const maxAvailable = item.MaxQuantity || Infinity // ถ้าไม่มีการกำหนด MaxQuantity ให้สั่งได้ไม่จำกัด
+      const maxAvailable = item.MaxQuantity || Infinity
 
       if (currentOrdered + quantity > maxAvailable) {
         alert(
@@ -38,7 +73,10 @@ const MenuItem = ({ item, language }) => {
       }
 
       addToCart(item, quantity, note, Object.values(selectedOptions))
-      // ... existing code ...
+      setNote('')
+      setSelectedOptions({})
+      setQuantity(1)
+      setIsPopupOpen(false)
     }
   }
 
@@ -164,14 +202,22 @@ const MenuItem = ({ item, language }) => {
               {item.OptionGroups && item.OptionGroups.length > 0 && (
                 <div className="mb-6">
                   {item.OptionGroups.map((group) => (
-                    <div key={group.ID}>
-                      <h4 className="text-black text-lg font-medium">
-                        {/* แสดงชื่อกลุ่มตัวเลือก */}
+                    <div key={group.ID} className="mb-4">
+                      <h4 className="text-black text-lg font-medium flex items-center gap-2">
                         {language === 'th'
                           ? group.Name
                           : language === 'en'
                           ? group.NameEn
                           : group.NameCh}
+                        {group.IsRequired && (
+                          <span className="text-red-500 text-sm">
+                            {language === 'th'
+                              ? '(จำเป็น)'
+                              : language === 'en'
+                              ? '(Required)'
+                              : '(必需)'}
+                          </span>
+                        )}
                       </h4>
                       <div className="flex flex-col gap-2 mt-2">
                         {group.Options.map((option) => (
@@ -181,8 +227,8 @@ const MenuItem = ({ item, language }) => {
                           >
                             <input
                               type="radio"
-                              name={group.Name}
-                              value={option.Name}
+                              name={`group-${group.ID}`}
+                              value={option.ID}
                               checked={
                                 selectedOptions[group.ID]?.menu_option_id ===
                                 option.ID
@@ -192,16 +238,26 @@ const MenuItem = ({ item, language }) => {
                               }
                               className="cursor-pointer"
                             />
-                            {/* แสดงชื่อและราคา option */}
-                            {language === 'th'
-                              ? option.Name
-                              : language === 'en'
-                              ? option.NameEn
-                              : option.NameCh}{' '}
-                            (+{option.Price}฿)
+                            <label className="flex-1 cursor-pointer">
+                              {language === 'th'
+                                ? option.Name
+                                : language === 'en'
+                                ? option.NameEn
+                                : option.NameCh}{' '}
+                              {option.Price > 0 && `(+${option.Price}฿)`}
+                            </label>
                           </div>
                         ))}
                       </div>
+                      {group.IsRequired && !selectedOptions[group.ID] && (
+                        <p className="text-red-500 text-sm mt-1">
+                          {language === 'th'
+                            ? 'กรุณาเลือกตัวเลือก'
+                            : language === 'en'
+                            ? 'Please select an option'
+                            : '请选择一个选项'}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>

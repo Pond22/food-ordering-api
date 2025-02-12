@@ -697,7 +697,7 @@ const MenuImportPage = () => {
                       </span>
                     ))}
                 </div>
-                <div className="mt-2 text-sm text-gray-500">
+                <div className="mt-2 text-sm text-red-500">
                   * กรุณาใช้ชื่อหมวดหมู่ภาษาไทยหรือภาษาอังกฤษตามที่แสดงด้านบนเท่านั้น
                 </div>
               </div>
