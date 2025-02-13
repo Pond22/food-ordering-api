@@ -70,6 +70,7 @@ type MenuItem struct {
 	Price         int16         `gorm:"not null"`
 	OptionGroups  []OptionGroup `gorm:"foreignKey:MenuItemID"`
 	Is_available  bool          `gorm:"not null;default:true"` //พร้อมขายหรือไม่
+	IsRecommended bool          `gorm:"not null;default:false"`
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 	DeletedAt     gorm.DeletedAt `json:"-" swaggerignore:"true"` //เอาไว้ทำ softdelete จะได้ restore ง่ายๆ
@@ -423,9 +424,20 @@ type PrintJob struct {
 }
 
 type Notification struct {
-	ID        uint      `json:"id" gorm:"primaryKey"`
-	UserID    uint      `json:"user_id" gorm:"not null"`      // ID ของผู้ใช้ที่ได้รับการแจ้งเตือน
-	Message   string    `json:"message" gorm:"type:text"`     // ข้อความแจ้งเตือน
-	Status    string    `json:"status" gorm:"default:unread"` // สถานะ "unread" หรือ "read"
-	CreatedAt time.Time `json:"created_at"`
+	ID             uint       `json:"id" gorm:"primaryKey"`
+	UserID         uint       `json:"user_id" gorm:"not null"`      // ID ของผู้ใช้ที่ได้รับการแจ้งเตือน
+	Message        string     `json:"message" gorm:"type:text"`     // ข้อความแจ้งเตือน
+	Status         string     `json:"status" gorm:"default:unread"` // สถานะ "unread" หรือ "read"
+	CreatedAt      time.Time  `json:"created_at"`
+	AcknowledgedBy *uint      `json:"acknowledged_by" gorm:"default:null"` // ID ของพนักงานที่กดรับทราบ
+	AcknowledgedAt *time.Time `json:"acknowledged_at" gorm:"default:null"` // เวลาที่กดรับทราบ
+}
+
+type OrderCancellationLog struct {
+	ID          uint      `json:"id" gorm:"primaryKey;autoIncrement"`
+	StaffID     uint      `json:"staff_id" gorm:"not null;index"`
+	Staff       Users     `gorm:"foreignKey:StaffID;references:ID"` // เพิ่ม references
+	Reason      string    `json:"reason" gorm:"type:text;not null"`
+	ItemDetails string    `json:"item_details" gorm:"type:text;not null"`
+	CreatedAt   time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
 }

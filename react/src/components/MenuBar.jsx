@@ -194,6 +194,58 @@ export default function MenuBar({ tableID, uuid }) {
     }
   }
 
+  // เพิ่มฟังก์ชันสำหรับจัดการการเรียกพนักงาน
+  const handleCallStaff = async (type) => {
+    try {
+      if (!tableID) {
+        throw new Error('Table ID is required');
+      }
+
+      const response = await axios.post(
+        'http://localhost:8080/api/notifications/call',
+        {
+          table_id: tableID.toString(),
+          type: type
+        }
+      );
+
+      if (response.status === 200) {
+        let message = '';
+        if (type === 'payment') {
+          message = language === 'th'
+            ? 'พนักงานจะมาเก็บเงินในไม่ช้า'
+            : language === 'en'
+            ? 'Staff will come to collect payment shortly'
+            : '服务员很快就来收款';
+        } else {
+          message = language === 'th'
+            ? 'พนักงานจะมาให้บริการในไม่ช้า'
+            : language === 'en'
+            ? 'Staff will come to assist you shortly'
+            : '服务员很快就来为您服务';
+        }
+        
+        alert(message);
+        setOpenCallModal(false);
+      }
+    } catch (error) {
+      if (error.response?.status === 400) {
+        alert(language === 'th'
+          ? 'มีการแจ้งเตือนที่ยังไม่ได้รับการตอบรับอยู่แล้ว'
+          : language === 'en'
+          ? 'There is an active notification pending'
+          : '有未处理的通知');
+      } else {
+        const errorMessage = language === 'th'
+          ? 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง'
+          : language === 'en'
+          ? 'Error occurred. Please try again.'
+          : '发生错误，请重试';
+        alert(errorMessage);
+      }
+    }
+  };
+
   return (
     <div>
       <nav className="bg-[#b33434] shadow-sm fixed top-0 w-full z-50">
@@ -244,19 +296,36 @@ export default function MenuBar({ tableID, uuid }) {
                   <Modal.Header className="bg-gray-200" />
                   <Modal.Body className="bg-gray-200 rounded-md">
                     <div className="flex justify-center items-center gap-4">
+                      {/* ปุ่มเรียกพนักงาน */}
                       <button
                         type="button"
+                        onClick={() => handleCallStaff('call_staff')}
                         className="p-4 bg-white gap-1 hover:bg-blue-500 transition-colors shadow-sm rounded-md text-black hover:text-white flex flex-col items-center justify-center"
                       >
                         <User className="size-7" />
-                        <span>Call Staff</span>
+                        <span>
+                          {language === 'th'
+                            ? 'เรียกพนักงาน'
+                            : language === 'en'
+                            ? 'Call Staff'
+                            : '呼叫服务员'}
+                        </span>
                       </button>
+
+                      {/* ปุ่มเรียกชำระเงิน */}
                       <button
                         type="button"
+                        onClick={() => handleCallStaff('payment')}
                         className="p-4 bg-white gap-1 hover:bg-blue-500 transition-colors shadow-sm rounded-md text-black hover:text-white flex flex-col items-center justify-center"
                       >
                         <Banknote className="size-7" />
-                        <span>Payment</span>
+                        <span>
+                          {language === 'th'
+                            ? 'ชำระเงิน'
+                            : language === 'en'
+                            ? 'Payment'
+                            : '付款'}
+                        </span>
                       </button>
                     </div>
                   </Modal.Body>

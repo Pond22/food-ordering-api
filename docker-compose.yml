@@ -10,8 +10,8 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_HOST=postgres
       - DB_PORT=${DB_PORT}
-      - WS_TABLE_KEY=${WS_TABLE_KEY}
-      - WS_PRINTER_KEY=${WS_PRINTER_KEY}
+      - WS_TABLE_KEY=ws_key_1234567890
+      - WS_PRINTER_KEY=ws_key_printer_123
     depends_on:
       - postgres
 

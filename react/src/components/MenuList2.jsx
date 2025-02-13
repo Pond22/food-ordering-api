@@ -172,97 +172,130 @@ export default function MenuList({ language }) {
   return (
     <div className="mt-[5.5rem] bg-gradient-to-br from-[#1c2025] via-[#34393f] to-[#6f757c] max-w-screen-xl mx-auto">
       {/* CATEGORY */}
-      <div
-        className="mt-2 flex justify-start items-center gap-2 overflow-x-auto mx-auto cursor-grab scrollbar-hidden"
-        ref={scrollRef}
-      >
-        <button
-          className={
-            activeLink === 0
-              ? 'bg-red-500 text-white px-2 py-1 rounded-md'
-              : 'bg-gray-300 text-black px-2 py-1 rounded-md'
-          }
-          onClick={() => handleCategoryClick(0)}
+      <div className="bg-[#1c2025] border-b border-[#3D3038]/30">
+        <div 
+          className="flex items-center gap-1.5 overflow-x-auto scrollbar-hidden py-2 px-3"
+          ref={scrollRef}
         >
-          {language === 'th' ? 'ทั้งหมด' : language === 'en' ? 'All' : '全部'}
-        </button>
-
-        {categories.map((item) => (
           <button
-            key={item.ID}
-            className={
-              activeLink === item.ID
-                ? 'bg-red-500 text-white px-2 py-1 rounded-md  w-20'
-                : 'bg-gray-300 text-black px-2 py-1 rounded-md  w-20'
-            }
-            onClick={() => handleCategoryClick(item.ID)}
+            className={`px-3 py-1.5 rounded-full transition-all duration-300 ${
+              activeLink === 0
+                ? 'bg-[#3D3038] text-[#E6C65C] shadow-sm'
+                : 'bg-[#F8F5F2] text-[#2D232A] hover:bg-[#F0EBE9]'
+            }`}
+            onClick={() => handleCategoryClick(0)}
           >
-            {language === 'th'
-              ? item.Name
-              : language === 'en'
-              ? item.NameEn
-              : item.NameCh}
+            <span className="text-xs font-medium">
+              {language === 'th' ? 'ทั้งหมด' : language === 'en' ? 'All' : '全部'}
+            </span>
           </button>
-        ))}
-      </div>
 
-      {/* PROMOTION CAROUSEL */}
-      <div className="my-4 h-48 sm:h-64 xl:h-80 2xl:h-96 py-2 mx-2">
-        <Carousel leftControl=" " rightControl=" ">
-          {promotions.length > 0 ? (
-            promotions.map((promotion) => (
-              <div key={promotion.ID} className="relative">
-                <img
-                  className="w-full h-full object-cover"
-                  src={`data:image/png;base64,${promotion.Image}`}
-                  alt={promotion.Name}
-                  onClick={() => handlePromotionClick(promotion)}
-                />
-              </div>
-            ))
-          ) : (
-            <p className="text-center text-lg">
-              {language === 'th'
-                ? 'ไม่มีโปรโมชั่นในขณะนี้'
-                : language === 'en'
-                ? 'No promotions at the moment'
-                : '暂无促销'}
-            </p>
-          )}
-        </Carousel>
-      </div>
-
-      {/* Menu items, category filtering and display */}
-      <div className="my-4">
-        {categories.map((category) => {
-          const filteredMenus =
-            activeLink === 0
-              ? menus
-              : menus.filter((menu) => menu.Category.ID === activeLink)
-
-          const categoryMenus = filteredMenus.filter(
-            (menu) => menu.Category.ID === category.ID
-          )
-
-          if (categoryMenus.length === 0) return null
-
-          return (
-            <div key={category.ID} className="mb-6">
-              <h2 className="text-2xl font-semibold mb-2 ">
+          {categories.map((item) => (
+            <button
+              key={item.ID}
+              className={`px-3 py-1.5 rounded-full transition-all duration-300 ${
+                activeLink === item.ID
+                  ? 'bg-[#3D3038] text-[#E6C65C] shadow-sm'
+                  : 'bg-[#F8F5F2] text-[#2D232A] hover:bg-[#F0EBE9]'
+              }`}
+              onClick={() => handleCategoryClick(item.ID)}
+            >
+              <span className="text-xs font-medium whitespace-nowrap">
                 {language === 'th'
-                  ? category.Name
+                  ? item.Name
                   : language === 'en'
-                  ? category.NameEn
-                  : category.NameCh}
-              </h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {categoryMenus.map((menu) => (
-                  <MenuItem key={menu.ID} item={menu} language={language} />
+                  ? item.NameEn
+                  : item.NameCh}
+              </span>
+            </button>
+          ))}
+        </div>
+        {/* เพิ่มเส้นไล่สีด้านล่าง */}
+        <div className="h-[1px] bg-gradient-to-r from-[#3D3038] via-[#3D3038]/50 to-transparent"></div>
+      </div>
+
+      {/* ส่วนที่เหลือของเนื้อหาที่สามารถเลื่อนได้ */}
+      <div className="overflow-y-auto">
+        {/* PROMOTION CAROUSEL */}
+        <div className="my-4 h-48 sm:h-64 xl:h-80 2xl:h-96 py-2 mx-2">
+          <Carousel leftControl=" " rightControl=" ">
+            {promotions.length > 0 ? (
+              promotions.map((promotion) => (
+                <div key={promotion.ID} className="relative">
+                  <img
+                    className="w-full h-full object-cover"
+                    src={`data:image/png;base64,${promotion.Image}`}
+                    alt={promotion.Name}
+                    onClick={() => handlePromotionClick(promotion)}
+                  />
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-lg">
+                {language === 'th'
+                  ? 'ไม่มีโปรโมชั่นในขณะนี้'
+                  : language === 'en'
+                  ? 'No promotions at the moment'
+                  : '暂无促销'}
+              </p>
+            )}
+          </Carousel>
+        </div>
+
+        {/* RECOMMENDED MENU SECTION */}
+        {menus.some(menu => menu.IsRecommended) && (
+          <div className="mx-2 my-4">
+            {/* หัวข้อหมวดหมู่ */}
+            <h2 className="text-base font-medium text-white/90 mb-2 px-1">
+              {language === 'th' 
+                ? 'เมนูแนะนำ' 
+                : language === 'en' 
+                ? 'Recommended Menu' 
+                : '推荐菜单'}
+            </h2>
+            
+            {/* Grid แสดงรายการ */}
+            <div className="grid grid-cols-2 gap-2">
+              {menus
+                .filter(menu => menu.IsRecommended)
+                .map(menu => (
+                  <MenuItem key={menu.ID} item={menu} language={language} isPremium />
                 ))}
-              </div>
             </div>
-          )
-        })}
+          </div>
+        )}
+
+        {/* แสดงรายการตามหมวดหมู่ */}
+        <div className="mx-2 my-4">
+          {categories.map((category) => {
+            // กรองเมนูตามหมวดหมู่และ activeLink
+            const filteredMenus = activeLink === 0
+              ? menus.filter(menu => menu.CategoryID === category.ID && !menu.IsRecommended)
+              : menus.filter(menu => menu.CategoryID === category.ID && menu.CategoryID === activeLink && !menu.IsRecommended);
+
+            if (filteredMenus.length === 0) return null;
+
+            return (
+              <div key={category.ID} className="mb-6">
+                {/* หัวข้อหมวดหมู่ */}
+                <h2 className="text-base font-medium text-white/90 mb-2 px-1">
+                  {language === 'th'
+                    ? category.Name
+                    : language === 'en'
+                    ? category.NameEn
+                    : category.NameCh}
+                </h2>
+                
+                {/* Grid แสดงรายการในหมวดหมู่ */}
+                <div className="grid grid-cols-2 gap-2">
+                  {filteredMenus.map(menu => (
+                    <MenuItem key={menu.ID} item={menu} language={language} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Modal to add item to cart */}

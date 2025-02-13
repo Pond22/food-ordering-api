@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"food-ordering-api/db"
 	"food-ordering-api/models"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -1073,9 +1074,10 @@ func CancelOrderItem(c *fiber.Ctx) error {
 		}
 	}
 
+	// Commit transaction
 	if err := tx.Commit().Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to commit transaction",
+			"error": "ไม่สามารถบันทึกข้อมูลได้",
 		})
 	}
 
@@ -1124,7 +1126,7 @@ func updateOrdersTotalByUUIDAndTableID(tx *gorm.DB, uuid string, tableID uint) e
 		// คำนวณราคารวมของ Options (ไม่รวมของที่ถูกลบและสถานะ 'cancelled')
 		var optionsTotal float64
 		err = tx.Model(&models.OrderItemOption{}).
-			Joins("JOIN order_items ON order_item_options.order_item_id = order_items.id").
+			Joins("JOIN order_items ON order_items.id = order_item_options.order_item_id").
 			Select("COALESCE(SUM(order_item_options.price * order_item_options.quantity), 0)").
 			Where("order_items.order_id = ? AND order_items.status != ? AND order_item_options.deleted_at IS NULL",
 				order.ID, "cancelled").
@@ -1416,13 +1418,13 @@ func FinalizeOrderItems(c *fiber.Ctx) error {
 			})
 		}
 
-		// ถ้าไม่มีรายการที่ไม่ถูกยกเลิก ให้อัปเดตสถานะออเดอร์เป็น cancelled
+		// ถ้าไม่มีรายการที่ไม่ถูกยกเลิก ให้อัปเดทสถานะออเดอร์เป็น cancelled
 		if nonCancelledItemCount == 0 {
 			if err := tx.Model(&order).
 				Update("status", "cancelled").Error; err != nil {
 				tx.Rollback()
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": "ไม่สามารถอัปเดตสถานะออเดอร์ได้",
+					"error": "ไม่สามารถอัปเดทสถานะออเดอร์ได้",
 				})
 			}
 		}
@@ -1439,17 +1441,28 @@ func FinalizeOrderItems(c *fiber.Ctx) error {
 	}
 
 	// บันทึก log การยกเลิก
-	notification := models.Notification{
-		UserID:    staff.ID,
-		Message:   fmt.Sprintf("ยกเลิกรายการอาหารโต๊ะ %d โดย %s เหตุผล: %s", req.TableID, staff.Name, req.Reason),
-		Status:    "unread",
-		CreatedAt: time.Now(),
+	cancellationLog := models.OrderCancellationLog{
+		StaffID:     staff.ID,
+		Reason:      req.Reason,
+		ItemDetails: strings.Join(printContents, "\n"),
+		CreatedAt:   time.Now(),
 	}
 
-	if err := tx.Create(&notification).Error; err != nil {
+	// เพิ่มการ debug log
+	log.Printf("Creating cancellation log: %+v", cancellationLog)
+
+	if staff.ID == 0 {
+		tx.Rollback()
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid staff ID",
+		})
+	}
+
+	if err := tx.Create(&cancellationLog).Error; err != nil {
+		log.Printf("Error creating cancellation log: %v", err) // เพิ่ม log
 		tx.Rollback()
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "ไม่สามารถบันทึก notification ได้",
+			"error": fmt.Sprintf("ไม่สามารถบันทึกประวัติการยกเลิกได้: %v", err),
 		})
 	}
 
@@ -1556,4 +1569,40 @@ func updateOrderTotal(tx *gorm.DB, orderID uint) error {
 
 	// Update order total
 	return tx.Model(&models.Order{}).Where("id = ?", orderID).Update("total", total).Error
+}
+
+// @Summary ดูประวัติการยกเลิกรายการอาหาร
+// @Tags Orders
+// @Produce json
+// @Param table_id query int false "Table ID"
+// @Param start_date query string false "Start Date (YYYY-MM-DD)"
+// @Param end_date query string false "End Date (YYYY-MM-DD)"
+// @Success 200 {array} models.OrderCancellationLog
+// @Router /api/orders/cancellation-logs [get]
+func GetCancellationLogs(c *fiber.Ctx) error {
+	query := db.DB.Model(&models.OrderCancellationLog{}).
+		Preload("Staff").
+		Preload("Order")
+
+	// กรองตาม table_id ถ้ามี
+	if tableID := c.Query("table_id"); tableID != "" {
+		query = query.Where("table_id = ?", tableID)
+	}
+
+	// กรองตามช่วงวันที่ถ้ามี
+	if startDate := c.Query("start_date"); startDate != "" {
+		query = query.Where("created_at >= ?", startDate)
+	}
+	if endDate := c.Query("end_date"); endDate != "" {
+		query = query.Where("created_at < ?", endDate+"T23:59:59")
+	}
+
+	var logs []models.OrderCancellationLog
+	if err := query.Order("created_at DESC").Find(&logs).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to fetch cancellation logs",
+		})
+	}
+
+	return c.JSON(logs)
 }

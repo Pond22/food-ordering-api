@@ -83,11 +83,16 @@ const TableManager = ({ posToken }) => {
         )
 
         socket.onopen = () => {
-          console.log('WebSocket connected successfully!')
+          console.log('WebSocket เชื่อมต่อสำเร็จ!')
         }
 
         socket.onerror = (error) => {
           console.error('WebSocket error:', error)
+          // เพิ่ม log เพื่อแสดงรายละเอียดข้อผิดพลาด
+          console.error('WebSocket connection failed. Please check:')
+          console.error('1. Backend server is running')
+          console.error('2. API key is correct')
+          console.error('3. WebSocket endpoint is available')
         }
 
         socket.onmessage = (event) => {
@@ -120,7 +125,9 @@ const TableManager = ({ posToken }) => {
     const socket = connectWebSocket()
 
     return () => {
-      socket.close() // ปิดการเชื่อมต่อเมื่อคอมโพเนนต์ unmount
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.close()
+      }
     }
   }, [])
 
