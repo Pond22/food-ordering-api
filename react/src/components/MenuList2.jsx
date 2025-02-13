@@ -170,17 +170,17 @@ export default function MenuList({ language }) {
   }, [])
 
   return (
-    <div className="mt-[5.5rem] bg-gray-50 max-w-screen-xl mx-auto">
+    <div className="mt-[5.5rem] bg-gradient-to-br from-[#1c2025] via-[#34393f] to-[#6f757c] max-w-screen-xl mx-auto">
       {/* CATEGORY */}
       <div
-        className="mt-2 flex justify-start items-center gap-2 overflow-x-auto cursor-grab scrollbar-hidden"
+        className="mt-2 flex justify-start items-center gap-2 overflow-x-auto mx-auto cursor-grab scrollbar-hidden"
         ref={scrollRef}
       >
         <button
           className={
             activeLink === 0
-              ? 'bg-red-500 text-white'
-              : 'bg-gray-300 text-black'
+              ? 'bg-red-500 text-white px-2 py-1 rounded-md'
+              : 'bg-gray-300 text-black px-2 py-1 rounded-md'
           }
           onClick={() => handleCategoryClick(0)}
         >
@@ -192,8 +192,8 @@ export default function MenuList({ language }) {
             key={item.ID}
             className={
               activeLink === item.ID
-                ? 'bg-red-500 text-white'
-                : 'bg-gray-300 text-black'
+                ? 'bg-red-500 text-white px-2 py-1 rounded-md  w-20'
+                : 'bg-gray-300 text-black px-2 py-1 rounded-md  w-20'
             }
             onClick={() => handleCategoryClick(item.ID)}
           >
@@ -207,7 +207,7 @@ export default function MenuList({ language }) {
       </div>
 
       {/* PROMOTION CAROUSEL */}
-      <div className="my-4 h-48 sm:h-64 xl:h-80 2xl:h-96 border border-black">
+      <div className="my-4 h-48 sm:h-64 xl:h-80 2xl:h-96 py-2 mx-2">
         <Carousel leftControl=" " rightControl=" ">
           {promotions.length > 0 ? (
             promotions.map((promotion) => (
@@ -248,7 +248,7 @@ export default function MenuList({ language }) {
 
           return (
             <div key={category.ID} className="mb-6">
-              <h2 className="text-2xl font-semibold mb-2">
+              <h2 className="text-2xl font-semibold mb-2 ">
                 {language === 'th'
                   ? category.Name
                   : language === 'en'

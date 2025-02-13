@@ -39,11 +39,14 @@ const Promotions = () => {
     fetchPromotions() // ดึงข้อมูลโปรโมชั่น
     fetchPromotionsActive()
   }, [])
+  const token = localStorage.getItem('token')
 
   const fetchPromotions = async () => {
     try {
       const response = await axios.get('http://localhost:8080/api/promotions', {
-        headers: { accept: 'application/json' },
+        headers: { accept: 'application/json',
+           Authorization: `Bearer ${token}` },
+        
       })
 
       if (response.data) {
@@ -70,7 +73,8 @@ const Promotions = () => {
         {
           method: 'GET',
           headers: {
-            Accept: 'application/json',
+            accept: 'application/json',
+            Authorization: `Bearer ${token}`,
           },
         }
       )
@@ -90,6 +94,10 @@ const Promotions = () => {
   const fetchMenuItems = async (action = 'getAll', params = {}) => {
     try {
       const response = await axios.get('http://localhost:8080/api/menu', {
+        headers: {
+          accept: 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         params: {
           action, // ใช้ action ตามที่ต้องการ เช่น getByID, getByCategory, getAll
           ...params, // พารามิเตอร์เพิ่มเติม เช่น category_id หรือ id
@@ -124,6 +132,12 @@ const Promotions = () => {
         `http://localhost:8080/api/promotions/status/${id}`,
         {
           is_active: newStatus,
+        },
+        {
+          headers: {
+            accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
         }
       )
 
@@ -211,7 +225,8 @@ const Promotions = () => {
         'http://localhost:8080/api/promotions',
         promotionPayload,
         {
-          headers: { 'Content-Type': 'application/json' },
+          headers: { accept: 'application/json',
+           Authorization: `Bearer ${token}` },
         }
       )
 
