@@ -76,7 +76,9 @@ const TableManager = ({ posToken }) => {
   useEffect(() => {
     const connectWebSocket = () => {
       try {
-        const socket = new WebSocket('ws://localhost:8080/ws/tables')
+        // เพิ่ม API Key ใน query parameter
+        const wsTableKey = import.meta.env.VITE_WS_TABLE_KEY
+        const socket = new WebSocket(`ws://localhost:8080/ws/tables?api_key=${wsTableKey}`)
 
         socket.onopen = () => {
           console.log('WebSocket connected successfully!')
@@ -110,7 +112,6 @@ const TableManager = ({ posToken }) => {
         return socket
       } catch (error) {
         console.error('Failed to connect to WebSocket:', error)
-        setTimeout(connectWebSocket, 5000) // พยายามเชื่อมต่อใหม่ถ้าล้มเหลว
       }
     }
 
@@ -624,7 +625,7 @@ const TableManager = ({ posToken }) => {
             <>
               <button
                 className="p-1 border rounded-md mr-1 bg-blue-500/90 text-white hover:bg-blue-600"
-                onClick={() => handleCheckBillClick(table.ID, posToken)}
+                onClick={() => handleCheckBillClick(table.ID)}
               >
                 เช็คบิล
               </button>
