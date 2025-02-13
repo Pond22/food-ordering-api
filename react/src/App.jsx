@@ -5,6 +5,7 @@ import Section from './Section';
 import Menu from './pages/Menu';
 import Pos from './pages/POS';
 import POSVerifyRoute from './pages/POSVerifyRoute';
+import PaymentTables from './components/PaymentTables';
 
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -41,20 +42,20 @@ const App = () => {
       {/* POS Routes (ไม่ต้องการการล็อกอิน) */}
       <Route path="/pos/verify" element={<POSVerifyRoute />} />
       <Route path="/pos" element={<Pos />} />
-      
+
       {/* Public Routes */}
       <Route path="/menu" element={<Menu />} />
-      <Route 
-        path="/login" 
-        element={isLoggedIn ? <Navigate to="/home" /> : <Login />} 
+      <Route
+        path="/login"
+        element={isLoggedIn ? <Navigate to="/home" /> : <Login />}
       />
 
       {/* Main Application Routes */}
-      <Route 
-        path="/*" 
+      <Route
+        path="/*"
         element={
           isLoggedIn ? (
-            <Section 
+            <Section
               isLoggedIn={isLoggedIn}
               user={user}
               handleLogout={handleLogout}
@@ -63,10 +64,12 @@ const App = () => {
           ) : (
             <Navigate to="/login" />
           )
-        } 
+        }
       />
+
+      <Route path="/payment-tables" element={<PaymentTables user={user} />} />
     </Routes>
-  );
+  )
 };
 
 export default App;

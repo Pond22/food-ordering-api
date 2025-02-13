@@ -78,9 +78,7 @@ const TableManager = ({ posToken }) => {
       try {
         // เพิ่ม API Key ใน query parameter
         const wsTableKey = import.meta.env.VITE_WS_TABLE_KEY
-        const socket = new WebSocket(
-          `ws://localhost:8080/ws/tables?api_key=${wsTableKey}`
-        )
+        const socket = new WebSocket(`ws://localhost:8080/ws/tables?api_key=${wsTableKey}`)
 
         socket.onopen = () => {
           console.log('WebSocket connected successfully!')
