@@ -16,10 +16,12 @@ func SetupRoutes(app *fiber.App) {
 
 	notifications := api.Group("/notifications")
 	{
-		notifications.Post("/call-staff", api_handlers.CallStaff)
+		notifications.Post("/call", api_handlers.HandleCall)
+		notifications.Post("/:id/read", api_handlers.MarkAsRead)
+		notifications.Get("/unread", api_handlers.GetUnreadNotifications)
 	}
 	// WebSocket สำหรับพนักงานรับแจ้งเตือน
-	app.Get("/ws/staff", websocket.New(api_handlers.StaffWebSocket))
+	app.Get("/ws/staff", websocket.New(api_handlers.HandleWebSocket))
 
 	pos := api.Group("/pos")
 	{
@@ -68,6 +70,9 @@ func SetupRoutes(app *fiber.App) {
 		menu.Put("/:id", utils.AuthRequired(), api_handlers.UpdateMenuItem)
 		menu.Put("/image/:id", utils.AuthRequired(), api_handlers.UpdateMenuImage)
 		menu.Delete("/:id", utils.AuthRequired(), api_handlers.SoftDelete_Menu)
+
+		menu.Get("/recommended", api_handlers.GetRecommendedMenuItems)
+		menu.Put("/:id/recommend", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.ToggleMenuItemRecommendation)
 
 		// Option Groups
 		menu.Get("/option-groups/:id", api_handlers.GetOptionByid)
@@ -124,6 +129,7 @@ func SetupRoutes(app *fiber.App) {
 		orders.Get("/active", api_handlers.GetActiveOrders)
 		orders.Get("/table/:uuid", api_handlers.GetOrdersByid)
 		orders.Post("/finalize", api_handlers.FinalizeOrderItems)
+		orders.Get("/cancellation-logs", api_handlers.GetCancellationLogs)
 		// สำหรับพนักงาน (ต้องการการยืนยันตัวตน)
 		// orderStaff := orders.Group("/", utils.AuthRequired())
 		// {
@@ -247,4 +253,5 @@ func SetupRoutes(app *fiber.App) {
 	// }
 	SetupUserRoutes(app)
 	SetupRoutesV2(app)
+
 }

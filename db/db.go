@@ -122,6 +122,9 @@ func migrate() {
 	DB.AutoMigrate(&models.PrintJob{})
 	DB.AutoMigrate(&models.POSSession{})
 	// DB.AutoMigrate(&models.PromoSalesReport{})
+
+	DB.AutoMigrate(&models.OrderCancellationLog{})
+
 	DB.AutoMigrate(&models.Notification{})
 	DB.AutoMigrate(&models.ReservationRules{})
 	DB.AutoMigrate(&models.POSSessionLog{})

@@ -1366,3 +1366,66 @@ func SoftDelete_OptionGroup(c *fiber.Ctx) error {
 		"message": "ลบกลุ่มตัวเลือกสำเร็จ",
 	})
 }
+
+// @Summary ดึงรายการเมนูแนะนำ
+// @Description ดึงรายการเมนูที่ถูกทำเครื่องหมายเป็นเมนูแนะนำ
+// @Produce json
+// @Success 200 {array} models.MenuItem "รายการเมนูแนะนำ"
+// @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการดึงข้อมูล"
+// @Router /api/menu/recommended [get]
+// @Tags menu
+func GetRecommendedMenuItems(c *fiber.Ctx) error {
+	var recommendedItems []models.MenuItem
+
+	// ดึงเฉพาะเมนูที่ถูกทำเครื่องหมายว่าเป็นเมนูแนะนำ
+	if err := db.DB.Where("is_recommended = ?", true).Find(&recommendedItems).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch recommended menu items",
+		})
+	}
+
+	return c.JSON(recommendedItems)
+}
+
+// @Summary สลับสถานะเมนูแนะนำ
+// @Description สลับสถานะเมนูระหว่างเป็นเมนูแนะนำหรือไม่
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path integer true "ID ของเมนู"
+// @Success 200 {object} models.MenuItem "รายละเอียดของเมนูที่อัพเดทสถานะแนะนำ"
+// @Failure 400 {object} map[string]interface{} "ข้อมูลไม่ถูกต้อง"
+// @Failure 401 {object} map[string]interface{} "ไม่ได้รับอนุญาต"
+// @Failure 403 {object} map[string]interface{} "ไม่มีสิทธิ์เข้าถึง"
+// @Failure 404 {object} map[string]interface{} "ไม่พบเมนู"
+// @Router /api/menu/{id}/recommend [put]
+// @Tags menu
+func ToggleMenuItemRecommendation(c *fiber.Ctx) error {
+	menuItemID, err := c.ParamsInt("id")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid menu item ID",
+		})
+	}
+
+	var menuItem models.MenuItem
+	if err := db.DB.First(&menuItem, menuItemID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Menu item not found",
+		})
+	}
+
+	// สลับสถานะ
+	menuItem.IsRecommended = !menuItem.IsRecommended
+
+	if err := db.DB.Save(&menuItem).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update menu item recommendation status",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message":   "Recommendation status updated successfully",
+		"menu_item": menuItem,
+	})
+}

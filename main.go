@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"food-ordering-api/api_handlers"
 	"food-ordering-api/db"
 	_ "food-ordering-api/docs"
@@ -9,7 +8,6 @@ import (
 	service "food-ordering-api/services"
 	utils "food-ordering-api/utility"
 	"log"
-	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -85,9 +83,6 @@ func main() {
 	// app.Use("/ws/printer", utils.PrinterKeyMiddleware(), service.HandlePrinterWebSocket)
 	app.Use("/ws/printer", utils.WebSocketAPIKeyMiddleware("websocket_printer"), service.HandlePrinterWebSocket)
 	routes.SetupRoutes(app)
-
-	// เพิ่ม log เพื่อตรวจสอบ
-	fmt.Println("WS_TABLE_KEY:", os.Getenv("WS_TABLE_KEY"))
 
 	if err := app.Listen(":8080"); err != nil {
 		log.Fatal(err)

@@ -7,6 +7,7 @@ import {
   X,
   UserRound,
   CreditCard,
+  Check,
 } from 'lucide-react'
 import styles from './styles/App.module.css'
 import Home from './components/Home'
@@ -23,6 +24,7 @@ import OrderConfirmation from './components/OrderConfirmation'
 import Reprint from './components/Reprint'
 import ReservationConfig from './components/ReservationConfig';
 import MenuImportPage from './components/MenuImportPage'
+import axios from 'axios'
 
 const Section = ({ isLoggedIn, user, handleLogout, token }) => {
   const location = useLocation()
@@ -30,28 +32,35 @@ const Section = ({ isLoggedIn, user, handleLogout, token }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const sidebarRef = useRef()
   const [showNotifications, setShowNotifications] = useState(false)
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: 'service',
-      table: 'A12',
-      message: 'เรียกพนักงาน',
-      time: '2 นาทีที่แล้ว',
-      read: false,
-    },
-    {
-      id: 2,
-      type: 'bill',
-      table: 'B05',
-      message: 'ขอเช็คบิล',
-      time: '5 นาทีที่แล้ว',
-      read: false,
-    },
-  ])
+  const [notifications, setNotifications] = useState([])
+  const [ws, setWs] = useState(null)
 
   const handleDismiss = (id) => {
-    setNotifications(notifications.filter((note) => note.id !== id))
-  }
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try {
+        const message = {
+          notification_id: id.toString(),
+          staff_id: user.id  // เพิ่ม staff_id
+        };
+        ws.send(JSON.stringify(message));
+        
+        setNotifications(prev => {
+          const notification = prev.find(n => n.id === id);
+          if (!notification) return prev;
+
+          const confirmMessage = notification.type === 'payment' 
+            ? `กำลังไปเก็บเงินที่โต๊ะ ${notification.table}`
+            : `กำลังไปให้บริการที่โต๊ะ ${notification.table}`;
+          alert(confirmMessage);
+
+          return prev.filter(n => n.id !== id);
+        });
+      } catch (error) {
+        console.error('Error sending acknowledgment:', error);
+        alert('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+      }
+    }
+  };
 
   const markAllAsRead = () => {
     setNotifications(notifications.map((note) => ({ ...note, read: true })))
@@ -101,6 +110,45 @@ const Section = ({ isLoggedIn, user, handleLogout, token }) => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [isSidebarOpen])
+
+  useEffect(() => {
+    const ws = new WebSocket('ws://localhost:8080/ws/staff');
+    
+    ws.onmessage = (event) => {
+      const notification = JSON.parse(event.data);
+      
+      if (notification.status === 'read') {
+        // ลบการแจ้งเตือนที่ถูกรับทราบแล้ว
+        setNotifications(prev => prev.filter(n => n.id !== notification.id));
+      } else {
+        // เพิ่มการแจ้งเตือนใหม่
+        setNotifications(prev => {
+          if (prev.some(n => n.id === notification.id)) return prev;
+          
+          return [...prev, {
+            id: notification.id,
+            type: notification.type === 'payment' ? 'payment' : 'service',
+            table: notification.table_id,
+            message: notification.message,
+            time: new Date(notification.created_at).toLocaleTimeString(),
+            read: false
+          }];
+        });
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    setWs(ws);
+
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
+  }, []);
 
   return (
     <ErrorBoundary>
@@ -457,12 +505,23 @@ const Section = ({ isLoggedIn, user, handleLogout, token }) => {
                               </p>
                             </div>
                           </div>
-                          <button
-                            onClick={() => handleDismiss(notification.id)}
-                            className="text-gray-400 hover:text-gray-600"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
+                          <div className="flex gap-2">
+                            {/* ปุ่มรับทราบ */}
+                            <button
+                              onClick={() => handleDismiss(notification.id)}
+                              className="px-2 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm flex items-center gap-1"
+                            >
+                              <Check className="w-4 h-4" />
+                              รับทราบ
+                            </button>
+                            {/* ปุ่มปิด */}
+                            <button
+                              onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+                              className="text-gray-400 hover:text-gray-600"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>

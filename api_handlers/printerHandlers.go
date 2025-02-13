@@ -415,8 +415,14 @@ func prepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
 		content.WriteString("[ รายการอาหาร ]\n")
 		content.WriteString("----------------------------------------\n")
 
-		// Group similar items
-		itemGroups := make(map[string]struct {
+		// สร้าง map เพื่อจัดกลุ่มรายการที่เหมือนกันทุกประการ
+		type OrderItemKey struct {
+			MenuItemID uint
+			Notes      string
+			Options    string // จะเก็บ options ในรูปแบบ string ที่เรียงลำดับแล้ว
+		}
+
+		itemGroups := make(map[OrderItemKey]struct {
 			MenuItem models.MenuItem
 			Quantity int
 			Price    float64
@@ -424,41 +430,83 @@ func prepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
 			Notes    string
 		})
 
+		// จัดกลุ่มรายการที่เหมือนกันทุกประการ
 		for _, order := range job.Receipt.Orders {
 			for _, item := range order.Items {
-				key := fmt.Sprintf("%d-%s", item.MenuItemID, item.Notes)
-				if group, exists := itemGroups[key]; exists {
-					group.Quantity += item.Quantity
-					group.Price += item.Price
-					group.Options = append(group.Options, item.Options...)
-					itemGroups[key] = group
-				} else {
-					itemGroups[key] = struct {
-						MenuItem models.MenuItem
-						Quantity int
-						Price    float64
-						Options  []models.OrderItemOption
-						Notes    string
-					}{
-						MenuItem: item.MenuItem,
-						Quantity: item.Quantity,
-						Price:    item.Price,
-						Options:  item.Options,
-						Notes:    item.Notes,
+				if item.Status != "cancelled" {
+					// สร้าง options string ที่เรียงลำดับแล้ว
+					var optStrings []string
+					for _, opt := range item.Options {
+						optStrings = append(optStrings, fmt.Sprintf("%d:%d:%.2f",
+							opt.MenuOptionID, opt.Quantity, opt.Price))
+					}
+					sort.Strings(optStrings)
+					optionsStr := strings.Join(optStrings, "|")
+
+					key := OrderItemKey{
+						MenuItemID: item.MenuItemID,
+						Notes:      item.Notes,
+						Options:    optionsStr,
+					}
+
+					if group, exists := itemGroups[key]; exists {
+						group.Quantity += item.Quantity
+						group.Price += item.Price * float64(item.Quantity)
+						itemGroups[key] = group
+					} else {
+						itemGroups[key] = struct {
+							MenuItem models.MenuItem
+							Quantity int
+							Price    float64
+							Options  []models.OrderItemOption
+							Notes    string
+						}{
+							MenuItem: item.MenuItem,
+							Quantity: item.Quantity,
+							Price:    item.Price * float64(item.Quantity),
+							Options:  item.Options,
+							Notes:    item.Notes,
+						}
 					}
 				}
 			}
 		}
 
-		i := 1
+		// แปลง map เป็น slice เพื่อเรียงลำดับ
+		type GroupedItem struct {
+			MenuItem models.MenuItem
+			Quantity int
+			Price    float64
+			Options  []models.OrderItemOption
+			Notes    string
+		}
+
+		var groupedItems []GroupedItem
 		for _, group := range itemGroups {
-			itemLine := fmt.Sprintf("%d. %s", i, group.MenuItem.Name)
+			groupedItems = append(groupedItems, GroupedItem{
+				MenuItem: group.MenuItem,
+				Quantity: group.Quantity,
+				Price:    group.Price,
+				Options:  group.Options,
+				Notes:    group.Notes,
+			})
+		}
+
+		// เรียงลำดับตามชื่อเมนู
+		sort.Slice(groupedItems, func(i, j int) bool {
+			return groupedItems[i].MenuItem.Name < groupedItems[j].MenuItem.Name
+		})
+
+		// พิมพ์รายการที่จัดกลุ่มแล้ว
+		for i, group := range groupedItems {
+			itemLine := fmt.Sprintf("%d. %s", i+1, group.MenuItem.Name)
 			if group.Quantity > 1 {
 				itemLine += fmt.Sprintf(" x%d", group.Quantity)
 			}
 			itemLine += fmt.Sprintf("   ฿%.2f", group.Price)
 			content.WriteString(cleanText(itemLine) + "\n")
 
+			// พิมพ์ options
 			for _, opt := range group.Options {
 				optionLine := fmt.Sprintf("   • %s   ฿%.2f",
 					cleanText(opt.MenuOption.Name),
@@ -466,14 +514,15 @@ func prepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
 				content.WriteString(optionLine + "\n")
 			}
 
+			// พิมพ์โน้ต
 			if group.Notes != "" {
 				content.WriteString(fmt.Sprintf("   [หมายเหตุ: %s]\n", cleanText(group.Notes)))
 			}
-			i++
 		}
 
 		content.WriteString("----------------------------------------\n")
 
+		// พิมพ์สรุปยอด
 		subTotalLine := fmt.Sprintf("ยอดรวม: ฿%.2f", job.Receipt.SubTotal)
 		discountLine := fmt.Sprintf("ส่วนลด: ฿%.2f", job.Receipt.DiscountTotal)
 		extraChargesLine := fmt.Sprintf("ค่าใช้จ่ายเพิ่มเติม: ฿%.2f", job.Receipt.ChargeTotal)

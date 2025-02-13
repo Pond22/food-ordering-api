@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import styles from '../styles/MenuItem.module.css'
-import { Minus, Plus, PlusIcon, } from 'lucide-react'
+import { Minus, Plus, PlusIcon, ThumbsUp } from 'lucide-react'
 import useCartStore from '../hooks/cart-store'
 
-const MenuItem = ({ item, language }) => {
+const MenuItem = ({ item, language, isPremium }) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false) // Popup state
   const [note, setNote] = useState('') // Note for the kitchen
   const [selectedOptions, setSelectedOptions] = useState({})
@@ -93,31 +93,46 @@ const MenuItem = ({ item, language }) => {
   }
 
   return (
-    <div
-      className={
-        'bg-white rounded-md shadow-xl hover:shadow-xl transition-shadow duration-300'
-      }
-    >
-      {/* Menu Item Display */}
-      {item.Image ? (
-        <img
-          src={`data:image/png;base64,${item.Image}`}
-          alt={item.Name}
-          className={
-            'h-28 sm:h-36 w-full rounded-tl-md rounded-tr-md object-cover'
-          }
-          onClick={togglePopup} // When clicked, toggle the popup
-        />
-      ) : (
-        <div className="h-28">No Image Available</div>
+    <div className={`relative bg-[#F8F3F2] rounded-lg overflow-hidden border-b border-[#3D3038] hover:bg-[#312B37] transition-colors`}>
+      {/* Premium Badge */}
+      {isPremium && (
+        <div className="absolute top-2 left-2 z-10">
+          <div className="flex items-center gap-1 bg-[#3B5780]/90 px-2 py-1 rounded-sm text-xs font-medium text-white shadow-sm">
+            <ThumbsUp className="w-3 h-3" />
+            <span>
+              {language === 'th' 
+                ? 'แนะนำ' 
+                : language === 'en' 
+                ? 'Best' 
+                : '推荐'}
+            </span>
+          </div>
+        </div>
       )}
 
-      <div className={'p-2 flex flex-col gap-4 bg-blackpremiem rounded-b-md'}>
-        <h3
-          className="text-md text-goldlight font-semibold"
+      {/* รูปอาหาร */}
+      <div className="relative aspect-[4/3] bg-gradient-to-b from-[#3D3038] to-[#2A2530]">
+        {item.Image ? (
+          <img
+            src={`data:image/png;base64,${item.Image}`}
+            alt={item.Name}
+            className="w-full h-full object-cover opacity-95"
+            onClick={togglePopup}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-[#4D4048]">400 x 300</span>
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#2A2530] to-transparent opacity-40"></div>
+      </div>
+
+      {/* ข้อมูลเมนู */}
+      <div className="p-3 relative">
+        <h3 
+          className="text-sm font-medium text-[#231F20] mb-1 line-clamp-2 drop-shadow-sm hover:text-[#F3D77F] transition-colors" 
           onClick={togglePopup}
         >
-          {/* แสดงชื่อเมนูตามภาษาที่เลือก */}
           {language === 'th'
             ? item.Name
             : language === 'en'
@@ -125,13 +140,38 @@ const MenuItem = ({ item, language }) => {
             : item.NameCh}
         </h3>
 
-        <div className={'flex justify-between items-center'}>
-          <p className="text-base text-goldpre font-semibold">{item.Price} ฿</p>
+        <div className="mb-2">
+          <p className="text-xs text-gray-600 line-clamp-1 group-hover:text-gray-700">
+            {language === 'th'
+              ? item.Description
+              : language === 'en'
+              ? item.DescriptionEn
+              : item.DescriptionCh}
+            {((language === 'th' && item.Description?.length > 50) ||
+              (language === 'en' && item.DescriptionEn?.length > 50) ||
+              (language === 'ch' && item.DescriptionCh?.length > 50)) && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation(); // ป้องกันการ trigger togglePopup
+                  togglePopup();
+                }}
+                className="ml-1 text-[#F8F5F2] hover:text-[#AA1818] font-medium inline-flex items-center"
+              >
+                ...read more
+              </button>
+            )}
+          </p>
+        </div>
+
+        <div className="flex justify-between items-center">
+          <p className="text-sm font-medium text-[#D9BC91] drop-shadow-sm">
+            {item.Price} ฿
+          </p>
           <button
             onClick={togglePopup}
-            className=" bg-red-500 hover:bg-gold rounded-full p-1 text-white"
+            className="bg-[#3D3038] hover:bg-[#4D4048] rounded-full p-1.5 text-[#E6C65C] transition-colors shadow-lg hover:shadow-xl"
           >
-            <Plus className="size-5" />
+            <Plus className="size-4" />
           </button>
         </div>
       </div>
@@ -149,7 +189,7 @@ const MenuItem = ({ item, language }) => {
                   className="w-5 h-5"
                   fill="none"
                   stroke="currentColor"
-                  viewBox="0 0 24 24"
+                  viewBox="0 0 24 24"ก
                 >
                   <path
                     strokeLinecap="round"
