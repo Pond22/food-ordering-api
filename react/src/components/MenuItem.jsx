@@ -1,16 +1,27 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import styles from '../styles/MenuItem.module.css'
 import { Minus, Plus, PlusIcon, ThumbsUp } from 'lucide-react'
 import useCartStore from '../hooks/cart-store'
+import { useSearchParams } from 'react-router-dom'
 
 const MenuItem = ({ item, language, isPremium }) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false) // Popup state
   const [note, setNote] = useState('') // Note for the kitchen
   const [selectedOptions, setSelectedOptions] = useState({})
-  
   const [quantity, setQuantity] = useState(1)
+  const [searchParams] = useSearchParams() // เพิ่มการใช้ useSearchParams
 
-  const { addToCart, getMenuItemOrderedQuantity } = useCartStore()
+  const tableId = parseInt(searchParams.get('tableID'), 10)
+  const uuid = searchParams.get('uuid')
+
+  const { addToCart, getMenuItemOrderedQuantity, setTableData } = useCartStore()
+
+  // เพิ่ม useEffect เพื่อเซ็ต tableId และ uuid
+  useEffect(() => {
+    if (tableId && uuid) {
+      setTableData(tableId, uuid)
+    }
+  }, [tableId, uuid, setTableData])
 
   const handleIncrease = () => setQuantity((prev) => prev + 1) // เพิ่มจำนวน
   const handleDecrease = () => {
@@ -52,6 +63,17 @@ const MenuItem = ({ item, language, isPremium }) => {
 
   // Handle adding item to cart
   const handleAddToCart = () => {
+    if (!tableId || !uuid) {
+      alert(
+        language === 'th'
+          ? 'ไม่พบข้อมูลโต๊ะ กรุณาลองใหม่อีกครั้ง'
+          : language === 'en'
+          ? 'Table information not found. Please try again.'
+          : '未找到餐桌信息。请重试。'
+      )
+      return
+    }
+
     if (quantity > 0) {
       // ตรวจสอบ required options ก่อน
       if (!validateRequiredOptions()) {

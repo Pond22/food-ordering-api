@@ -17,9 +17,6 @@ import MenuList from './MenuList2'
 export default function MenuBar({ tableID, uuid }) {
   const [openCallModal, setOpenCallModal] = useState(false)
   const [openCartModal, setOpenCartModal] = useState(false)
-  const [openOrderModal, setOpenOrderModal] = useState(false)
-  const [orderItems, setOrderItems] = useState([])
-  const [orderTotal, setOrderTotal] = useState(0)
   const [language, setLanguage] = useState('th') // ภาษาเริ่มต้นคือไทย
   const {
     cart,
@@ -175,80 +172,66 @@ export default function MenuBar({ tableID, uuid }) {
     }
   }
 
-  const fetchOrderItems = async () => {
-    try {
-      const response = await axios.get(
-        `http://localhost:8080/api/table/billable/${uuid}`
-      )
-      setOrderItems(response.data.items)
-      setOrderTotal(response.data.total)
-    } catch (error) {
-      console.error('Error fetching orders:', error)
-      alert(
-        language === 'th'
-          ? 'ไม่สามารถดึงข้อมูลออเดอร์ได้'
-          : language === 'en'
-          ? 'Cannot fetch order data'
-          : '无法获取订单数据'
-      )
-    }
-  }
-
   // เพิ่มฟังก์ชันสำหรับจัดการการเรียกพนักงาน
   const handleCallStaff = async (type) => {
     try {
       if (!tableID) {
-        throw new Error('Table ID is required');
+        throw new Error('Table ID is required')
       }
 
       const response = await axios.post(
         'http://localhost:8080/api/notifications/call',
         {
           table_id: tableID.toString(),
-          type: type
+          type: type,
         }
-      );
+      )
 
       if (response.status === 200) {
-        let message = '';
+        let message = ''
         if (type === 'payment') {
-          message = language === 'th'
-            ? 'พนักงานจะมาเก็บเงินในไม่ช้า'
-            : language === 'en'
-            ? 'Staff will come to collect payment shortly'
-            : '服务员很快就来收款';
+          message =
+            language === 'th'
+              ? 'พนักงานจะมาเก็บเงินในไม่ช้า'
+              : language === 'en'
+              ? 'Staff will come to collect payment shortly'
+              : '服务员很快就来收款'
         } else {
-          message = language === 'th'
-            ? 'พนักงานจะมาให้บริการในไม่ช้า'
-            : language === 'en'
-            ? 'Staff will come to assist you shortly'
-            : '服务员很快就来为您服务';
+          message =
+            language === 'th'
+              ? 'พนักงานจะมาให้บริการในไม่ช้า'
+              : language === 'en'
+              ? 'Staff will come to assist you shortly'
+              : '服务员很快就来为您服务'
         }
-        
-        alert(message);
-        setOpenCallModal(false);
+
+        alert(message)
+        setOpenCallModal(false)
       }
     } catch (error) {
       if (error.response?.status === 400) {
-        alert(language === 'th'
-          ? 'มีการแจ้งเตือนที่ยังไม่ได้รับการตอบรับอยู่แล้ว'
-          : language === 'en'
-          ? 'There is an active notification pending'
-          : '有未处理的通知');
+        alert(
+          language === 'th'
+            ? 'มีการแจ้งเตือนที่ยังไม่ได้รับการตอบรับอยู่แล้ว'
+            : language === 'en'
+            ? 'There is an active notification pending'
+            : '有未处理的通知'
+        )
       } else {
-        const errorMessage = language === 'th'
-          ? 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง'
-          : language === 'en'
-          ? 'Error occurred. Please try again.'
-          : '发生错误，请重试';
-        alert(errorMessage);
+        const errorMessage =
+          language === 'th'
+            ? 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง'
+            : language === 'en'
+            ? 'Error occurred. Please try again.'
+            : '发生错误，请重试'
+        alert(errorMessage)
       }
     }
-  };
+  }
 
   return (
     <div>
-      <nav className="bg-[#b33434] shadow-sm fixed top-0 w-full z-50">
+      <nav className="bg-[#1C2B41] shadow-sm fixed top-0 w-full z-50">
         <div className="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto px-4 py-2">
           <div className="flex flex-col gap-1 justify-center items-start text-white">
             <span className="text-xl font-semibold whitespace-nowrap">
@@ -331,213 +314,11 @@ export default function MenuBar({ tableID, uuid }) {
                   </Modal.Body>
                 </Modal>
               </li>
-              {/* แสดงรายการออเดอร์ที่สั่งแล้ว */}
               <li>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenOrderModal(true)
-                    fetchOrderItems()
-                  }}
-                  className="block py-2 text-white"
-                >
+                <button type="button" className="block py-2 text-white">
                   <SquareMenu />
                 </button>
-                {openOrderModal && (
-                  <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white px-4 pt-2 pb-4 rounded-xl w-full max-w-xl max-h-[90vh] flex flex-col">
-                      <div className="flex justify-between items-center">
-                        <h4 className="text-xl font-semibold">
-                          {language === 'th'
-                            ? 'รายการออเดอร์ทั้งหมด'
-                            : language === 'en'
-                            ? 'All Orders'
-                            : '所有订单'}
-                        </h4>
-                        <button
-                          onClick={() => setOpenOrderModal(false)}
-                          className="text-gray-500 hover:text-gray-700"
-                        >
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                      <div className="flex-1 overflow-y-auto mt-4">
-                        {orderItems.map((item) => (
-                          <div key={item.id} className="border-b p-3">
-                            <div className="flex justify-between">
-                              <div>
-                                {/* ถ้าเป็นโปรโมชัน จะแสดงแบนเนอร์โปรโมชัน */}
-                                {item.promotion && (
-                                  <div className="mb-2">
-                                    <span className="bg-red-100 text-red-600 text-xs font-medium px-2 py-1 rounded">
-                                      {language === 'th'
-                                        ? 'โปรโมชัน: ' + item.promotion.name
-                                        : language === 'en'
-                                        ? 'Promotion: ' + item.promotion.nameEn
-                                        : '促销: ' + item.promotion.nameCh}
-                                    </span>
-                                    <p className="text-sm text-gray-500 mt-1">
-                                      {language === 'th'
-                                        ? item.promotion.description
-                                        : language === 'en'
-                                        ? item.promotion.descriptionEn
-                                        : item.promotion.descriptionCh}
-                                    </p>
-                                  </div>
-                                )}
-
-                                {/* ชื่อเมนูตามภาษา */}
-                                <h6 className="font-medium">
-                                  {language === 'th'
-                                    ? item.name
-                                    : language === 'en'
-                                    ? item.nameEn || item.name 
-                                    : item.nameCh || item.name}{' '}
-                                  
-                                </h6>
-
-                                {/* แสดงหมวดหมู่ตามภาษา */}
-                                {/* <span className="text-sm text-gray-500">
-                                  {language === 'th'
-                                    ? item.category
-                                    : language === 'en'
-                                    ? item.categoryEn || item.category
-                                    : item.categoryCh || item.category}
-                                </span> */}
-
-                                {/* สถานะการเสิร์ฟ */}
-                                <span
-                                  className={`text-sm ml-2 ${
-                                    item.status === 'served'
-                                      ? 'text-green-600'
-                                      : 'text-orange-500'
-                                  }`}
-                                >
-                                  {item.status === 'served'
-                                    ? language === 'th'
-                                      ? 'เสิร์ฟแล้ว'
-                                      : language === 'en'
-                                      ? 'Served'
-                                      : '已上菜'
-                                    : language === 'th'
-                                    ? 'กำลังจัดเตรียม'
-                                    : language === 'en'
-                                    ? 'Preparing'
-                                    : '准备中'}
-                                </span>
-
-                                {/* หมายเหตุ */}
-                                {item.notes && (
-                                  <p className="text-sm text-gray-500 mt-1">
-                                    {language === 'th'
-                                      ? 'หมายเหตุ: '
-                                      : language === 'en'
-                                      ? 'Note: '
-                                      : '备注: '}
-                                    {item.notes}
-                                  </p>
-                                )}
-
-                                {/* ตัวเลือกเพิ่มเติม */}
-                                {item.options?.length > 0 && (
-                                  <div className="text-sm text-gray-500 mt-1">
-                                    {item.options.map((opt, idx) => (
-                                      <div key={idx}>
-                                        +{' '}
-                                        {language === 'th'
-                                          ? opt.name
-                                          : language === 'en'
-                                          ? opt.nameEn || opt.name
-                                          : opt.nameCh || opt.name}
-                                        ({opt.price}{' '}
-                                        {language === 'th'
-                                          ? 'บาท'
-                                          : language === 'en'
-                                          ? 'THB'
-                                          : '泰铢'}
-                                        )
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-
-                                {/* แสดงรายการเมนูในโปรโมชัน */}
-                                {item.promotion && item.promotion.items && (
-                                  <div className="mt-2 ml-4">
-                                    <p className="text-sm font-medium text-gray-600">
-                                      {language === 'th'
-                                        ? 'รายการในโปรโมชัน:'
-                                        : language === 'en'
-                                        ? 'Promotion items:'
-                                        : '促销项目:'}
-                                    </p>
-                                    <ul className="list-disc list-inside text-sm text-gray-500">
-                                      {item.promotion.items.map(
-                                        (promoItem, idx) => (
-                                          <li key={idx}>
-                                            {language === 'th'
-                                              ? promoItem.name
-                                              : language === 'en'
-                                              ? promoItem.nameEn ||
-                                                promoItem.name
-                                              : promoItem.nameCh ||
-                                                promoItem.name}
-                                          </li>
-                                        )
-                                      )}
-                                    </ul>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* ราคาและจำนวน */}
-                              <div className="text-right">
-                                <div className="font-medium">
-                                  {item.item_total}{' '}
-                                  {language === 'th'
-                                    ? 'บาท'
-                                    : language === 'en'
-                                    ? 'THB'
-                                    : '泰铢'}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  x{item.quantity}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="border-t mt-4 pt-4">
-                        <div className="flex justify-between items-center text-xl font-bold">
-                          <span>
-                            {language === 'th'
-                              ? 'รวมทั้งหมด'
-                              : language === 'en'
-                              ? 'Total'
-                              : '总计'}
-                          </span>
-                          <span>{orderTotal} บาท</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </li>
-
-              {/* แสดงรายการอาหารในตระกร้า */}
               <li>
                 <button
                   type="button"

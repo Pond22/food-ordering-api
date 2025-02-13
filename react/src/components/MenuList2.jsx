@@ -3,6 +3,7 @@ import { Carousel } from 'flowbite-react'
 import MenuItem from './MenuItem'
 import { Plus, Minus, PlusIcon } from 'lucide-react'
 import useCartStore from '../hooks/cart-store'
+import { useSearchParams } from 'react-router-dom'
 
 export default function MenuList({ language }) {
   const [categories, setCategories] = useState([])
@@ -14,9 +15,13 @@ export default function MenuList({ language }) {
   const [isPopupOpen, setIsPopupOpen] = useState(false)
   const [displayItem, setDisplayItem] = useState(null)
   const [selectedOptions, setSelectedOptions] = useState([])
+  const [searchParams] = useSearchParams()
+
+  const tableId = parseInt(searchParams.get('tableID'), 10)
+  const uuid = searchParams.get('uuid')
 
   const scrollRef = useRef(null)
-  const { addPromotion, getPromotionOrderedQuantity } = useCartStore()
+  const { addPromotion, getPromotionOrderedQuantity, setTableData } = useCartStore()
 
   const handleCategoryClick = (category) => {
     setActiveLink(category)
@@ -34,8 +39,24 @@ export default function MenuList({ language }) {
     setIsPopupOpen(true)
   }
 
-  // แก้ไขฟังก์ชัน handleAddToCart
+  useEffect(() => {
+    if (tableId && uuid) {
+      setTableData(tableId, uuid)
+    }
+  }, [tableId, uuid, setTableData])
+
   const handleAddToCart = () => {
+    if (!tableId || !uuid) {
+      alert(
+        language === 'th'
+          ? 'ไม่พบข้อมูลโต๊ะ กรุณาลองใหม่อีกครั้ง'
+          : language === 'en'
+          ? 'Table information not found. Please try again.'
+          : '未找到餐桌信息。请重试。'
+      )
+      return
+    }
+
     if (quantity > 0 && displayItem) {
       const currentOrdered = getPromotionOrderedQuantity(displayItem.ID)
       const maxAvailable = displayItem.Quantity || Infinity
@@ -51,7 +72,6 @@ export default function MenuList({ language }) {
         return
       }
 
-      // ตรวจสอบจำนวนที่เลือกว่าครบตามที่กำหนดหรือไม่
       if (selectedOptions.length < displayItem.MinSelections) {
         alert(
           language === 'th'
@@ -71,7 +91,6 @@ export default function MenuList({ language }) {
 
       addPromotion(promotion, quantity)
 
-      // Reset the state after adding to cart
       setNote('')
       setQuantity(1)
       setSelectedOptions([])
@@ -79,19 +98,13 @@ export default function MenuList({ language }) {
     }
   }
 
-  // ... existing code ...
-
-  // แก้ไขฟังก์ชัน handleOptionChange
   const handleOptionChange = (menuItem) => {
     const isSelected = selectedOptions.some((opt) => opt.id === menuItem.ID)
 
     if (isSelected) {
-      // ลบออกจาก selectedOptions
       setSelectedOptions((prev) => prev.filter((opt) => opt.id !== menuItem.ID))
     } else {
-      // เช็คว่าเลือกได้ไหมตาม MaxSelections
       if (selectedOptions.length < displayItem.MaxSelections) {
-        // เช็คว่าเมนูนี้ถูกเลือกไปกี่ครั้งแล้ว
         const currentItemCount = selectedOptions.filter(
           (opt) => opt.id === menuItem.ID
         ).length
@@ -171,7 +184,6 @@ export default function MenuList({ language }) {
 
   return (
     <div className="mt-[5.5rem] bg-gradient-to-br from-[#1c2025] via-[#34393f] to-[#6f757c] max-w-screen-xl mx-auto">
-      {/* CATEGORY */}
       <div className="bg-[#1c2025] border-b border-[#3D3038]/30">
         <div 
           className="flex items-center gap-1.5 overflow-x-auto scrollbar-hidden py-2 px-3"
@@ -210,13 +222,10 @@ export default function MenuList({ language }) {
             </button>
           ))}
         </div>
-        {/* เพิ่มเส้นไล่สีด้านล่าง */}
         <div className="h-[1px] bg-gradient-to-r from-[#3D3038] via-[#3D3038]/50 to-transparent"></div>
       </div>
 
-      {/* ส่วนที่เหลือของเนื้อหาที่สามารถเลื่อนได้ */}
       <div className="overflow-y-auto">
-        {/* PROMOTION CAROUSEL */}
         <div className="my-4 h-48 sm:h-64 xl:h-80 2xl:h-96 py-2 mx-2">
           <Carousel leftControl=" " rightControl=" ">
             {promotions.length > 0 ? (
@@ -242,10 +251,8 @@ export default function MenuList({ language }) {
           </Carousel>
         </div>
 
-        {/* RECOMMENDED MENU SECTION */}
         {menus.some(menu => menu.IsRecommended) && (
           <div className="mx-2 my-4">
-            {/* หัวข้อหมวดหมู่ */}
             <h2 className="text-base font-medium text-white/90 mb-2 px-1">
               {language === 'th' 
                 ? 'เมนูแนะนำ' 
@@ -254,7 +261,6 @@ export default function MenuList({ language }) {
                 : '推荐菜单'}
             </h2>
             
-            {/* Grid แสดงรายการ */}
             <div className="grid grid-cols-2 gap-2">
               {menus
                 .filter(menu => menu.IsRecommended)
@@ -265,10 +271,8 @@ export default function MenuList({ language }) {
           </div>
         )}
 
-        {/* แสดงรายการตามหมวดหมู่ */}
         <div className="mx-2 my-4">
           {categories.map((category) => {
-            // กรองเมนูตามหมวดหมู่และ activeLink
             const filteredMenus = activeLink === 0
               ? menus.filter(menu => menu.CategoryID === category.ID && !menu.IsRecommended)
               : menus.filter(menu => menu.CategoryID === category.ID && menu.CategoryID === activeLink && !menu.IsRecommended);
@@ -277,7 +281,6 @@ export default function MenuList({ language }) {
 
             return (
               <div key={category.ID} className="mb-6">
-                {/* หัวข้อหมวดหมู่ */}
                 <h2 className="text-base font-medium text-white/90 mb-2 px-1">
                   {language === 'th'
                     ? category.Name
@@ -286,7 +289,6 @@ export default function MenuList({ language }) {
                     : category.NameCh}
                 </h2>
                 
-                {/* Grid แสดงรายการในหมวดหมู่ */}
                 <div className="grid grid-cols-2 gap-2">
                   {filteredMenus.map(menu => (
                     <MenuItem key={menu.ID} item={menu} language={language} />
@@ -298,7 +300,6 @@ export default function MenuList({ language }) {
         </div>
       </div>
 
-      {/* Modal to add item to cart */}
       {isPopupOpen && displayItem && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl w-full max-w-xl overflow-y-auto max-h-screen">
@@ -336,7 +337,6 @@ export default function MenuList({ language }) {
                   {displayItem.Price} THB
                 </p>
 
-                {/* แสดงจำนวนที่ต้องเลือก */}
                 <div className="mb-4 p-3 bg-gray-100 rounded-lg">
                   <p className="text-sm text-gray-600">
                     {language === 'th'
@@ -354,7 +354,6 @@ export default function MenuList({ language }) {
                   </p>
                 </div>
 
-                {/* Menu Options */}
                 {displayItem &&
                   displayItem.Items &&
                   Array.isArray(displayItem.Items) &&
@@ -380,7 +379,7 @@ export default function MenuList({ language }) {
                                 )}
                                 onChange={() =>
                                   handleOptionChange(item.MenuItem)
-                                } // Make sure this works for promotion items too
+                                }
                                 disabled={
                                   selectedOptions.length >=
                                     displayItem.MaxSelections &&

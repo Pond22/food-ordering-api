@@ -265,6 +265,17 @@ const useCartStore = create(
 
       // ฟังก์ชันล้างข้อมูลในตะกร้า
       clearCart: () => set({ cart: [] }),
+
+      // เพิ่มฟังก์ชันสำหรับล้างตะกร้าเฉพาะ tableID และ uuid ที่ระบุ
+      clearCartByTableAndUuid: (tableId, uuid) => 
+        set(state => ({
+          cart: state.cart.filter(
+            item => item.tableId !== tableId || item.uuid !== uuid
+          ),
+          promotions: state.promotions.filter(
+            promo => promo.tableId !== tableId || promo.uuid !== uuid
+          )
+        })),
     }),
     {
       name: 'cart-storage',
