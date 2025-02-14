@@ -1529,3 +1529,234 @@ func ReprintDocument(c *fiber.Ctx) error {
 	}
 	return c.JSON(response)
 }
+
+// ฟังก์ชันสำหรับพิมพ์ใบรายการอาหารก่อนชำระเงิน
+func prepareBillCheckPrintContent(orders []models.Order, tableIDs []string) ([]byte, error) {
+	var content bytes.Buffer
+
+	// ส่วนหัว
+	headerLines := []string{
+		"***** ใบรายการอาหาร *****",
+		fmt.Sprintf("โต๊ะ: %s", strings.Join(tableIDs, ", ")),
+		"----------------------------------------",
+		fmt.Sprintf("วันที่-เวลา: %s", time.Now().Format("02/01/2006 15:04:05")),
+		"----------------------------------------",
+		"[ รายการอาหาร ]",
+		"----------------------------------------",
+	}
+
+	for _, line := range headerLines {
+		content.WriteString(cleanText(line) + "\n")
+	}
+
+	// จัดกลุ่มรายการที่เหมือนกัน
+	type OrderItemKey struct {
+		MenuItemID uint
+		Notes      string
+		Options    string
+	}
+
+	itemGroups := make(map[OrderItemKey]struct {
+		MenuItem models.MenuItem
+		Quantity int
+		Price    float64
+		Options  []models.OrderItemOption
+		Notes    string
+	})
+
+	var subTotal float64
+
+	// รวมรายการที่เหมือนกัน
+	for _, order := range orders {
+		for _, item := range order.Items {
+			// เปลี่ยนเงื่อนไขให้รวมทั้ง pending และ completed
+			if item.Status == "pending" || item.Status == "completed" {
+				var optStrings []string
+				for _, opt := range item.Options {
+					optStrings = append(optStrings, fmt.Sprintf("%d:%d:%.2f",
+						opt.MenuOptionID, opt.Quantity, opt.Price))
+				}
+				sort.Strings(optStrings)
+				optionsStr := strings.Join(optStrings, "|")
+
+				key := OrderItemKey{
+					MenuItemID: item.MenuItemID,
+					Notes:      item.Notes,
+					Options:    optionsStr,
+				}
+
+				if group, exists := itemGroups[key]; exists {
+					group.Quantity += item.Quantity
+					group.Price += item.Price * float64(item.Quantity)
+					itemGroups[key] = group
+				} else {
+					itemGroups[key] = struct {
+						MenuItem models.MenuItem
+						Quantity int
+						Price    float64
+						Options  []models.OrderItemOption
+						Notes    string
+					}{
+						MenuItem: item.MenuItem,
+						Quantity: item.Quantity,
+						Price:    item.Price * float64(item.Quantity),
+						Options:  item.Options,
+						Notes:    item.Notes,
+					}
+				}
+
+				subTotal += item.Price * float64(item.Quantity)
+			}
+		}
+	}
+
+	// แปลงเป็น slice และเรียงตามชื่อเมนู
+	type GroupedItem struct {
+		MenuItem models.MenuItem
+		Quantity int
+		Price    float64
+		Options  []models.OrderItemOption
+		Notes    string
+	}
+
+	var groupedItems []GroupedItem
+	for _, group := range itemGroups {
+		groupedItems = append(groupedItems, GroupedItem{
+			MenuItem: group.MenuItem,
+			Quantity: group.Quantity,
+			Price:    group.Price,
+			Options:  group.Options,
+			Notes:    group.Notes,
+		})
+	}
+
+	sort.Slice(groupedItems, func(i, j int) bool {
+		return groupedItems[i].MenuItem.Name < groupedItems[j].MenuItem.Name
+	})
+
+	// พิมพ์รายการ
+	for i, group := range groupedItems {
+		itemLine := fmt.Sprintf("%d. %s", i+1, group.MenuItem.Name)
+		if group.Quantity > 1 {
+			itemLine += fmt.Sprintf(" x%d", group.Quantity)
+		}
+		itemLine += fmt.Sprintf("   ฿%.2f", group.Price)
+		content.WriteString(cleanText(itemLine) + "\n")
+
+		for _, opt := range group.Options {
+			optionLine := fmt.Sprintf("   • %s   ฿%.2f",
+				cleanText(opt.MenuOption.Name),
+				opt.Price)
+			content.WriteString(optionLine + "\n")
+		}
+
+		if group.Notes != "" {
+			content.WriteString(fmt.Sprintf("   [หมายเหตุ: %s]\n", cleanText(group.Notes)))
+		}
+	}
+
+	content.WriteString("----------------------------------------\n")
+	content.WriteString(fmt.Sprintf("ยอดรวม: ฿%.2f\n", subTotal))
+	content.WriteString("----------------------------------------\n")
+	content.WriteString("** กรุณาตรวจสอบรายการให้ครบถ้วน **\n")
+	content.WriteString("========================================\n")
+
+	return content.Bytes(), nil
+}
+
+// @Summary พิมพ์ใบรายการอาหารก่อนชำระเงิน
+// @Description พิมพ์ใบรายการอาหารสำหรับตรวจทานก่อนชำระเงิน สามารถพิมพ์ได้ทั้งแบบโต๊ะเดี่ยวและรวมโต๊ะ
+// @Accept json
+// @Produce json
+// @Param request body PrintBillCheckRequest true "ข้อมูลสำหรับพิมพ์ใบรายการอาหาร"
+// @Success 200 {object} map[string]interface{}
+// @Router /api/printers/bill-check [post]
+// @Tags Printer
+type PrintBillCheckRequest struct {
+	TableIDs []uint `json:"table_ids" binding:"required,min=1"`
+}
+
+func PrintBillCheck(c *fiber.Ctx) error {
+	var req PrintBillCheckRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "รูปแบบข้อมูลไม่ถูกต้อง",
+		})
+	}
+
+	// ตรวจสอบโต๊ะ
+	var tables []models.Table
+	if err := db.DB.Where("id IN ?", req.TableIDs).Find(&tables).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "ไม่พบข้อมูลโต๊ะบางโต๊ะ",
+		})
+	}
+
+	if len(tables) != len(req.TableIDs) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "พบข้อมูลโต๊ะไม่ครบตามที่ระบุ",
+		})
+	}
+
+	// ดึงข้อมูลออเดอร์ที่ยังไม่ได้ชำระเงินของทุกโต๊ะ (เฉพาะสถานะ pending และ completed)
+	var orders []models.Order
+	if err := db.DB.Where("table_id IN ? AND status IN (?, ?) AND receipt_id IS NULL",
+		req.TableIDs, "pending", "completed").
+		Preload("Items", "status IN (?)", []string{"pending", "completed"}).
+		Preload("Items.MenuItem").
+		Preload("Items.Options.MenuOption").
+		Find(&orders).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "ไม่สามารถดึงข้อมูลออเดอร์ได้",
+		})
+	}
+
+	if len(orders) == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "ไม่พบรายการอาหารที่ยังไม่ได้ชำระเงิน",
+		})
+	}
+
+	// แปลง table IDs เป็น string slice สำหรับแสดงในใบพิมพ์
+	tableNames := make([]string, len(tables))
+	for i, table := range tables {
+		tableNames[i] = table.Name
+	}
+
+	// ค้นหาเครื่องพิมพ์หลัก
+	var printer models.Printer
+	if err := db.DB.Where("name = ?", "main").First(&printer).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "ไม่พบเครื่องพิมพ์หลัก",
+		})
+	}
+
+	// สร้างเนื้อหาสำหรับพิมพ์
+	content, err := prepareBillCheckPrintContent(orders, tableNames)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "ไม่สามารถสร้างเนื้อหาสำหรับพิมพ์ได้",
+		})
+	}
+
+	// สร้าง print job
+	printJob := models.PrintJob{
+		PrinterID: printer.ID,
+		Content:   content,
+		JobType:   "bill_check",
+		Status:    "pending",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := db.DB.Create(&printJob).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "ไม่สามารถสร้างงานพิมพ์ได้",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "สร้างงานพิมพ์ใบรายการอาหารสำเร็จ",
+		"job_id":  printJob.ID,
+	})
+}

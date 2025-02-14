@@ -151,6 +151,7 @@ func SetupRoutes(app *fiber.App) {
 		table.Post("/reservedTable/:id", api_handlers.ReservedTable)
 		table.Post("/unreservedTable/:id", api_handlers.UnreservedTable)
 		table.Put("/setstatus/:id", api_handlers.ToggleTableStatus)
+		table.Post("/close/:id", api_handlers.CloseTable)
 	}
 
 	// QR Code Management Routes
@@ -174,8 +175,8 @@ func SetupRoutes(app *fiber.App) {
 		printer.Post("reprint/:id", api_handlers.ReprintDocument)
 		printer.Get("failed-jobs", api_handlers.GetFailedPrintJobs)
 		printer.Get("/reprintable-jobs", api_handlers.GetReprintableJobs)
-		// printer.Get("/:id", api_handlers.GetPrinterByID)
 		printer.Get("/", api_handlers.GetAllPrinters)
+		printer.Post("/bill-check", api_handlers.PrintBillCheck)
 
 		// เฉพาะ endpoints ที่ต้องการใช้ API key
 		printer.Get("/pending-jobs", utils.PrinterAPIKeyMiddleware(), api_handlers.GetPendingPrintJobs)

@@ -1042,3 +1042,109 @@ func preparePrintJobResponse(job models.PrintJob) PrintJobResponse {
 		},
 	}
 }
+
+// @Summary ปิดโต๊ะ
+// @Description ปิดโต๊ะเมื่อไม่มีรายการอาหารหรือรายการอาหารถูกยกเลิกทั้งหมด
+// @Accept json
+// @Produce json
+// @Param id path string true "ID ของโต๊ะ"
+// @Param uuid query string true "UUID ของ QR Code"
+// @Success 200 {object} map[string]interface{} "ปิดโต๊ะสำเร็จ"
+// @Failure 400 {object} map[string]interface{} "ข้อมูลไม่ถูกต้อง"
+// @Failure 404 {object} map[string]interface{} "ไม่พบโต๊ะ"
+// @Failure 422 {object} map[string]interface{} "ไม่สามารถปิดโต๊ะได้"
+// @Router /api/table/close/{id} [post]
+// @Tags Table
+func CloseTable(c *fiber.Ctx) error {
+	tableID := c.Params("id")
+	uuid := c.Query("uuid")
+
+	if tableID == "" || uuid == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "ต้องระบุ table ID และ UUID",
+		})
+	}
+
+	tx := db.DB.Begin()
+
+	// ตรวจสอบว่ามีโต๊ะอยู่จริง
+	var table models.Table
+	if err := tx.First(&table, tableID).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "ไม่พบโต๊ะ",
+		})
+	}
+
+	// ตรวจสอบว่าโต๊ะอยู่ในสถานะที่สามารถปิดได้
+	if table.Status != "occupied" {
+		tx.Rollback()
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error": "โต๊ะต้องอยู่ในสถานะกำลังใช้งานเท่านั้น",
+		})
+	}
+
+	// ตรวจสอบรายการอาหารของโต๊ะ
+	var orders []models.Order
+	if err := tx.Where("table_id = ? AND uuid = ? AND status != ?",
+		tableID, uuid, "cancelled").Find(&orders).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "ไม่สามารถตรวจสอบรายการอาหารได้",
+		})
+	}
+
+	// ตรวจสอบรายการอาหารในแต่ละ order
+	var hasActiveItems bool
+	for _, order := range orders {
+		var items []models.OrderItem
+		if err := tx.Where("order_id = ? AND status != ?",
+			order.ID, "cancelled").Find(&items).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "ไม่สามารถตรวจสอบรายการอาหารได้",
+			})
+		}
+		if len(items) > 0 {
+			hasActiveItems = true
+			break
+		}
+	}
+
+	if hasActiveItems {
+		tx.Rollback()
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error": "ไม่สามารถปิดโต๊ะได้เนื่องจากยังมีรายการอาหารที่ยังไม่ถูกยกเลิก",
+		})
+	}
+
+	// ปิด QR Code ที่เชื่อมต่อกับโต๊ะ
+	if err := tx.Model(&models.QRCode{}).
+		Where("table_id = ? AND uuid = ? AND is_active = ?",
+			tableID, uuid, true).
+		Update("is_active", false).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "ไม่สามารถปิด QR Code ได้",
+		})
+	}
+
+	// อัพเดทสถานะโต๊ะเป็นพร้อมใช้งาน
+	if err := tx.Model(&table).Update("status", "available").Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "ไม่สามารถอัพเดทสถานะโต๊ะได้",
+		})
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "เกิดข้อผิดพลาดในการบันทึกข้อมูล",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "ปิดโต๊ะสำเร็จ",
+		"table":   table,
+	})
+}

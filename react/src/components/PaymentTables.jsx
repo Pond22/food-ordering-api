@@ -9,6 +9,9 @@ const PaymentTables = ({ user }) => {
   const [vat, setVat] = useState(7)
   const [isProcessing, setIsProcessing] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [showPrintModal, setShowPrintModal] = useState(false)
+  const [isPrinting, setIsPrinting] = useState(false)
+  const [printSelectedTables, setPrintSelectedTables] = useState([])
   // const [promoCode, setPromoCode] = useState('')
   // const [promoError, setPromoError] = useState('')
   // const [appliedDiscount, setAppliedDiscount] = useState(0)
@@ -23,6 +26,8 @@ const PaymentTables = ({ user }) => {
     { discountID: '', value: '' },
   ])
   const [tableBillableItems, setTableBillableItems] = useState({})
+  const [isClosingTable, setIsClosingTable] = useState(false)
+  const [showCloseConfirmModal, setShowCloseConfirmModal] = useState(false)
   // console.log('Occupied Tables:', occupiedTables)
   // console.log('User:', user)
 
@@ -383,9 +388,259 @@ const PaymentTables = ({ user }) => {
   //   }, 0)
   // }
 
+  const handlePrintTableSelection = (tableId) => {
+    setPrintSelectedTables(prev => {
+      if (prev.includes(tableId)) {
+        return prev.filter(id => id !== tableId)
+      }
+      return [...prev, tableId]
+    })
+  }
+
+  const handlePrintBillCheck = async () => {
+    setIsPrinting(true)
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
+        window.location.href = '/login'
+        return
+      }
+
+      // รวบรวม table IDs ที่จะพิมพ์
+      const tableIDsToPrint = printSelectedTables.length > 0 
+        ? printSelectedTables 
+        : [tableID]
+
+      const response = await axios.post(
+        'http://localhost:8080/api/printers/bill-check',
+        {
+          table_ids: tableIDsToPrint
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (response.data) {
+        alert('ส่งรายการไปยังเครื่องพิมพ์แล้ว')
+        setShowPrintModal(false) // ปิด popup เมื่อพิมพ์สำเร็จ
+        setPrintSelectedTables([]) // รีเซ็ตรายการโต๊ะที่เลือก
+      }
+    } catch (error) {
+      console.error('Error printing bill check:', error)
+      if (error.response) {
+        console.error('Error details:', error.response.data)
+        alert(error.response.data.error || 'ไม่สามารถพิมพ์ใบรายการอาหารได้')
+      } else {
+        alert('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์')
+      }
+    } finally {
+      setIsPrinting(false)
+    }
+  }
+
+  const PrintModal = () => (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4">
+        <div className="flex flex-col">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-medium">เลือกโต๊ะเพื่อพิมพ์รายการอาหาร</h2>
+            <button 
+              onClick={() => {
+                setShowPrintModal(false)
+                setPrintSelectedTables([])
+              }}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            {/* โต๊ะหลัก */}
+            <div
+              className={`p-4 rounded-xl border-2 cursor-pointer ${
+                printSelectedTables.includes(tableID)
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-200'
+              }`}
+              onClick={() => handlePrintTableSelection(tableID)}
+            >
+              <div className="font-medium">โต๊ะ {tableName} (หลัก)</div>
+              <div className="text-gray-500 mt-1">
+                {billableItems.length} รายการ
+              </div>
+            </div>
+
+            {/* โต๊ะอื่นๆ */}
+            {occupiedTables?.map((table) => (
+              table.ID !== tableID && (
+                <div
+                  key={table.ID}
+                  className={`p-4 rounded-xl border-2 cursor-pointer ${
+                    printSelectedTables.includes(table.ID)
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200'
+                  }`}
+                  onClick={() => handlePrintTableSelection(table.ID)}
+                >
+                  <div className="font-medium">โต๊ะ {table.Name}</div>
+                  <div className="text-gray-500 mt-1">
+                    {Array.isArray(tableBillableItems[table.ID]) 
+                      ? `${tableBillableItems[table.ID].length} รายการ`
+                      : '0 รายการ'}
+                  </div>
+                </div>
+              )
+            ))}
+          </div>
+
+          <div className="flex justify-end gap-4">
+            <button
+              onClick={() => {
+                setShowPrintModal(false)
+                setPrintSelectedTables([])
+              }}
+              className="px-6 py-3 rounded-xl border border-gray-300"
+            >
+              ยกเลิก
+            </button>
+            <button
+              onClick={handlePrintBillCheck}
+              disabled={isPrinting}
+              className={`px-6 py-3 rounded-xl ${
+                isPrinting ? 'bg-gray-400' : 'bg-blue-500'
+              } text-white`}
+            >
+              {isPrinting ? 'กำลังพิมพ์...' : 'พิมพ์รายการอาหาร'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  // เพิ่ม useEffect สำหรับดึงข้อมูลรายการอาหารของโต๊ะอื่นๆ เมื่อ popup เปิด
+  useEffect(() => {
+    const fetchOtherTablesBillableItems = async () => {
+      if (!showPrintModal || !occupiedTables) return;
+
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) return;
+
+        // ดึงข้อมูลเฉพาะโต๊ะที่ยังไม่มีข้อมูล
+        for (const table of occupiedTables) {
+          if (table.ID !== tableID && !tableBillableItems[table.ID]) {
+            try {
+              const response = await axios.get(
+                `http://localhost:8080/api/table/billable/${table.UUID}`,
+                {
+                  headers: {
+                    accept: 'application/json',
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              )
+              if (response.data && response.data.items) {
+                setTableBillableItems(prev => ({
+                  ...prev,
+                  [table.ID]: response.data.items
+                }))
+              }
+            } catch (error) {
+              console.error(`Error fetching items for table ${table.ID}:`, error)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching other tables billable items:', error)
+      }
+    }
+
+    fetchOtherTablesBillableItems()
+  }, [showPrintModal, occupiedTables, tableID, tableBillableItems])
+
+  const handleCloseTable = async () => {
+    setIsClosingTable(true)
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
+        window.location.href = '/login'
+        return
+      }
+
+      const response = await axios.post(
+        `http://localhost:8080/api/table/close/${tableID}?uuid=${uuid}`,
+        {},
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (response.data) {
+        alert('ปิดโต๊ะสำเร็จ')
+        window.location.href = '/pos'
+      }
+    } catch (error) {
+      console.error('Error closing table:', error)
+      if (error.response) {
+        alert(error.response.data.error || 'ไม่สามารถปิดโต๊ะได้')
+      } else {
+        alert('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์')
+      }
+    } finally {
+      setIsClosingTable(false)
+      setShowCloseConfirmModal(false)
+    }
+  }
+
+  const CloseTableConfirmModal = () => (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+        <div className="flex flex-col items-center text-center">
+          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
+            <X className="w-8 h-8 text-red-500" />
+          </div>
+          <h2 className="text-2xl font-medium mb-2">ยืนยันการปิดโต๊ะ</h2>
+          <p className="text-gray-600 mb-6">
+            การปิดโต๊ะจะทำได้เมื่อไม่มีรายการอาหารหรือรายการอาหารถูกยกเลิกทั้งหมดเท่านั้น
+          </p>
+          <div className="flex gap-4 w-full">
+            <button
+              onClick={() => setShowCloseConfirmModal(false)}
+              className="flex-1 py-4 rounded-xl border border-gray-300"
+            >
+              ยกเลิก
+            </button>
+            <button
+              onClick={handleCloseTable}
+              disabled={isClosingTable}
+              className={`flex-1 py-4 rounded-xl ${
+                isClosingTable ? 'bg-gray-400' : 'bg-red-500'
+              } text-white`}
+            >
+              {isClosingTable ? 'กำลังปิดโต๊ะ...' : 'ยืนยัน'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <div className="flex flex-col min-h-screen bg-neutral-100 p-5 ">
       {showSuccessModal && <SuccessModal />}
+      {showPrintModal && <PrintModal />}
+      {showCloseConfirmModal && <CloseTableConfirmModal />}
 
       <header className="bg-black text-white p-6 rounded-lg">
         <button onClick={() => (window.location.href = '/pos')}>
@@ -428,6 +683,22 @@ const PaymentTables = ({ user }) => {
               </div>
             </div>
             {/* End payment method */}
+
+            {/* เพิ่มปุ่มพิมพ์ใบรายการอาหาร */}
+            <div className="bg-white rounded-2xl p-6 mb-6 shadow-md">
+              <button
+                onClick={() => setShowPrintModal(true)}
+                className="w-full py-4 rounded-xl bg-blue-500 text-white text-lg mb-4"
+              >
+                พิมพ์ใบรายการอาหาร
+              </button>
+              <button
+                onClick={() => setShowCloseConfirmModal(true)}
+                className="w-full py-4 rounded-xl bg-red-500 text-white text-lg"
+              >
+                ปิดโต๊ะ
+              </button>
+            </div>
 
             {/* Discount Section */}
             <div className="bg-white rounded-2xl p-6 mb-6 shadow-md">

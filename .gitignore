@@ -4,6 +4,7 @@ react/.env
 /node_modules
 /vendor
 *.log.env
+scripts/hash_password.go
 
 /react
 /.vscode
