@@ -527,14 +527,14 @@ func prepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
 		subTotalLine := fmt.Sprintf("ยอดรวม: ฿%.2f", job.Receipt.SubTotal)
 		discountLine := fmt.Sprintf("ส่วนลด: ฿%.2f", job.Receipt.DiscountTotal)
 		extraChargesLine := fmt.Sprintf("ค่าใช้จ่ายเพิ่มเติม: ฿%.2f", job.Receipt.ChargeTotal)
-		serviceChargeLine := fmt.Sprintf("ค่าบริการ: ฿%.2f", job.Receipt.ServiceCharge)
+		VatLine := fmt.Sprintf("Vat 7%%: ฿%.2f", job.Receipt.ServiceCharge)
 		totalLine := fmt.Sprintf("ยอดสุทธิ: ฿%.2f", job.Receipt.Total)
 
 		summaryLines := []string{
 			subTotalLine,
 			discountLine,
 			extraChargesLine,
-			serviceChargeLine,
+			VatLine,
 			"----------------------------------------",
 			totalLine,
 			"----------------------------------------",
@@ -1531,7 +1531,7 @@ func ReprintDocument(c *fiber.Ctx) error {
 }
 
 // ฟังก์ชันสำหรับพิมพ์ใบรายการอาหารก่อนชำระเงิน
-func prepareBillCheckPrintContent(orders []models.Order, tableIDs []string) ([]byte, error) {
+func prepareBillCheckPrintContent(orders []models.Order, tableIDs []string, discounts []PaymentDiscountRequest, extraCharges []PaymentExtraChargeRequest, serviceChargePercent float64) ([]byte, error) {
 	var content bytes.Buffer
 
 	// ส่วนหัว
@@ -1556,21 +1556,21 @@ func prepareBillCheckPrintContent(orders []models.Order, tableIDs []string) ([]b
 		Options    string
 	}
 
-	itemGroups := make(map[OrderItemKey]struct {
+	type GroupedItem struct {
 		MenuItem models.MenuItem
 		Quantity int
 		Price    float64
 		Options  []models.OrderItemOption
 		Notes    string
-	})
+	}
 
+	itemGroups := make(map[OrderItemKey]GroupedItem)
+
+	// คำนวณยอดรวม
 	var subTotal float64
-
-	// รวมรายการที่เหมือนกัน
 	for _, order := range orders {
 		for _, item := range order.Items {
-			// เปลี่ยนเงื่อนไขให้รวมทั้ง pending และ completed
-			if item.Status == "pending" || item.Status == "completed" {
+			if item.Status != "cancelled" {
 				var optStrings []string
 				for _, opt := range item.Options {
 					optStrings = append(optStrings, fmt.Sprintf("%d:%d:%.2f",
@@ -1585,49 +1585,40 @@ func prepareBillCheckPrintContent(orders []models.Order, tableIDs []string) ([]b
 					Options:    optionsStr,
 				}
 
+				// คำนวณราคารวมของรายการ
+				itemTotal := float64(item.Quantity) * item.Price
+				for _, opt := range item.Options {
+					itemTotal += opt.Price * float64(opt.Quantity)
+				}
+
+				// ตรวจสอบและปรับราคาตามโปรโมชั่น
+				if item.PromotionUsage != nil && item.PromotionUsage.Promotion.ID > 0 {
+					itemTotal = item.PromotionUsage.Promotion.Price
+				}
+
 				if group, exists := itemGroups[key]; exists {
 					group.Quantity += item.Quantity
-					group.Price += item.Price * float64(item.Quantity)
+					group.Price += itemTotal
 					itemGroups[key] = group
 				} else {
-					itemGroups[key] = struct {
-						MenuItem models.MenuItem
-						Quantity int
-						Price    float64
-						Options  []models.OrderItemOption
-						Notes    string
-					}{
+					itemGroups[key] = GroupedItem{
 						MenuItem: item.MenuItem,
 						Quantity: item.Quantity,
-						Price:    item.Price * float64(item.Quantity),
+						Price:    itemTotal,
 						Options:  item.Options,
 						Notes:    item.Notes,
 					}
 				}
 
-				subTotal += item.Price * float64(item.Quantity)
+				subTotal += itemTotal
 			}
 		}
 	}
 
 	// แปลงเป็น slice และเรียงตามชื่อเมนู
-	type GroupedItem struct {
-		MenuItem models.MenuItem
-		Quantity int
-		Price    float64
-		Options  []models.OrderItemOption
-		Notes    string
-	}
-
 	var groupedItems []GroupedItem
 	for _, group := range itemGroups {
-		groupedItems = append(groupedItems, GroupedItem{
-			MenuItem: group.MenuItem,
-			Quantity: group.Quantity,
-			Price:    group.Price,
-			Options:  group.Options,
-			Notes:    group.Notes,
-		})
+		groupedItems = append(groupedItems, group)
 	}
 
 	sort.Slice(groupedItems, func(i, j int) bool {
@@ -1646,7 +1637,7 @@ func prepareBillCheckPrintContent(orders []models.Order, tableIDs []string) ([]b
 		for _, opt := range group.Options {
 			optionLine := fmt.Sprintf("   • %s   ฿%.2f",
 				cleanText(opt.MenuOption.Name),
-				opt.Price)
+				opt.Price*float64(opt.Quantity))
 			content.WriteString(optionLine + "\n")
 		}
 
@@ -1657,6 +1648,59 @@ func prepareBillCheckPrintContent(orders []models.Order, tableIDs []string) ([]b
 
 	content.WriteString("----------------------------------------\n")
 	content.WriteString(fmt.Sprintf("ยอดรวม: ฿%.2f\n", subTotal))
+
+	// คำนวณและแสดงส่วนลด
+	var totalDiscount float64
+	if len(discounts) > 0 {
+		content.WriteString("ส่วนลด:\n")
+		for _, discount := range discounts {
+			var discountType models.DiscountType
+			if err := db.DB.First(&discountType, discount.DiscountTypeID).Error; err != nil {
+				continue
+			}
+			var discountAmount float64
+			if discountType.Type == "percentage" {
+				discountAmount = (subTotal * discountType.Value) / 100
+			} else {
+				discountAmount = discountType.Value
+			}
+			totalDiscount += discountAmount
+			content.WriteString(fmt.Sprintf("- %s: ฿%.2f\n", discountType.Name, discountAmount))
+		}
+	}
+
+	// คำนวณและแสดงค่าใช้จ่ายเพิ่มเติม
+	var totalExtraCharge float64
+	if len(extraCharges) > 0 {
+		content.WriteString("ค่าใช้จ่ายเพิ่มเติม:\n")
+		for _, charge := range extraCharges {
+			var chargeType models.AdditionalChargeType
+			if err := db.DB.First(&chargeType, charge.ChargeTypeID).Error; err != nil {
+				continue
+			}
+			chargeAmount := chargeType.DefaultAmount * float64(charge.Quantity)
+			totalExtraCharge += chargeAmount
+			content.WriteString(fmt.Sprintf("+ %s (x%d): ฿%.2f\n", chargeType.Name, charge.Quantity, chargeAmount))
+		}
+	}
+
+	// คำนวณ Service Charge
+	// serviceChargeAmount := (subTotal * serviceChargePercent) / 100
+	// if serviceChargePercent > 0 {
+	// 	content.WriteString(fmt.Sprintf("ค่าบริการ %.1f%%: ฿%.2f\n", serviceChargePercent, serviceChargeAmount))
+	// }
+
+	// คำนวณ VAT
+	subTotalAfterDiscount := subTotal - totalDiscount
+	// vatAmount := (subTotalAfterDiscount + serviceChargeAmount + totalExtraCharge) * 0.07
+	vatAmount := (subTotalAfterDiscount + totalExtraCharge) * 0.07
+	content.WriteString(fmt.Sprintf("VAT 7%%: ฿%.2f\n", vatAmount))
+
+	// แสดงยอดรวมสุทธิ
+	// netTotal := subTotalAfterDiscount + serviceChargeAmount + totalExtraCharge + vatAmount
+	netTotal := subTotalAfterDiscount + totalExtraCharge + vatAmount
+	content.WriteString("----------------------------------------\n")
+	content.WriteString(fmt.Sprintf("ยอดรวมสุทธิ: ฿%.2f\n", netTotal))
 	content.WriteString("----------------------------------------\n")
 	content.WriteString("** กรุณาตรวจสอบรายการให้ครบถ้วน **\n")
 	content.WriteString("========================================\n")
@@ -1673,7 +1717,10 @@ func prepareBillCheckPrintContent(orders []models.Order, tableIDs []string) ([]b
 // @Router /api/printers/bill-check [post]
 // @Tags Printer
 type PrintBillCheckRequest struct {
-	TableIDs []uint `json:"table_ids" binding:"required,min=1"`
+	TableIDs      []uint                      `json:"table_ids" binding:"required,min=1"`
+	ServiceCharge float64                     `json:"service_charge"` //ควรเป็นค่า VAT 7%
+	Discounts     []PaymentDiscountRequest    `json:"discounts,omitempty"`
+	ExtraCharges  []PaymentExtraChargeRequest `json:"extra_charges,omitempty"`
 }
 
 func PrintBillCheck(c *fiber.Ctx) error {
@@ -1698,30 +1745,95 @@ func PrintBillCheck(c *fiber.Ctx) error {
 		})
 	}
 
-	// ดึงข้อมูลออเดอร์ที่ยังไม่ได้ชำระเงินของทุกโต๊ะ (เฉพาะสถานะ pending และ completed)
-	var orders []models.Order
-	if err := db.DB.Where("table_id IN ? AND status IN (?, ?) AND receipt_id IS NULL",
-		req.TableIDs, "pending", "completed").
-		Preload("Items", "status IN (?)", []string{"pending", "completed"}).
-		Preload("Items.MenuItem").
-		Preload("Items.Options.MenuOption").
-		Find(&orders).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "ไม่สามารถดึงข้อมูลออเดอร์ได้",
-		})
+	// ดึงข้อมูลออเดอร์ที่ยังไม่ได้ชำระจากทุกโต๊ะ
+	var allOrders []models.Order
+	for _, tableID := range req.TableIDs {
+		var orders []models.Order
+		if err := db.DB.Preload("Items", "status != ?", "cancelled").
+			Preload("Items.MenuItem").
+			Preload("Items.MenuItem.Category").
+			Preload("Items.Options.MenuOption").
+			Preload("Items.PromotionUsage.Promotion").
+			Where("table_id = ? AND status NOT IN (?, ?) AND receipt_id IS NULL",
+				tableID, "completed", "cancelled").
+			Find(&orders).Error; err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "ไม่พบออเดอร์สำหรับโต๊ะบางโต๊ะ",
+			})
+		}
+		allOrders = append(allOrders, orders...)
 	}
 
-	if len(orders) == 0 {
+	if len(allOrders) == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "ไม่พบรายการอาหารที่ยังไม่ได้ชำระเงิน",
+			"error": "ไม่พบรายการอาหารที่ต้องชำระเงิน",
 		})
 	}
 
-	// แปลง table IDs เป็น string slice สำหรับแสดงในใบพิมพ์
-	tableNames := make([]string, len(tables))
-	for i, table := range tables {
-		tableNames[i] = table.Name
+	// คำนวณยอดรวม
+	var subTotal float64
+	for _, order := range allOrders {
+		for _, item := range order.Items {
+			// คำนวณราคาพื้นฐานของรายการ
+			itemTotal := float64(item.Quantity) * item.Price
+
+			// เพิ่มราคาตัวเลือกเสริม
+			for _, opt := range item.Options {
+				itemTotal += opt.Price * float64(opt.Quantity)
+			}
+
+			// ตรวจสอบและปรับราคาตามโปรโมชั่น
+			if item.PromotionUsage != nil && item.PromotionUsage.Promotion.ID > 0 {
+				// หากมีโปรโมชั่น ใช้ราคาโปรโมชั่นแทน
+				itemTotal = item.PromotionUsage.Promotion.Price
+			}
+
+			subTotal += itemTotal
+		}
 	}
+
+	// คำนวณส่วนลด
+	var totalDiscount float64
+	for _, discount := range req.Discounts {
+		var discountType models.DiscountType
+		if err := db.DB.First(&discountType, discount.DiscountTypeID).Error; err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "ประเภทส่วนลดไม่ถูกต้อง",
+			})
+		}
+
+		var discountAmount float64
+		if discountType.Type == "percentage" {
+			discountAmount = (subTotal * discountType.Value) / 100
+		} else {
+			discountAmount = discountType.Value
+		}
+		totalDiscount += discountAmount
+	}
+
+	// คำนวณค่าใช้จ่ายเพิ่มเติม
+	var totalExtraCharge float64
+	for _, charge := range req.ExtraCharges {
+		var chargeType models.AdditionalChargeType
+		if err := db.DB.First(&chargeType, charge.ChargeTypeID).Error; err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "ประเภทค่าใช้จ่ายเพิ่มเติมไม่ถูกต้อง",
+			})
+		}
+
+		chargeAmount := chargeType.DefaultAmount * float64(charge.Quantity)
+		totalExtraCharge += chargeAmount
+	}
+
+	// คำนวณ Service Charge
+	// serviceChargeAmount := (subTotal * req.ServiceCharge) / 100
+
+	// คำนวณ VAT 7%
+	subTotalAfterDiscount := subTotal - totalDiscount
+	vatAmount := (subTotalAfterDiscount + totalExtraCharge) * 0.07
+
+	// คำนวณยอดรวมสุทธิ
+	netTotal := subTotalAfterDiscount + totalExtraCharge + vatAmount
 
 	// ค้นหาเครื่องพิมพ์หลัก
 	var printer models.Printer
@@ -1732,7 +1844,12 @@ func PrintBillCheck(c *fiber.Ctx) error {
 	}
 
 	// สร้างเนื้อหาสำหรับพิมพ์
-	content, err := prepareBillCheckPrintContent(orders, tableNames)
+	tableNames := make([]string, len(tables))
+	for i, table := range tables {
+		tableNames[i] = table.Name
+	}
+
+	content, err := prepareBillCheckPrintContent(allOrders, tableNames, req.Discounts, req.ExtraCharges, req.ServiceCharge)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "ไม่สามารถสร้างเนื้อหาสำหรับพิมพ์ได้",
@@ -1756,7 +1873,13 @@ func PrintBillCheck(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"message": "สร้างงานพิมพ์ใบรายการอาหารสำเร็จ",
-		"job_id":  printJob.ID,
+		"message":   "สร้างงานพิมพ์ใบรายการอาหารสำเร็จ",
+		"job_id":    printJob.ID,
+		"sub_total": subTotal,
+		"discount":  totalDiscount,
+		// "service_charge": serviceChargeAmount,
+		"extra_charges": totalExtraCharge,
+		"vat":           vatAmount,
+		"net_total":     netTotal,
 	})
 }

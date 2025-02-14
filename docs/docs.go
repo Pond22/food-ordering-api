@@ -1664,6 +1664,36 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/menu/recommended": {
+            "get": {
+                "description": "ดึงรายการเมนูที่ถูกทำเครื่องหมายเป็นเมนูแนะนำ",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "ดึงรายการเมนูแนะนำ",
+                "responses": {
+                    "200": {
+                        "description": "รายการเมนูแนะนำ",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.MenuItem"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "เกิดข้อผิดพลาดในการดึงข้อมูล",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/menu/restore-group/{id}": {
             "post": {
                 "security": [
@@ -2145,6 +2175,71 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/menu/{id}/recommend": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "สลับสถานะเมนูระหว่างเป็นเมนูแนะนำหรือไม่",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "menu"
+                ],
+                "summary": "สลับสถานะเมนูแนะนำ",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID ของเมนู",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "รายละเอียดของเมนูที่อัพเดทสถานะแนะนำ",
+                        "schema": {
+                            "$ref": "#/definitions/models.MenuItem"
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "ไม่ได้รับอนุญาต",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "ไม่มีสิทธิ์เข้าถึง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบเมนู",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/menu/{menu_id}/options/{option_id}": {
             "put": {
                 "security": [
@@ -2212,9 +2307,8 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/notifications/call-staff": {
+        "/api/notifications/call": {
             "post": {
-                "description": "ลูกค้าเรียกพนักงาน",
                 "consumes": [
                     "application/json"
                 ],
@@ -2224,11 +2318,11 @@ const docTemplate = `{
                 "tags": [
                     "Notifications"
                 ],
-                "summary": "Call staff",
+                "summary": "เรียกพนักงาน",
                 "parameters": [
                     {
-                        "description": "โต๊ะที่เรียก",
-                        "name": "status",
+                        "description": "ข้อมูลการเรียก",
+                        "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -2238,21 +2332,62 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Notification sent to staff",
+                        "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
+                            "$ref": "#/definitions/models.Notification"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/notifications/unread": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "ดึงการแจ้งเตือนที่ยังไม่ได้อ่าน",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Notification"
                             }
                         }
-                    },
-                    "400": {
-                        "description": "Invalid request",
+                    }
+                }
+            }
+        },
+        "/api/notifications/{id}/read": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "อ่านการแจ้งเตือน",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Notification ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/models.Notification"
                         }
                     }
                 }
@@ -2309,6 +2444,48 @@ const docTemplate = `{
                             "type": "array",
                             "items": {
                                 "$ref": "#/definitions/api_handlers.OrderResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/orders/cancellation-logs": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "ดูประวัติการยกเลิกรายการอาหาร",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Table ID",
+                        "name": "table_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start Date (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End Date (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.OrderCancellationLog"
                             }
                         }
                     }
@@ -3191,17 +3368,6 @@ const docTemplate = `{
                     "POS"
                 ],
                 "summary": "ยืนยัน Verification Code เพื่อเข้าใช้งาน POS",
-                "parameters": [
-                    {
-                        "description": "ข้อมูลการยืนยัน",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api_handlers.POSVerificationRequest"
-                        }
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "ยืนยันการเข้าใช้งาน POS สำเร็จ",
@@ -4331,6 +4497,67 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/table/close/{id}": {
+            "post": {
+                "description": "ปิดโต๊ะเมื่อไม่มีรายการอาหารหรือรายการอาหารถูกยกเลิกทั้งหมด",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Table"
+                ],
+                "summary": "ปิดโต๊ะ",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID ของโต๊ะ",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID ของ QR Code",
+                        "name": "uuid",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ปิดโต๊ะสำเร็จ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "ข้อมูลไม่ถูกต้อง",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "ไม่พบโต๊ะ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "422": {
+                        "description": "ไม่สามารถปิดโต๊ะได้",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/table/mergeTable": {
             "post": {
                 "security": [
@@ -4941,6 +5168,159 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/printers/bill-check": {
+            "post": {
+                "description": "พิมพ์ใบรายการอาหารสำหรับตรวจทานก่อนชำระเงิน สามารถพิมพ์ได้ทั้งแบบโต๊ะเดี่ยวและรวมโต๊ะ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Printer"
+                ],
+                "summary": "พิมพ์ใบรายการอาหารก่อนชำระเงิน",
+                "parameters": [
+                    {
+                        "description": "ข้อมูลสำหรับพิมพ์ใบรายการอาหาร",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api_v2.PrintBillCheckRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/printers/pending-jobs": {
+            "get": {
+                "description": "ดึงรายการงานพิมพ์ที่ยังไม่ได้พิมพ์สำหรับเครื่องพิมพ์ที่ระบุ (รองรับทั้ง IP และ USB)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Printer"
+                ],
+                "summary": "รับงานพิมพ์ที่รอดำเนินการ",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Printer IP Address (สำหรับเครื่องพิมพ์เครือข่าย)",
+                        "name": "printer_ip",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Vendor ID (สำหรับเครื่องพิมพ์ USB)",
+                        "name": "vendor_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Product ID (สำหรับเครื่องพิมพ์ USB)",
+                        "name": "product_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.PrintJob"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/printers/reprint/{id}": {
+            "post": {
+                "description": "สั่งพิมพ์เอกสารซ้ำ (รองรับ order, receipt, qr_code)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Printer"
+                ],
+                "summary": "รีปริ้นเอกสาร",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Print Job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.PrintJob"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/printers/reprintable-jobs": {
+            "get": {
+                "description": "ดึงรายการงานพิมพ์ที่สามารถรีปริ้นได้ โดยสามารถกรองตามประเภทและช่วงเวลาได้",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Printer"
+                ],
+                "summary": "ดึงรายการงานพิมพ์ที่สามารถรีปริ้นได้",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ประเภทงานพิมพ์ (order, receipt, cancelation, qr_code)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "วันที่เริ่มต้น (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "วันที่สิ้นสุด (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.PrintJob"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/reservation/cancel/{id}": {
             "post": {
                 "description": "ยกเลิกการจองโดยอ้างอิงจาก ID การจอง",
@@ -5195,7 +5575,11 @@ const docTemplate = `{
         "api_handlers.CallRequest": {
             "type": "object",
             "properties": {
-                "table_number": {
+                "table_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "\"call_staff\" หรือ \"payment\"",
                     "type": "string"
                 }
             }
@@ -5632,20 +6016,6 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "uuid": {
-                    "type": "string"
-                }
-            }
-        },
-        "api_handlers.POSVerificationRequest": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "staff_id": {
-                    "type": "integer"
-                },
-                "token": {
                     "type": "string"
                 }
             }
@@ -6414,6 +6784,21 @@ const docTemplate = `{
                 }
             }
         },
+        "api_v2.PrintBillCheckRequest": {
+            "type": "object",
+            "required": [
+                "table_ids"
+            ],
+            "properties": {
+                "table_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
         "models.AdditionalChargeType": {
             "type": "object",
             "properties": {
@@ -6572,6 +6957,9 @@ const docTemplate = `{
                         "type": "integer"
                     }
                 },
+                "isRecommended": {
+                    "type": "boolean"
+                },
                 "is_available": {
                     "description": "พร้อมขายหรือไม่",
                     "type": "boolean"
@@ -6667,6 +7055,37 @@ const docTemplate = `{
                 },
                 "updatedAt": {
                     "type": "string"
+                }
+            }
+        },
+        "models.Notification": {
+            "type": "object",
+            "properties": {
+                "acknowledged_at": {
+                    "description": "เวลาที่กดรับทราบ",
+                    "type": "string"
+                },
+                "acknowledged_by": {
+                    "description": "ID ของพนักงานที่กดรับทราบ",
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "message": {
+                    "description": "ข้อความแจ้งเตือน",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "สถานะ \"unread\" หรือ \"read\"",
+                    "type": "string"
+                },
+                "user_id": {
+                    "description": "ID ของผู้ใช้ที่ได้รับการแจ้งเตือน",
+                    "type": "integer"
                 }
             }
         },
@@ -6799,6 +7218,34 @@ const docTemplate = `{
                 },
                 "uuid": {
                     "type": "string"
+                }
+            }
+        },
+        "models.OrderCancellationLog": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "item_details": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "staff": {
+                    "description": "เพิ่ม references",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Users"
+                        }
+                    ]
+                },
+                "staff_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -7370,12 +7817,12 @@ const docTemplate = `{
             "enum": [
                 "staff",
                 "manager",
-                "chef"
+                "owner"
             ],
             "x-enum-varnames": [
                 "RoleStaff",
                 "RoleManager",
-                "RoleChef"
+                "RoleOwner"
             ]
         },
         "models.Users": {

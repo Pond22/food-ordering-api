@@ -122,7 +122,6 @@ type DeviceInfoRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param request body VerifyRequest true "ข้อมูลการยืนยัน"
 // @Success 200 {object} map[string]interface{} "ยืนยันการเข้าใช้งาน POS สำเร็จ"
 // @Failure 400 {object} map[string]interface{} "รูปแบบคำขอไม่ถูกต้อง"
 // @Failure 401 {object} map[string]interface{} "รหัสยืนยันไม่ถูกต้อง"

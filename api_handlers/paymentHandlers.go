@@ -106,10 +106,11 @@ func ProcessPayment(c *fiber.Ctx) error {
 
 	// 4. สร้างใบเสร็จ
 	receipt := models.Receipt{
-		UUID:          req.UUID,
-		TableID:       strconv.Itoa(int(req.TableID)),
-		SubTotal:      subTotal,
-		ServiceCharge: (subTotal * req.ServiceCharge) / 100, // Calculate as percentage
+		UUID:     req.UUID,
+		TableID:  strconv.Itoa(int(req.TableID)),
+		SubTotal: subTotal,
+		// ServiceCharge: (subTotal * req.ServiceCharge) / 100, // Calculate as percentage
+		ServiceCharge: (subTotal * 0.07), // เปลี่ยนจาก ServiceCharge เป็น VAT 7%
 		PaymentMethod: req.PaymentMethod,
 		StaffID:       req.StaffID,
 		CreatedAt:     time.Now(),
@@ -820,7 +821,7 @@ func createReceiptPrintContent(receipt models.Receipt) []byte {
 	buf.WriteString(fmt.Sprintf("Subtotal: ฿%.2f\n", receipt.SubTotal))
 	buf.WriteString(fmt.Sprintf("Discounts: -฿%.2f\n", receipt.DiscountTotal))
 	buf.WriteString(fmt.Sprintf("Extra Charges: ฿%.2f\n", receipt.ChargeTotal))
-	buf.WriteString(fmt.Sprintf("Service Charge: ฿%.2f\n", receipt.ServiceCharge))
+	buf.WriteString(fmt.Sprintf("Vat 7%%: ฿%.2f\n", receipt.ServiceCharge))
 	buf.WriteString(fmt.Sprintf("Total: ฿%.2f\n", receipt.Total))
 
 	buf.WriteString("-------------------------\n")

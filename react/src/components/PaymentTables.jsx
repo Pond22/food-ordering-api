@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { ChevronLeft, CreditCard, Wallet, Check, Trash2, X } from 'lucide-react'
 import axios from 'axios'
 import OrderSummaryDetail from './OrderSummaryDetail'
+import PrintBillCheckModal from './PrintBillCheckModal'
 
 const PaymentTables = ({ user }) => {
   const [selectedPayment, setSelectedPayment] = useState('')
@@ -169,7 +170,7 @@ const PaymentTables = ({ user }) => {
       if (tableId === tableID) return sum // ข้ามโต๊ะหลัก
       const tableItems = tableBillableItems[tableId] || []
       const tableTotal = tableItems.reduce((itemSum, item) => {
-        let itemTotal = item.price
+        let itemTotal = item.price * item.quantity
         if (item.options) {
           itemTotal += item.options.reduce((optSum, opt) => 
             optSum + (opt.price * opt.quantity), 0)
@@ -184,7 +185,7 @@ const PaymentTables = ({ user }) => {
 
   const calculateSubtotal = () => {
     return billableItems.reduce((sum, item) => {
-      let itemTotal = item.price
+      let itemTotal = item.price * item.quantity
       // เพิ่มราคา options
       if (item.options && item.options.length > 0) {
         itemTotal += item.options.reduce((optSum, opt) => {
@@ -397,126 +398,101 @@ const PaymentTables = ({ user }) => {
     })
   }
 
-  const handlePrintBillCheck = async () => {
-    setIsPrinting(true)
-    try {
-      const token = localStorage.getItem('token')
-      if (!token) {
-        alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
-        window.location.href = '/login'
-        return
-      }
+  // const handlePrintBillCheck = async () => {
+  //   setIsPrinting(true)
+  //   try {
+  //     const token = localStorage.getItem('token')
+  //     if (!token) {
+  //       alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
+  //       window.location.href = '/login'
+  //       return
+  //     }
 
-      // รวบรวม table IDs ที่จะพิมพ์
-      const tableIDsToPrint = printSelectedTables.length > 0 
-        ? printSelectedTables 
-        : [tableID]
+  //     // รวบรวม table IDs ที่จะพิมพ์
+  //     const tableIDsToPrint = printSelectedTables.length > 0 
+  //       ? printSelectedTables 
+  //       : [tableID]
 
-      const response = await axios.post(
-        'http://localhost:8080/api/printers/bill-check',
-        {
-          table_ids: tableIDsToPrint
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
+  //     const response = await axios.post(
+  //       // 'http://localhost:8080/api/v2/printers/bill-check',
+  //       'http://localhost:8080/api/printers/bill-check',
+  //       {
+  //         table_ids: tableIDsToPrint
+  //       },
+  //       {
+  //         headers: {
+  //           'Content-Type': 'application/json',
+  //           Authorization: `Bearer ${token}`,
+  //         },
+  //       }
+  //     )
 
-      if (response.data) {
-        alert('ส่งรายการไปยังเครื่องพิมพ์แล้ว')
-        setShowPrintModal(false) // ปิด popup เมื่อพิมพ์สำเร็จ
-        setPrintSelectedTables([]) // รีเซ็ตรายการโต๊ะที่เลือก
-      }
-    } catch (error) {
-      console.error('Error printing bill check:', error)
-      if (error.response) {
-        console.error('Error details:', error.response.data)
-        alert(error.response.data.error || 'ไม่สามารถพิมพ์ใบรายการอาหารได้')
-      } else {
-        alert('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์')
-      }
-    } finally {
-      setIsPrinting(false)
-    }
-  }
-
-  const PrintModal = () => (
+  //     if (response.data) {
+  //       alert('ส่งรายการไปยังเครื่องพิมพ์แล้ว')
+  //       setShowPrintModal(false) // ปิด popup เมื่อพิมพ์สำเร็จ
+  //       setPrintSelectedTables([]) // รีเซ็ตรายการโต๊ะที่เลือก
+  //     }
+  //   } catch (error) {
+  //     console.error('Error printing bill check:', error)
+  //     if (error.response) {
+  //       console.error('Error details:', error.response.data)
+  //       alert(error.response.data.error || 'ไม่สามารถพิมพ์ใบรายการอาหารได้')
+  //     } else {
+  //       alert('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์')
+  //     }
+  //   } finally {
+  //     setIsPrinting(false)
+  //   }
+  // }
+  {showPrintModal && (
+    <PrintBillCheckModal
+      isOpen={showPrintModal}
+      onClose={() => {
+        setShowPrintModal(false)
+        setPrintSelectedTables([])
+      }}
+      mainTable={{
+        ID: tableID,
+        Name: tableName
+      }}
+      occupiedTables={occupiedTables}
+      billableItems={billableItems}
+      tableBillableItems={tableBillableItems}
+      selectedDiscounts={selectedDiscounts}
+      selectedCharges={selectedCharges}
+      serviceCharge={vat}
+      user={user}
+      discounts={discounts}
+      charges={charges}
+    />
+  )}
+  
+  const CloseTableConfirmModal = () => (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4">
-        <div className="flex flex-col">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-medium">เลือกโต๊ะเพื่อพิมพ์รายการอาหาร</h2>
-            <button 
-              onClick={() => {
-                setShowPrintModal(false)
-                setPrintSelectedTables([])
-              }}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <X className="w-6 h-6" />
-            </button>
+      <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+        <div className="flex flex-col items-center text-center">
+          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
+            <X className="w-8 h-8 text-red-500" />
           </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            {/* โต๊ะหลัก */}
-            <div
-              className={`p-4 rounded-xl border-2 cursor-pointer ${
-                printSelectedTables.includes(tableID)
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200'
-              }`}
-              onClick={() => handlePrintTableSelection(tableID)}
-            >
-              <div className="font-medium">โต๊ะ {tableName} (หลัก)</div>
-              <div className="text-gray-500 mt-1">
-                {billableItems.length} รายการ
-              </div>
-            </div>
-
-            {/* โต๊ะอื่นๆ */}
-            {occupiedTables?.map((table) => (
-              table.ID !== tableID && (
-                <div
-                  key={table.ID}
-                  className={`p-4 rounded-xl border-2 cursor-pointer ${
-                    printSelectedTables.includes(table.ID)
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200'
-                  }`}
-                  onClick={() => handlePrintTableSelection(table.ID)}
-                >
-                  <div className="font-medium">โต๊ะ {table.Name}</div>
-                  <div className="text-gray-500 mt-1">
-                    {Array.isArray(tableBillableItems[table.ID]) 
-                      ? `${tableBillableItems[table.ID].length} รายการ`
-                      : '0 รายการ'}
-                  </div>
-                </div>
-              )
-            ))}
-          </div>
-
-          <div className="flex justify-end gap-4">
+          <h2 className="text-2xl font-medium mb-2">ยืนยันการปิดโต๊ะ</h2>
+          <p className="text-gray-600 mb-6">
+            การปิดโต๊ะจะทำได้เมื่อไม่มีรายการอาหารหรือรายการอาหารถูกยกเลิกทั้งหมดเท่านั้น
+          </p>
+          <div className="flex gap-4 w-full">
             <button
-              onClick={() => {
-                setShowPrintModal(false)
-                setPrintSelectedTables([])
-              }}
-              className="px-6 py-3 rounded-xl border border-gray-300"
+              onClick={() => setShowCloseConfirmModal(false)}
+              className="flex-1 py-4 rounded-xl border border-gray-300"
             >
               ยกเลิก
             </button>
             <button
-              onClick={handlePrintBillCheck}
-              disabled={isPrinting}
-              className={`px-6 py-3 rounded-xl ${
-                isPrinting ? 'bg-gray-400' : 'bg-blue-500'
+              onClick={handleCloseTable}
+              disabled={isClosingTable}
+              className={`flex-1 py-4 rounded-xl ${
+                isClosingTable ? 'bg-gray-400' : 'bg-red-500'
               } text-white`}
             >
-              {isPrinting ? 'กำลังพิมพ์...' : 'พิมพ์รายการอาหาร'}
+              {isClosingTable ? 'กำลังปิดโต๊ะ...' : 'ยืนยัน'}
             </button>
           </div>
         </div>
@@ -603,43 +579,31 @@ const PaymentTables = ({ user }) => {
     }
   }
 
-  const CloseTableConfirmModal = () => (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
-        <div className="flex flex-col items-center text-center">
-          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
-            <X className="w-8 h-8 text-red-500" />
-          </div>
-          <h2 className="text-2xl font-medium mb-2">ยืนยันการปิดโต๊ะ</h2>
-          <p className="text-gray-600 mb-6">
-            การปิดโต๊ะจะทำได้เมื่อไม่มีรายการอาหารหรือรายการอาหารถูกยกเลิกทั้งหมดเท่านั้น
-          </p>
-          <div className="flex gap-4 w-full">
-            <button
-              onClick={() => setShowCloseConfirmModal(false)}
-              className="flex-1 py-4 rounded-xl border border-gray-300"
-            >
-              ยกเลิก
-            </button>
-            <button
-              onClick={handleCloseTable}
-              disabled={isClosingTable}
-              className={`flex-1 py-4 rounded-xl ${
-                isClosingTable ? 'bg-gray-400' : 'bg-red-500'
-              } text-white`}
-            >
-              {isClosingTable ? 'กำลังปิดโต๊ะ...' : 'ยืนยัน'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-
   return (
     <div className="flex flex-col min-h-screen bg-neutral-100 p-5 ">
       {showSuccessModal && <SuccessModal />}
-      {showPrintModal && <PrintModal />}
+      {showPrintModal && (
+        <PrintBillCheckModal
+          isOpen={showPrintModal}
+          onClose={() => {
+            setShowPrintModal(false)
+            setPrintSelectedTables([])
+          }}
+          mainTable={{
+            ID: tableID,
+            Name: tableName
+          }}
+          occupiedTables={occupiedTables}
+          billableItems={billableItems}
+          tableBillableItems={tableBillableItems}
+          selectedDiscounts={selectedDiscounts}
+          selectedCharges={selectedCharges}
+          serviceCharge={vat}
+          user={user}
+          discounts={discounts}
+          charges={charges}
+        />
+      )}
       {showCloseConfirmModal && <CloseTableConfirmModal />}
 
       <header className="bg-black text-white p-6 rounded-lg">
@@ -840,7 +804,7 @@ const PaymentTables = ({ user }) => {
                     {selectedTables.map((tableId) => {
                       const tableItems = tableBillableItems[tableId] || []
                       const tableTotal = tableItems.reduce((sum, item) => {
-                        let itemTotal = item.price
+                        let itemTotal = item.price * item.quantity
                         if (item.options) {
                           itemTotal += item.options.reduce(
                             (optSum, opt) => optSum + opt.price * opt.quantity,

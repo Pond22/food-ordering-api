@@ -134,7 +134,7 @@ func CreateMergedReceipt(c *fiber.Ctx) error {
 		UUID:          uuid.New().String(),
 		TableID:       tableIDsStr,
 		SubTotal:      subTotal,
-		ServiceCharge: req.ServiceCharge,
+		ServiceCharge: req.ServiceCharge, //ต้องเป็น VAT 7%
 		PaymentMethod: req.PaymentMethod,
 		StaffID:       req.StaffID,
 		CreatedAt:     time.Now(),
@@ -224,7 +224,8 @@ func CreateMergedReceipt(c *fiber.Ctx) error {
 	}
 
 	// 6. อัพเดทยอดรวมในใบเสร็จ
-	serviceChargeAmount := (subTotal * req.ServiceCharge) / 100 //เอาไอ้ service ที่ส่งมาจากหน้าบ้านหาเปอร์เซ็น
+	// serviceChargeAmount := (subTotal * req.ServiceCharge) / 100 //เอาไอ้ service ที่ส่งมาจากหน้าบ้านหาเปอร์เซ็น
+	serviceChargeAmount := (subTotal * 0.07) // เปลี่ยนจาก ServiceCharge เป็น VAT 7%
 	receipt.ServiceCharge = serviceChargeAmount
 	receipt.DiscountTotal = totalDiscount
 	receipt.ChargeTotal = totalExtraCharge
