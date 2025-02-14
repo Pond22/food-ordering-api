@@ -50,12 +50,12 @@ func SetupRoutes(app *fiber.App) {
 	// user := api.Group("/member", utils.AuthRequired())
 	user := api.Group("/member", utils.AuthRequired()) //เอา middleware ออก deploy อย่าลืมเอาใส่
 	{
-		user.Post("/", api_handlers.CreateUser, utils.RoleRequired(models.RoleManager))
+		user.Post("/", utils.RoleRequired(models.RoleManager), api_handlers.CreateUser)
 		user.Get("/", api_handlers.GetUsers, utils.RoleRequired(models.RoleManager))
 		user.Get("/get_member_profile", api_handlers.GetUserProfile)
 		user.Put("/change-password", api_handlers.ChangePassword)
-		user.Put("/:id/reset-password", api_handlers.ResetUserPassword, utils.RoleRequired(models.RoleManager)) // ผจก. เปลี่ยนรหัสผ่านพนักงาน
-		user.Delete("/:id/Delete-member", api_handlers.Delete_user, utils.RoleRequired(models.RoleManager))     // ผจก. ลบพนักงาน
+		user.Put("/:id/reset-password", utils.RoleRequired(models.RoleManager), api_handlers.ResetUserPassword) // ผจก. เปลี่ยนรหัสผ่านพนักงาน
+		user.Delete("/:id/Delete-member", utils.RoleRequired(models.RoleManager), api_handlers.Delete_user)     // ผจก. ลบพนักงาน
 	}
 
 	// Menu Management Routes - ต้องการการยืนยันตัวตนต้อง manager

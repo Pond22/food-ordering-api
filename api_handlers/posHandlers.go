@@ -46,35 +46,37 @@ func GeneratePOSVerificationCode(c *fiber.Ctx) error {
 	staffIDFloat, ok := (*claims)["user_id"].(float64)
 	if !ok {
 		return c.Status(400).JSON(fiber.Map{
-			"error": "Invalid user data",
+			"error":   "Invalid user data",
+			"details": "user_id not found in token",
 		})
 	}
 	staffID := uint(staffIDFloat)
 
-	// ตรวจสอบ role ว่าเป็น staff หรือ manager
+	// ตรวจสอบ role
 	roleInterface := (*claims)["role"]
 	if roleInterface == nil {
 		return c.Status(403).JSON(fiber.Map{
-			"error": "Role information missing",
+			"error":   "Role information missing",
+			"details": "role not found in token",
 		})
 	}
 
 	role := models.UserRole(roleInterface.(string))
 	if role != models.RoleStaff && role != models.RoleManager {
 		return c.Status(403).JSON(fiber.Map{
-			"error": "Only staff and managers can generate POS verification codes",
+			"error":   "Only staff and managers can generate POS verification codes",
+			"details": fmt.Sprintf("current role: %s", role),
 		})
 	}
 
-	// สร้าง Verification Code แบบ cryptographically secure
-	const codeLength = 6
-	code := make([]byte, codeLength)
-	for i := 0; i < codeLength; i++ {
+	// สร้าง Verification Code
+	code := make([]byte, 6)
+	for i := 0; i < 6; i++ {
 		code[i] = byte(rand.Intn(10) + '0')
 	}
 	verificationCode := string(code)
 
-	// ตั้งเวลาหมดอายุ (5 นาที)
+	// ตั้งเวลาหมดอายุ
 	expiresAt := time.Now().Add(5 * time.Minute)
 
 	// สร้าง Session
@@ -86,8 +88,6 @@ func GeneratePOSVerificationCode(c *fiber.Ctx) error {
 		VerificationCode: verificationCode,
 		Verified:         false,
 		ExpiresAt:        &expiresAt,
-		CreatedAt:        time.Now(),
-		UpdatedAt:        time.Now(),
 	}
 
 	if err := db.DB.Create(&session).Error; err != nil {
@@ -104,10 +104,16 @@ func GeneratePOSVerificationCode(c *fiber.Ctx) error {
 	})
 }
 
-type POSVerificationRequest struct {
-	Token   string `json:"token"`
-	Code    string `json:"code"`
-	StaffID uint   `json:"staff_id"`
+// สร้าง struct สำหรับรับข้อมูล device info จากหน้าบ้าน
+type DeviceInfoRequest struct {
+	UserAgent    string `json:"user_agent"`
+	Platform     string `json:"platform"`
+	ScreenWidth  int    `json:"screen_width"`
+	ScreenHeight int    `json:"screen_height"`
+	Language     string `json:"language"`
+	TimeZone     string `json:"timezone"`
+	Vendor       string `json:"vendor"`
+	NetworkType  string `json:"network_type"`
 }
 
 // @Summary ยืนยัน Verification Code เพื่อเข้าใช้งาน POS
@@ -116,7 +122,7 @@ type POSVerificationRequest struct {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param request body POSVerificationRequest true "ข้อมูลการยืนยัน"
+// @Param request body VerifyRequest true "ข้อมูลการยืนยัน"
 // @Success 200 {object} map[string]interface{} "ยืนยันการเข้าใช้งาน POS สำเร็จ"
 // @Failure 400 {object} map[string]interface{} "รูปแบบคำขอไม่ถูกต้อง"
 // @Failure 401 {object} map[string]interface{} "รหัสยืนยันไม่ถูกต้อง"
@@ -124,9 +130,9 @@ type POSVerificationRequest struct {
 // @Failure 500 {object} map[string]interface{} "เกิดข้อผิดพลาดในการยืนยัน Session"
 // @Router /api/pos/verify-code [post]
 func VerifyPOSAccessCode(c *fiber.Ctx) error {
-	// รับ verification code
 	var req struct {
-		Code string `json:"code"`
+		Code       string            `json:"code"`
+		DeviceInfo DeviceInfoRequest `json:"deviceInfo"`
 	}
 
 	if err := c.BodyParser(&req); err != nil {
@@ -159,6 +165,15 @@ func VerifyPOSAccessCode(c *fiber.Ctx) error {
 		})
 	}
 
+	// ตรวจสอบว่า session ยังไม่หมดอายุ
+	if session.UpdatedAt.Add(8 * time.Hour).Before(time.Now()) { // กะหมดอายุใน 8 ชม.
+		return c.Status(401).JSON(fiber.Map{"message": "POS session expired"})
+	}
+
+	// ตั้งค่า Context
+	c.Locals("user_id", *session.StaffID)
+	c.Locals("pos_session_id", session.ID)
+
 	// สร้าง JWT token สำหรับ POS session
 	claims := jwt.MapClaims{
 		"user_id":        *session.StaffID,
@@ -182,7 +197,6 @@ func VerifyPOSAccessCode(c *fiber.Ctx) error {
 	session.UpdatedAt = now
 	session.LastActivityAt = now
 	session.ExpiresAt = nil // ล้างเวลาหมดอายุของ verification code
-	session.DeviceInfo = c.Get("User-Agent")
 	session.IPAddress = c.IP()
 
 	if err := db.DB.Save(&session).Error; err != nil {
@@ -193,18 +207,24 @@ func VerifyPOSAccessCode(c *fiber.Ctx) error {
 
 	// บันทึกประวัติการยืนยัน
 	verificationLog := models.POSSessionLog{
-		SessionID:   session.ID,
-		StaffID:     *session.StaffID,
-		Action:      "verify",
-		Status:      "success",
-		DeviceInfo:  c.Get("User-Agent"),
-		IPAddress:   c.IP(),
-		Description: "POS verification successful",
-		CreatedAt:   now,
+		SessionID:    session.ID,
+		StaffID:      *session.StaffID,
+		Action:       "verify",
+		Status:       "success",
+		Description:  "POS verification successful",
+		IPAddress:    c.IP(),
+		UserAgent:    req.DeviceInfo.UserAgent,
+		Platform:     req.DeviceInfo.Platform,
+		ScreenWidth:  req.DeviceInfo.ScreenWidth,
+		ScreenHeight: req.DeviceInfo.ScreenHeight,
+		Language:     req.DeviceInfo.Language,
+		TimeZone:     req.DeviceInfo.TimeZone,
+		Vendor:       req.DeviceInfo.Vendor,
+		NetworkType:  req.DeviceInfo.NetworkType,
+		CreatedAt:    now,
 	}
 
 	if err := db.DB.Create(&verificationLog).Error; err != nil {
-		// log error แต่ไม่ return error เพราะไม่ใช่ critical operation
 		fmt.Printf("Failed to create verification log: %v\n", err)
 	}
 
@@ -265,6 +285,19 @@ func POSAuthMiddleware() fiber.Handler {
 }
 
 func LogoutPOS(c *fiber.Ctx) error {
+	var req struct {
+		DeviceInfo DeviceInfoRequest `json:"deviceInfo"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Invalid request format",
+		})
+	}
+
+	// Log ข้อมูลที่ได้รับ
+	fmt.Printf("Received device info: %+v\n", req.DeviceInfo)
+
 	// ดึง token จาก Authorization header
 	token := c.Get("Authorization")
 	if token == "" {
@@ -339,14 +372,21 @@ func LogoutPOS(c *fiber.Ctx) error {
 
 	// บันทึกประวัติการ logout
 	sessionLog := models.POSSessionLog{
-		SessionID:   sessionID,
-		StaffID:     staffID,
-		Action:      "logout",
-		Status:      "success",
-		DeviceInfo:  c.Get("User-Agent"),
-		IPAddress:   c.IP(),
-		Description: "User logged out successfully",
-		CreatedAt:   now,
+		SessionID:    sessionID,
+		StaffID:      staffID,
+		Action:       "logout",
+		Status:       "success",
+		Description:  "User logged out successfully",
+		IPAddress:    c.IP(),
+		UserAgent:    req.DeviceInfo.UserAgent,
+		Platform:     req.DeviceInfo.Platform,
+		ScreenWidth:  req.DeviceInfo.ScreenWidth,
+		ScreenHeight: req.DeviceInfo.ScreenHeight,
+		Language:     req.DeviceInfo.Language,
+		TimeZone:     req.DeviceInfo.TimeZone,
+		Vendor:       req.DeviceInfo.Vendor,
+		NetworkType:  req.DeviceInfo.NetworkType,
+		CreatedAt:    now,
 	}
 
 	if err := tx.Create(&sessionLog).Error; err != nil {
@@ -379,7 +419,6 @@ type SessionStatusResponse struct {
 	LastActivity time.Time `json:"last_activity,omitempty"`
 	StaffID      uint      `json:"staff_id,omitempty"`
 	StaffName    string    `json:"staff_name,omitempty"`
-	DeviceInfo   string    `json:"device_info,omitempty"`
 	IPAddress    string    `json:"ip_address,omitempty"`
 }
 
@@ -427,6 +466,7 @@ func GetPOSSessionStatus(c *fiber.Ctx) error {
 				StaffID:  staffID,
 			})
 		}
+		fmt.Printf("Error fetching session: %v\n", err)
 		return c.Status(500).JSON(fiber.Map{
 			"error":   "Failed to fetch session data",
 			"details": err.Error(),
@@ -441,7 +481,6 @@ func GetPOSSessionStatus(c *fiber.Ctx) error {
 		now := time.Now()
 		session.LastActivityAt = now
 		if err := db.DB.Save(&session).Error; err != nil {
-			// log error แต่ไม่ return error เพราะไม่ใช่ critical operation
 			fmt.Printf("Failed to update last activity: %v\n", err)
 		}
 	}
@@ -453,7 +492,6 @@ func GetPOSSessionStatus(c *fiber.Ctx) error {
 		StartTime:    session.StartTime,
 		LastActivity: session.LastActivityAt,
 		StaffID:      staffID,
-		DeviceInfo:   session.DeviceInfo,
 		IPAddress:    session.IPAddress,
 	}
 

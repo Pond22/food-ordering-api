@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
 
@@ -8,12 +8,41 @@ const POSVerifyRoute = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  // ใช้ getDeviceInfo แบบเดียวกับที่ใช้ใน POS.jsx
+  const getDeviceInfo = () => {
+    return {
+      user_agent: navigator.userAgent,
+      platform: navigator.platform || "Unknown",
+      screen_width: window.screen?.width || window.innerWidth || 0,
+      screen_height: window.screen?.height || window.innerHeight || 0,
+      language: navigator.languages ? navigator.languages.join(',') : navigator.language,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      vendor: navigator.vendor || "Unknown",
+      network_type: JSON.stringify((() => {
+        const connection = navigator.connection || 
+                          navigator.mozConnection || 
+                          navigator.webkitConnection;
+        if (connection) {
+          return {
+            type: connection.effectiveType || connection.type || 'unknown',
+            downlink: connection.downlink || null,
+            rtt: connection.rtt || null
+          };
+        }
+        return {};
+      })())
+    };
+  };
+
   const handleVerification = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
     try {
+      const deviceInfo = getDeviceInfo();
+      console.log('Sending verification with device info:', deviceInfo);
+
       const response = await fetch('http://localhost:8080/api/pos/verify-code', {
         method: 'POST',
         headers: {
@@ -21,23 +50,27 @@ const POSVerifyRoute = () => {
         },
         body: JSON.stringify({
           code: verificationCode,
+          deviceInfo
         }),
       });
 
+      console.log('Request body sent:', deviceInfo);
+      console.log('Response status:', response.status);
+
       const data = await response.json();
+      console.log('Verification response:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Verification failed');
       }
 
-      // เก็บ token ลงใน localStorage
-      localStorage.setItem('posToken', data.token); //ใช้อันนี้เป็น JWT token
-      localStorage.setItem('posSessionId', data.session_id); //เก็บไว้เฉยๆ
-      localStorage.setItem('staffId', data.staff_id); //id พนักงานเอาไว้ใช้ request ตอนคิดเงินไรงี้
+      localStorage.setItem('posToken', data.token);
+      localStorage.setItem('posSessionId', data.session_id);
+      localStorage.setItem('staffId', data.staff_id);
 
-      // นำทางไปยังหน้า POS
       navigate('/pos');
     } catch (err) {
+      console.error('Verification error:', err);
       setError(err.message);
     } finally {
       setIsLoading(false);

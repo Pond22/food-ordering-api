@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Printer, Search, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import InfiniteScroll from 'react-infinite-scroll-component';
 
 // Subcomponents
 const Table = ({ children, className = "" }) => (
@@ -80,45 +81,70 @@ const Reprint = () => {
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [filters, setFilters] = useState({
     type: '',
-    startDate: startOfMonth.toISOString().split('T')[0], 
+    startDate: startOfMonth.toISOString().split('T')[0],
     endDate: endOfMonth.toISOString().split('T')[0],
     searchTerm: ''
   });
   const [jobType, setJobType] = useState('reprintable');
+  
+  // เพิ่ม state สำหรับ pagination
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalItems, setTotalItems] = useState(0);
 
-  const fetchJobs = async () => {
+  const fetchJobs = async (pageNum = page, isLoadMore = false) => {
     setLoading(true);
     setError(null);
     try {
       const endpoint = jobType === 'failed' 
         ? 'http://localhost:8080/api/printers/failed-jobs'
-        : 'http://localhost:8080/api/printers/reprintable-jobs'
+        : 'http://localhost:8080/api/printers/reprintable-jobs';
 
-      let url = endpoint
-      if (jobType === 'reprintable' && (filters.type || filters.startDate || filters.endDate)) {
-        const params = new URLSearchParams()
-        if (filters.type) params.append('type', filters.type)
-        if (filters.startDate) params.append('start_date', filters.startDate)
-        if (filters.endDate) params.append('end_date', filters.endDate)
-        url += `?${params.toString()}`
-      }
+      const params = new URLSearchParams({
+        page: pageNum,
+        limit: 10,
+        ...(filters.type && { type: filters.type }),
+        ...(filters.startDate && { start_date: filters.startDate }),
+        ...(filters.endDate && { end_date: filters.endDate })
+      });
 
-      const response = await fetch(url);
+      const response = await fetch(`${endpoint}?${params}`);
       
       if (!response.ok) {
         throw new Error(`Request failed with status ${response.status}`);
       }
       
-      const data = await response.json();
-      setJobs(Array.isArray(data) ? data : []);  
+      const result = await response.json();
+      
+      if (isLoadMore) {
+        setJobs(prev => [...prev, ...result.data]);
+      } else {
+        setJobs(result.data);
+      }
+      
+      setTotalItems(result.pagination.total_items);
+      setHasMore(pageNum < result.pagination.total_pages);
     } catch (err) {
       console.error('Fetch error:', err);
       setError(err.message);
-      setJobs([]);
     } finally {
       setLoading(false);
     }
   };
+
+  const loadMore = () => {
+    if (!loading && hasMore) {
+      setPage(prev => prev + 1);
+      fetchJobs(page + 1, true);
+    }
+  };
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setPage(1);
+    setHasMore(true);
+    fetchJobs(1, false);
+  }, [jobType, filters.type, filters.startDate, filters.endDate]);
 
   const handleReprint = async (jobId) => {
     try {
@@ -175,10 +201,52 @@ const Reprint = () => {
     });
   }, [jobs, filters.searchTerm]);
 
-  useEffect(() => {
-    fetchJobs();
-  }, [jobType, filters.type, filters.startDate, filters.endDate]);
-  
+  // แยก JobRow เป็น Memoized Component
+  const JobRow = React.memo(({ job }) => {
+    const isExpanded = expandedRows.has(job.id);
+    
+    return (
+      <React.Fragment>
+        <TableRow className="cursor-pointer hover:bg-gray-50">
+          <TableCell>
+            <button
+              onClick={() => toggleRowExpand(job.id)}
+              className="h-4 w-4"
+            >
+              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+          </TableCell>
+          <TableCell>{new Date(job.created_at).toLocaleString('th-TH')}</TableCell>
+          <TableCell>
+            {job.job_type === 'order' ? 'ออเดอร์' : 
+             job.job_type === 'receipt' ? 'ใบเสร็จ' :
+             job.job_type === 'cancelation' ? 'ยกเลิกรายการ' :
+             job.job_type === 'qr_code' ? 'QR Code' : '-'}
+          </TableCell>
+          <TableCell>{job.order?.table_id || job.receipt?.TableID || '-'}</TableCell>
+          <TableCell>{job.printer?.name || `เครื่องพิมพ์ ${job.printer_id}`}</TableCell>
+          <TableCell className="text-right">
+            <button 
+              onClick={() => handleReprint(job.id)}
+              disabled={loading}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded disabled:opacity-50"
+            >
+              <Printer className="h-4 w-4" />
+              รีปริ้น
+            </button>
+          </TableCell>
+        </TableRow>
+        {isExpanded && (
+          <TableRow>
+            <TableCell colSpan={6} className="p-0 border-b">
+              {renderJobDetails(job)}
+            </TableCell>
+          </TableRow>
+        )}
+      </React.Fragment>
+    );
+  });
+
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">ระบบจัดการรีปริ้น</h1>
@@ -263,86 +331,48 @@ const Reprint = () => {
         )}
         
         <div className="bg-white rounded-lg overflow-hidden border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-8"></TableHead>
-                <TableHead>วันที่-เวลา</TableHead>
-                <TableHead>ประเภท</TableHead>
-                <TableHead>โต๊ะ</TableHead>
-                <TableHead>เครื่องพิมพ์</TableHead>
-                <TableHead className="text-right">การดำเนินการ</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
+          <InfiniteScroll
+            dataLength={jobs.length}
+            next={loadMore}
+            hasMore={hasMore}
+            loader={<div className="text-center py-4">กำลังโหลด...</div>}
+            endMessage={<div className="text-center py-4">ไม่มีรายการเพิ่มเติม</div>}
+            scrollableTarget="scrollableDiv"
+          >
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                    กำลังโหลด...
-                  </TableCell>
+                  <TableHead className="w-8"></TableHead>
+                  <TableHead>วันที่-เวลา</TableHead>
+                  <TableHead>ประเภท</TableHead>
+                  <TableHead>โต๊ะ</TableHead>
+                  <TableHead>เครื่องพิมพ์</TableHead>
+                  <TableHead className="text-right">การดำเนินการ</TableHead>
                 </TableRow>
-              ) : filteredJobs.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                    {error ? 'เกิดข้อผิดพลาดในการโหลดข้อมูล' : 'ไม่พบรายการ'}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredJobs.map((job) => (
-                  <React.Fragment key={job.id}>
-                    <TableRow className="cursor-pointer hover:bg-gray-50">
-                      <TableCell>
-                        <button
-                          onClick={() => toggleRowExpand(job.id)}
-                          className="h-4 w-4"
-                        >
-                          {expandedRows.has(job.id) ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
-                        </button>
-                      </TableCell>
-                      <TableCell>
-                        {new Date(job.created_at).toLocaleString('th-TH')}
-                      </TableCell>
-                      <TableCell>
-                        {job.job_type === 'order' ? 'ออเดอร์' : 
-                         job.job_type === 'receipt' ? 'ใบเสร็จ' :
-                         job.job_type === 'cancelation' ? 'ยกเลิกรายการ' :
-                         job.job_type === 'qr_code' ? 'QR Code' : '-'}
-                      </TableCell>
-                      <TableCell>
-                        {job.order?.table_id || job.receipt?.TableID || '-'}
-                      </TableCell>
-                      <TableCell>
-                        {job.printer?.name || `เครื่องพิมพ์ ${job.printer_id}`}  
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <button 
-                          onClick={() => handleReprint(job.id)}
-                          disabled={loading}
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded disabled:opacity-50"
-                        >
-                          <Printer className="h-4 w-4" />
-                          รีปริ้น
-                        </button>
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell colSpan={6} className="p-0 border-b">
-                        {expandedRows.has(job.id) && renderJobDetails(job)}
-                      </TableCell>  
-                    </TableRow>
-                  </React.Fragment>
-                ))
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {loading && jobs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                      กำลังโหลด...
+                    </TableCell>
+                  </TableRow>
+                ) : jobs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                      {error ? 'เกิดข้อผิดพลาดในการโหลดข้อมูล' : 'ไม่พบรายการ'}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  jobs.map(job => <JobRow key={job.id} job={job} />)
+                )}
+              </TableBody>
+            </Table>
+          </InfiniteScroll>
         </div>
       </div>
     </div>
   );
 };
 
-export default Reprint;
+export default React.memo(Reprint);

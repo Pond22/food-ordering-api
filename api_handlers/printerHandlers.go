@@ -10,6 +10,7 @@ import (
 	"image"
 	"image/png"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"sort"
@@ -665,12 +666,12 @@ type PrintJobResponse struct {
 	OrderID   *uint           `json:"order_id,omitempty"`
 	Content   []byte          `json:"content"`
 	Status    string          `json:"status"`
+	JobType   string          `json:"job_type"`
 	CreatedAt time.Time       `json:"created_at"`
 	UpdatedAt time.Time       `json:"updated_at"`
 	Order     *models.Order   `json:"order,omitempty"`
 	Receipt   *models.Receipt `json:"receipt,omitempty"`
 	Printer   PrinterResponse `json:"printer"`
-	JobType   string          `json:"job_type"`
 }
 
 // @Summary รับงานพิมพ์ที่รอดำเนินการ
@@ -1281,10 +1282,16 @@ func convertPNGToBitmap(pngData []byte) ([]byte, error) {
 // @Router /api/printers/reprintable-jobs [get]
 // @Tags Printer
 func GetReprintableJobs(c *fiber.Ctx) error {
+	// เพิ่ม query params สำหรับ pagination
+	page := c.QueryInt("page", 1)
+	limit := c.QueryInt("limit", 10)
+	offset := (page - 1) * limit
+
 	jobType := c.Query("type")
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
 
+	// สร้าง base query พร้อม preload ที่จำเป็น
 	query := db.DB.Model(&models.PrintJob{}).
 		Preload("Printer").
 		// Order และข้อมูลที่เกี่ยวข้อง
@@ -1297,7 +1304,7 @@ func GetReprintableJobs(c *fiber.Ctx) error {
 		Preload("Order.Items.Options.MenuOption.OptionGroup").
 		// Receipt และข้อมูลที่เกี่ยวข้อง
 		Preload("Receipt").
-		Preload("Receipt.Staff"). // Staff relation มีแค่ใน Receipt
+		Preload("Receipt.Staff").
 		Preload("Receipt.Orders", func(db *gorm.DB) *gorm.DB {
 			return db.Order("id ASC")
 		}).
@@ -1311,8 +1318,21 @@ func GetReprintableJobs(c *fiber.Ctx) error {
 		Preload("Receipt.Discounts.DiscountType").
 		Preload("Receipt.Charges.ChargeType")
 
+	// เพิ่มเงื่อนไขการค้นหา
 	if jobType != "" {
-		query = query.Where("job_type = ?", jobType)
+		if jobType == "others" {
+			// กรณีเลือก "อื่นๆ"
+			standardTypes := []string{"order", "receipt", "cancelation", "qr_code", "shift_report"}
+			query = query.Where("job_type NOT IN (?)", standardTypes).
+				Where("order_id IS NULL").
+				Where("receipt_id IS NULL").
+				Where("job_type NOT LIKE ?", "order%").   // ป้องกันกรณี job_type มีคำว่า order
+				Where("job_type NOT LIKE ?", "receipt%"). // ป้องกันกรณี job_type มีคำว่า receipt
+				Where("job_type NOT LIKE ?", "cancel%")   // ป้องกันกรณี job_type มีคำว่า cancel
+		} else {
+			// กรณีเลือกประเภทอื่นๆ
+			query = query.Where("job_type = ?", jobType)
+		}
 	}
 
 	if startDate != "" {
@@ -1334,7 +1354,19 @@ func GetReprintableJobs(c *fiber.Ctx) error {
 		query = query.Where("created_at < ?", endTime)
 	}
 
-	query = query.Where("status = ?", "completed").Order("created_at DESC")
+	// นับจำนวนรายการทั้งหมดก่อนทำ pagination
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to count total records",
+		})
+	}
+
+	// เพิ่ม pagination และการเรียงลำดับ
+	query = query.Where("status = ?", "completed").
+		Order("created_at DESC").
+		Offset(offset).
+		Limit(limit)
 
 	var jobs []models.PrintJob
 	if err := query.Find(&jobs).Error; err != nil {
@@ -1344,6 +1376,7 @@ func GetReprintableJobs(c *fiber.Ctx) error {
 		})
 	}
 
+	// แปลงข้อมูลเป็น response
 	var responses []PrintJobResponse
 	for _, job := range jobs {
 		// Prepare print content based on job type
@@ -1399,7 +1432,17 @@ func GetReprintableJobs(c *fiber.Ctx) error {
 		responses = append(responses, response)
 	}
 
-	return c.JSON(responses)
+	// ส่งข้อมูลกลับพร้อม pagination info
+	return c.JSON(fiber.Map{
+		"data": responses,
+		"pagination": fiber.Map{
+			"current_page": page,
+			"total_pages":  int(math.Ceil(float64(total) / float64(limit))),
+			"total_items":  total,
+			"per_page":     limit,
+			"has_more":     (page*limit) < int(total) && len(responses) == limit,
+		},
+	})
 }
 
 // @Summary รีปริ้นเอกสาร
@@ -1466,9 +1509,11 @@ func ReprintDocument(c *fiber.Ctx) error {
 		OrderID:   newJob.OrderID,
 		Content:   bitmapContent,
 		Status:    newJob.Status,
+		JobType:   newJob.JobType,
 		CreatedAt: newJob.CreatedAt,
 		UpdatedAt: newJob.UpdatedAt,
 		Order:     newJob.Order,
+		Receipt:   newJob.Receipt,
 		Printer: PrinterResponse{
 			ID:         originalJob.Printer.ID,
 			Name:       originalJob.Printer.Name,

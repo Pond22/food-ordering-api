@@ -226,7 +226,7 @@ type Users struct {
 	ID        uint     `gorm:"primaryKey"`
 	Username  string   `gorm:"unique;not null"`
 	Password  string   `gorm:"not null"`
-	Role      UserRole `gorm:"type:varchar(10);not null"`
+	Role      UserRole `gorm:"type:text;not null;default:'staff'"`
 	Name      string   `gorm:"not null"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -240,30 +240,34 @@ type POSSession struct {
 	StartTime        time.Time  `json:"start_time" gorm:"not null"`
 	EndTime          *time.Time `json:"end_time,omitempty"`
 	LoginToken       string     `json:"login_token" gorm:"unique"`
-	VerificationCode string     `json:"-" gorm:"size:6"` // ไม่แสดงใน JSON response
+	VerificationCode string     `json:"-" gorm:"size:6"`
 	Verified         bool       `json:"verified" gorm:"default:false"`
-	Status           string     `json:"status" gorm:"not null"` // pending, active, closed
-	ExpiresAt        *time.Time `json:"expires_at,omitempty"`   // เวลาหมดอายุของ verification code
+	Status           string     `json:"status" gorm:"not null"`
+	ExpiresAt        *time.Time `json:"expires_at,omitempty"`
 	LastActivityAt   time.Time  `json:"last_activity_at"`
-	DeviceInfo       string     `json:"device_info,omitempty"` // ข้อมูลอุปกรณ์ที่ใช้งาน
-	IPAddress        string     `json:"ip_address,omitempty"`  // IP ของอุปกรณ์
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
+	IPAddress        string     `json:"ip_address,omitempty"`
 }
 
-// POSSessionLog - เก็บประวัติการทำงานของ POS session
+// POSSessionLog - เก็บประวัติการทำงานของ POS session แยกฟิลด์ device info
 type POSSessionLog struct {
 	gorm.Model
-	SessionID   uint       `json:"session_id" gorm:"not null"`
-	POSSession  POSSession `gorm:"foreignKey:SessionID"`
-	StaffID     uint       `json:"staff_id" gorm:"not null"`
-	Staff       Users      `gorm:"foreignKey:StaffID"`
-	Action      string     `json:"action" gorm:"not null"` // login, logout, verify, expire
-	Status      string     `json:"status" gorm:"not null"` // success, failed
-	DeviceInfo  string     `json:"device_info,omitempty"`
-	IPAddress   string     `json:"ip_address,omitempty"`
-	Description string     `json:"description,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
+	SessionID    uint       `json:"session_id" gorm:"not null;index"`
+	POSSession   POSSession `gorm:"foreignKey:SessionID"`
+	StaffID      uint       `json:"staff_id" gorm:"not null;index"`
+	Staff        Users      `gorm:"foreignKey:StaffID"`
+	Action       string     `json:"action" gorm:"not null"` // verify, logout
+	Status       string     `json:"status" gorm:"not null"` // success, failed
+	Description  string     `json:"description,omitempty"`
+	IPAddress    string     `json:"ip_address" gorm:"type:text"`
+	UserAgent    string     `json:"user_agent" gorm:"type:text"`
+	Platform     string     `json:"platform" gorm:"type:text"`
+	ScreenWidth  int        `json:"screen_width"`
+	ScreenHeight int        `json:"screen_height"`
+	Language     string     `json:"language" gorm:"type:text"`
+	TimeZone     string     `json:"timezone" gorm:"type:text"`
+	Vendor       string     `json:"vendor" gorm:"type:text"`
+	NetworkType  string     `json:"network_type" gorm:"type:jsonb"`
+	CreatedAt    time.Time  `json:"created_at"`
 }
 
 // POSVerificationAttempt - เก็บประวัติการพยายามยืนยันตัวตน

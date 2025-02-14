@@ -96,37 +96,41 @@ func CloseDatabase() {
 }
 
 func migrate() {
-	DB.AutoMigrate(&models.Users{})
-	DB.AutoMigrate(&models.QRCode{})
-	DB.AutoMigrate(&models.MenuItem{})
-	DB.AutoMigrate(&models.Category{})
-	DB.AutoMigrate(&models.Table{})
-	DB.AutoMigrate(&models.TableReservation{})
-	DB.AutoMigrate(&models.SalesAnalysis{})
-	DB.AutoMigrate(&models.Order{})
-	DB.AutoMigrate(&models.OrderItem{})
-	DB.AutoMigrate(&models.MenuOption{})
-	DB.AutoMigrate(&models.OrderItemOption{})
-	DB.AutoMigrate(&models.DiscountType{})
-	DB.AutoMigrate(&models.AdditionalChargeType{})
-	DB.AutoMigrate(&models.ReceiptDiscount{})
-	DB.AutoMigrate(&models.ReceiptCharge{})
-	DB.AutoMigrate(&models.ReceiptDiscount{})
-	DB.AutoMigrate(&models.ReceiptCharge{})
-	DB.AutoMigrate(&models.Receipt{})
-	DB.AutoMigrate(&models.OptionGroup{})
-	DB.AutoMigrate(&models.Promotion{})
-	DB.AutoMigrate(&models.PromotionItem{})
-	DB.AutoMigrate(&models.PromotionUsage{})
-	DB.AutoMigrate(&models.Printer{})
-	DB.AutoMigrate(&models.PrintJob{})
-	DB.AutoMigrate(&models.POSSession{})
-	// DB.AutoMigrate(&models.PromoSalesReport{})
+	// ทำการ migrate ทั้งหมด
+	err := DB.AutoMigrate(
+		&models.Users{},
+		&models.QRCode{},
+		&models.MenuItem{},
+		&models.Category{},
+		&models.Table{},
+		&models.TableReservation{},
+		&models.SalesAnalysis{},
+		&models.Order{},
+		&models.OrderItem{},
+		&models.MenuOption{},
+		&models.OrderItemOption{},
+		&models.DiscountType{},
+		&models.AdditionalChargeType{},
+		&models.ReceiptDiscount{},
+		&models.ReceiptCharge{},
+		&models.Receipt{},
+		&models.OptionGroup{},
+		&models.Promotion{},
+		&models.PromotionItem{},
+		&models.PromotionUsage{},
+		&models.Printer{},
+		&models.PrintJob{},
+		&models.OrderCancellationLog{},
+		&models.Notification{},
+		&models.ReservationRules{},
+		&models.POSSession{},
+		&models.POSSessionLog{},
+		&models.POSVerificationAttempt{},
+	)
 
-	DB.AutoMigrate(&models.OrderCancellationLog{})
-
-	DB.AutoMigrate(&models.Notification{})
-	DB.AutoMigrate(&models.ReservationRules{})
-	DB.AutoMigrate(&models.POSSessionLog{})
-	DB.AutoMigrate(&models.POSVerificationAttempt{})
+	if err != nil {
+		log.Printf("Error migrating database: %v", err)
+	} else {
+		log.Println("Database migration completed successfully")
+	}
 }

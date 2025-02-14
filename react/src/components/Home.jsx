@@ -33,19 +33,23 @@ const Home = () => {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
             Accept: 'application/json',
           },
         }
       )
 
+      const data = await response.json()
+      
       if (response.ok) {
-        const data = await response.json()
-        setVerificationCode(data.verification_code) // เก็บ verification_code ลงใน state
+        setVerificationCode(data.verification_code)
       } else {
-        console.error('Failed to generate verification code')
+        console.error('Error details:', data)
+        alert(`Failed to generate code: ${data.error || data.details || 'Unknown error'}`)
       }
     } catch (error) {
-      console.error('Error occurred while generating code:', error)
+      console.error('Error occurred:', error)
+      alert('Failed to connect to server')
     }
   }
 

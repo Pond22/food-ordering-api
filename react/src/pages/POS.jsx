@@ -7,6 +7,9 @@ import {
   Clock,
   UserCircle,
   MonitorSmartphone,
+  Globe,
+  Cpu,
+  Network,
 } from 'lucide-react'
 import TableManager from '../components/TableManager'
 
@@ -62,30 +65,93 @@ const POS = () => {
     return () => clearInterval(interval)
   }, [navigate])
 
+  // เพิ่มฟังก์ชันสำหรับเก็บข้อมูลอุปกรณ์
+  const getDeviceInfo = () => {
+    return {
+      user_agent: navigator.userAgent,
+      platform: navigator.platform || "Unknown",
+      screen_width: window.screen?.width || window.innerWidth || 0,
+      screen_height: window.screen?.height || window.innerHeight || 0,
+      language: navigator.languages ? navigator.languages.join(',') : navigator.language,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      vendor: navigator.vendor || "Unknown",
+      network_type: JSON.stringify((() => {
+        const connection = navigator.connection || 
+                          navigator.mozConnection || 
+                          navigator.webkitConnection;
+        if (connection) {
+          return {
+            type: connection.effectiveType || connection.type || 'unknown',
+            downlink: connection.downlink || null,
+            rtt: connection.rtt || null
+          };
+        }
+        return {};
+      })())
+    };
+  };
+
+  const generateDeviceId = () => {
+    const components = [
+      navigator.userAgent,
+      navigator.language,
+      window.screen.colorDepth,
+      window.screen.width,
+      window.screen.height,
+      new Date().getTimezoneOffset(),
+      navigator.hardwareConcurrency,
+      navigator.platform
+    ].filter(Boolean).join('|');
+    
+    let hash = 0;
+    for (let i = 0; i < components.length; i++) {
+      const char = components.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    
+    const deviceId = Math.abs(hash).toString(36) + Date.now().toString(36);
+    localStorage.setItem('device_id', deviceId);
+    return deviceId;
+  };
+
   const handleLogout = async () => {
-    setIsLoggingOut(true)
+    setIsLoggingOut(true);
     try {
+      const deviceInfo = getDeviceInfo();
+      console.log('Logging out with device info:', deviceInfo);
+
       const response = await fetch('http://localhost:8080/api/pos/logout', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('posToken')}`,
+          'Authorization': `Bearer ${localStorage.getItem('posToken')}`,
+          'Content-Type': 'application/json'
         },
-      })
+        body: JSON.stringify({ deviceInfo })
+      });
 
       if (!response.ok) {
-        throw new Error('Logout failed')
+        throw new Error('Logout failed');
       }
 
-      // ลบข้อมูล session จาก localStorage
-      localStorage.removeItem('posToken')
-      localStorage.removeItem('posSessionId')
-      navigate('/pos/verify')
+      localStorage.removeItem('posToken');
+      localStorage.removeItem('posSessionId');
+      navigate('/pos/verify');
     } catch (error) {
-      alert('Failed to logout. Please try again.')
+      console.error('Logout error:', error);
+      alert('Failed to logout. Please try again.');
     } finally {
-      setIsLoggingOut(false)
-      setShowLogoutDialog(false)
+      setIsLoggingOut(false);
+      setShowLogoutDialog(false);
     }
+  };
+
+  const formatBytes = (bytes) => {
+    if (!bytes) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`
   }
 
   if (isLoading) {
@@ -105,26 +171,88 @@ const POS = () => {
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <UserCircle className="h-5 w-5 text-gray-500" />
-                <span className="text-sm font-medium">
-                  {sessionStatus?.staff_name || 'Staff'}
-                </span>
+            <div className="grid grid-cols-4 gap-6 flex-grow mr-4">
+              {/* Staff Info */}
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <div className="flex items-center space-x-2 mb-2">
+                  <UserCircle className="h-5 w-5 text-blue-500" />
+                  <span className="font-medium">Staff Info</span>
+                </div>
+                <div className="text-sm space-y-1">
+                  <p>{sessionStatus?.staff_name || 'Staff'}</p>
+                  <p className="text-gray-500">ID: {sessionStatus?.staff_id}</p>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <Clock className="h-5 w-5 text-gray-500" />
-                <span className="text-sm">
-                  {new Date(sessionStatus?.start_time).toLocaleTimeString()}
-                </span>
+
+              {/* Session Info */}
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Clock className="h-5 w-5 text-green-500" />
+                  <span className="font-medium">Session</span>
+                </div>
+                <div className="text-sm space-y-1">
+                  <p>Started: {new Date(sessionStatus?.start_time).toLocaleTimeString()}</p>
+                  <p className="text-gray-500">
+                    Last Activity: {new Date(sessionStatus?.last_activity).toLocaleTimeString()}
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <MonitorSmartphone className="h-5 w-5 text-gray-500" />
-                <span className="text-sm text-gray-600">
-                  {sessionStatus?.device_info || 'Unknown Device'}
-                </span>
+
+              {/* Device Info */}
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <div className="flex items-center space-x-2 mb-2">
+                  <MonitorSmartphone className="h-5 w-5 text-purple-500" />
+                  <span className="font-medium">Device</span>
+                </div>
+                <div className="text-sm space-y-1">
+                  <p>{sessionStatus?.device_info?.platform}</p>
+                  <p className="text-gray-500 text-xs truncate" title={sessionStatus?.device_info?.user_agent}>
+                    {sessionStatus?.device_info?.user_agent}
+                  </p>
+                  <p className="text-gray-500">
+                    {sessionStatus?.device_info?.screen_width}x
+                    {sessionStatus?.device_info?.screen_height}
+                  </p>
+                  <p className="text-gray-500">
+                    {sessionStatus?.device_info?.vendor}
+                  </p>
+                </div>
+              </div>
+
+              {/* System Info */}
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Network className="h-5 w-5 text-orange-500" />
+                  <span className="font-medium">System</span>
+                </div>
+                <div className="text-sm space-y-1">
+                  <div className="flex items-center">
+                    <Globe className="h-4 w-4 mr-1 text-gray-400" />
+                    <span className="truncate" title={sessionStatus?.ip_address}>
+                      {sessionStatus?.ip_address}
+                    </span>
+                  </div>
+                  {sessionStatus?.device_info?.network_type && (
+                    <div className="flex items-center">
+                      <Cpu className="h-4 w-4 mr-1 text-gray-400" />
+                      <span>
+                        {sessionStatus?.device_info?.network_type.type} 
+                        ({sessionStatus?.device_info?.network_type.downlink}Mbps, 
+                        RTT: {sessionStatus?.device_info?.network_type.rtt}ms)
+                      </span>
+                    </div>
+                  )}
+                  <p className="text-gray-500">
+                    {sessionStatus?.device_info?.language}
+                  </p>
+                  <p className="text-gray-500">
+                    {sessionStatus?.device_info?.timezone}
+                  </p>
+                </div>
               </div>
             </div>
+
+            {/* Logout Button */}
             <button
               onClick={() => setShowLogoutDialog(true)}
               disabled={isLoggingOut}
