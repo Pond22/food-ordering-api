@@ -285,14 +285,14 @@ const Section = ({ isLoggedIn, user, handleLogout, token }) => {
               )}
 
               {/* เมนูทั่วไป */}
-              <Link
+              {/* <Link
                 to="/tables"
                 className={`${styles.navLink} ${
                   location.pathname === '/tables' ? styles.activeLink : ''
                 }`}
               >
                 จัดการโต๊ะ
-              </Link>
+              </Link> */}
 
               <Link
                 to="/reprint"
@@ -361,10 +361,7 @@ const Section = ({ isLoggedIn, user, handleLogout, token }) => {
               }
             />
 
-            <Route
-              path="/tables"
-              element={isLoggedIn ? <TableManager /> : <Navigate to="/login" />}
-            />
+            
 
             <Route
               path="/printer"
@@ -432,10 +429,7 @@ const Section = ({ isLoggedIn, user, handleLogout, token }) => {
               }
             />
 
-            <Route
-              path="/payment-tables"
-              element={<PaymentTables token={token} user={user}/>}
-            />
+            
           </Routes>
 
           <div className="fixed bottom-4 right-4 z-50">

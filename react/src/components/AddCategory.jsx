@@ -1,14 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import {
-  ShieldCheck,
-  Plus,
   Search,
-  Filter,
   X,
-  User,
-  Edit,
-  Trash2,
 } from 'lucide-react'
 
 const AddCategory = () => {
@@ -44,8 +38,7 @@ const AddCategory = () => {
         return // ถ้าไม่มี token แสดงข้อความและหยุดการทำงาน
       }
 
-      const response = await axios.get(
-        'http://127.0.0.1:8080/api/categories/get_delete_categories',
+      const response = await axios.get(`${API_BASE_URL}/get_delete_categories`, 
         {
           headers: {
             'Content-Type': 'application/json',

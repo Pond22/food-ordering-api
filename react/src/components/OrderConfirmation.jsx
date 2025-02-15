@@ -22,38 +22,42 @@ const OrderConfirmation = () => {
   }
 
   // ฟังก์ชันที่ใช้ดึงข้อมูลจาก API ด้วย axios
-  const fetchOrders = () => {
-    const token = localStorage.getItem('token')
-    axios
-      .get('http://localhost:8080/api/orders/active', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      .then((response) => {
-        const validOrders = response.data.filter((order) => {
-          // กรองออเดอร์ที่มีสถานะ 'pending' แต่ไม่มีเมนูที่มีสถานะ 'pending'
-          const hasPendingItem = order.items.some(
-            (item) => item.status === 'pending'
-          )
-          return (
-            Array.isArray(order.items) &&
-            (order.status !== 'pending' || hasPendingItem)
-          )
-        })
+ const fetchOrders = () => {
+  const token = localStorage.getItem('token')
+  axios
+    .get('http://localhost:8080/api/orders/active', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    .then((response) => {
+      const validOrders = response.data.filter((order) => {
+        // ตรวจสอบว่า items เป็นอาร์เรย์ที่ไม่ใช่ null หรือ undefined
+        const hasPendingItem =
+          Array.isArray(order.items) &&
+          order.items.some((item) => item.status === 'pending')
 
-        // กรองเมนูที่มีสถานะ 'cancelled'
-        const filteredOrders = validOrders.map((order) => ({
-          ...order,
-          items: order.items.filter((item) => item.status !== 'cancelled'),
-        }))
+        return (
+          Array.isArray(order.items) &&
+          (order.status !== 'pending' || hasPendingItem)
+        )
+      })
 
-        setOrders(sortOrders(filteredOrders))
-      })
-      .catch((error) => {
-        console.error('Error fetching orders:', error)
-      })
-  }
+      // กรองเมนูที่มีสถานะ 'cancelled'
+      const filteredOrders = validOrders.map((order) => ({
+        ...order,
+        items: Array.isArray(order.items)
+          ? order.items.filter((item) => item.status !== 'cancelled')
+          : [],
+      }))
+
+      setOrders(sortOrders(filteredOrders))
+    })
+    .catch((error) => {
+      console.error('Error fetching orders:', error)
+    })
+}
+
 
   useEffect(() => {
     fetchOrders()
