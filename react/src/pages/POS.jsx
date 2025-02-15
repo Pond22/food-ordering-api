@@ -47,13 +47,13 @@ const POS = () => {
           localStorage.removeItem('posToken')
           localStorage.removeItem('posSessionId')
           // ทำการ redirect ไปที่หน้าหลักของร้าน (ให้พนักงานขอ code ใหม่)
-          navigate('/')
+          navigate('/pos/verify')
         }
       } catch (error) {
         console.error('Session check error:', error)
         localStorage.removeItem('posToken')
         localStorage.removeItem('posSessionId')
-        navigate('/')
+        navigate('/pos/verify')
       } finally {
         setIsLoading(false)
       }

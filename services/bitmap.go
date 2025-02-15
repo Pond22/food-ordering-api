@@ -25,8 +25,8 @@ var Templates = map[string]PrinterTemplate{
 	"58": {
 		Width:          384,
 		MaxChars:       32,
-		Divider:        strings.Repeat("-", 32),
-		DoubleDivider:  strings.Repeat("=", 32),
+		Divider:        "--------------------------------", // เปลี่ยนเป็นเส้นประที่เต็มความกว้าง
+		DoubleDivider:  "================================", // เปลี่ยนเป็นเส้นคู่ที่เต็มความกว้าง
 		FontSize:       16.0,
 		LineSpacing:    2.5,
 		LeftPadding:    2,
@@ -36,8 +36,8 @@ var Templates = map[string]PrinterTemplate{
 	"80": {
 		Width:          576,
 		MaxChars:       48,
-		Divider:        strings.Repeat("-", 48),
-		DoubleDivider:  strings.Repeat("=", 48),
+		Divider:        "------------------------------------------------", // เปลี่ยนเป็นเส้นประที่เต็มความกว้าง
+		DoubleDivider:  "================================================", // เปลี่ยนเป็นเส้นคู่ที่เต็มความกว้าง
 		FontSize:       18.0,
 		LineSpacing:    3.0,
 		LeftPadding:    3,
@@ -133,12 +133,16 @@ func (pf *PrintFormatter) CenterText(text string) string {
 
 // GetDivider คืนค่าเส้นขั้นปกติ
 func (pf *PrintFormatter) GetDivider() string {
-	return pf.Template.Divider
+	// สร้างเส้นคั่นที่มีความยาวเท่ากับ MaxChars
+	divider := strings.Repeat("-", pf.Template.MaxChars)
+	return pf.FormatLine(divider)
 }
 
 // GetDoubleDivider คืนค่าเส้นขั้นคู่
 func (pf *PrintFormatter) GetDoubleDivider() string {
-	return pf.Template.DoubleDivider
+	// สร้างเส้นคั่นคู่ที่มีความยาวเท่ากับ MaxChars
+	doubleDivider := strings.Repeat("=", pf.Template.MaxChars)
+	return pf.FormatLine(doubleDivider)
 }
 
 // WrapText แบ่งข้อความเป็นหลายบรรทัดตามความกว้างที่กำหนด

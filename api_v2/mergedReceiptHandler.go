@@ -17,22 +17,17 @@ type MergedPaymentRequest struct {
 	TableIDs      []uint                      `json:"table_ids" binding:"required,min=2"`
 	PaymentMethod string                      `json:"payment_method" binding:"required"`
 	ServiceCharge float64                     `json:"service_charge"`
-	Discounts     []PaymentDiscountRequest    `json:"discounts,omitempty"`
-	ExtraCharges  []PaymentExtraChargeRequest `json:"extra_charges,omitempty"`
+	Discounts     []paymentDiscountRequest    `json:"discounts,omitempty"`
+	ExtraCharges  []paymentExtraChargeRequest `json:"extra_charges,omitempty"`
 	StaffID       uint                        `json:"staff_id" binding:"required"`
 }
 
-//	type PaymentDiscountRequest struct {
-//		DiscountTypeID uint    `json:"discount_type_id" binding:"required"`
-//		Value          float64 `json:"value" binding:"required"`
-//		Reason         string  `json:"reason,omitempty"`
-//	}
-type PaymentDiscountRequest struct {
+type paymentDiscountRequest struct {
 	DiscountTypeID uint `json:"discount_type_id" binding:"required"`
 	// Value          float64 `json:"value" binding:"required"`
 	Reason string `json:"reason,omitempty"`
 }
-type PaymentExtraChargeRequest struct {
+type paymentExtraChargeRequest struct {
 	ChargeTypeID uint `json:"charge_type_id" binding:"required"`
 	// Amount       float64 `json:"amount" binding:"required"`
 	Quantity int    `json:"quantity" binding:"required,min=1"`

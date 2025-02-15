@@ -19,6 +19,8 @@ import (
 	"time"
 	"unicode"
 
+	api_v2 "food-ordering-api/api_v2"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/draw"
@@ -1389,7 +1391,7 @@ func GetReprintableJobs(c *fiber.Ctx) error {
 			}
 		case "receipt":
 			if job.ReceiptID != nil {
-				content, err = prepareReceiptPrintContent(job)
+				content, err = api_v2.PrepareReceiptPrintContent(job)
 			}
 		case "cancelation":
 			content, err = prepareCancelPrintContent(job)
@@ -1717,10 +1719,10 @@ func prepareBillCheckPrintContent(orders []models.Order, tableIDs []string, disc
 // @Router /api/printers/bill-check [post]
 // @Tags Printer
 type PrintBillCheckRequest struct {
-	TableIDs      []uint                      `json:"table_ids" binding:"required,min=1"`
-	ServiceCharge float64                     `json:"service_charge"` //ควรเป็นค่า VAT 7%
-	Discounts     []PaymentDiscountRequest    `json:"discounts,omitempty"`
-	ExtraCharges  []PaymentExtraChargeRequest `json:"extra_charges,omitempty"`
+	TableIDs      []uint                          `json:"table_ids" binding:"required,min=1"`
+	ServiceCharge float64                         `json:"service_charge"` //ควรเป็นค่า VAT 7%
+	Discounts     []api_v2.PrintBillCheckDiscount `json:"discounts,omitempty"`
+	ExtraCharges  []api_v2.PrintBillCheckCharge   `json:"extra_charges,omitempty"`
 }
 
 func PrintBillCheck(c *fiber.Ctx) error {
@@ -1849,7 +1851,7 @@ func PrintBillCheck(c *fiber.Ctx) error {
 		tableNames[i] = table.Name
 	}
 
-	content, err := prepareBillCheckPrintContent(allOrders, tableNames, req.Discounts, req.ExtraCharges, req.ServiceCharge)
+	content, err := api_v2.V2_prepareBillCheckPrintContent(allOrders, tableNames, req.Discounts, req.ExtraCharges, req.ServiceCharge, subTotal, totalDiscount, totalExtraCharge, vatAmount, netTotal)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "ไม่สามารถสร้างเนื้อหาสำหรับพิมพ์ได้",
