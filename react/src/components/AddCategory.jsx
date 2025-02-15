@@ -23,7 +23,6 @@ const AddCategory = () => {
   const [showEditModal, setShowEditModal] = useState(false) // ป็อปอัพแก้ไขหมวดหมู่
   const [editingCategory, setEditingCategory] = useState(null) // หมวดหมู่ที่ต้องการแก้ไข
   const [categoryToDelete, setCategoryToDelete] = useState(null)
-  const [deleteType, setDeleteType] = useState(null) // false สำหรับลบแค่หมวดหมู่, true สำหรับลบพร้อมเมนู
   const [sortAscending, setSortAscending] = useState(true) // สถานะการเรียงลำดับ
 
   const API_BASE_URL = 'http://127.0.0.1:8080/api/categories' // URL ของ API
@@ -222,11 +221,9 @@ const AddCategory = () => {
 
     try {
       const token = localStorage.getItem('token')
-      const endpoint = deleteType
-        ? `/delete_category_with_menu/${categoryToDelete.ID}` // ลบพร้อมเมนู
-        : `/delete_category/${categoryToDelete.ID}` // ลบแค่หมวดหมู่
-
-      const response = await axios.delete(`${API_BASE_URL}${endpoint}`, {
+      
+      // แก้ไข endpoint ให้ตรงกับที่มีใน backend
+      const response = await axios.delete(`${API_BASE_URL}/${categoryToDelete.ID}`, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -234,17 +231,18 @@ const AddCategory = () => {
       })
 
       if (response.status === 200) {
-        setSuccessMessage(
-          `หมวดหมู่ "${categoryToDelete.Name}" ถูกลบเรียบร้อยแล้ว!`
-        )
+        setSuccessMessage(`หมวดหมู่ "${categoryToDelete.Name}" ถูกลบเรียบร้อยแล้ว!`)
+        fetchCategories() // รีเฟรชข้อมูลหมวดหมู่ที่มีอยู่
         fetchDeletedCategories() // รีเฟรชข้อมูลหมวดหมู่ที่ถูกลบ
-        setShowDeleteModal(false) // ปิด Modal การลบ
-      } else {
-        setErrorMessage('เกิดข้อผิดพลาดในการลบหมวดหมู่')
+        setShowDeleteModal(false)
       }
     } catch (error) {
       console.error(error)
-      setErrorMessage('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้')
+      if (error.response) {
+        setErrorMessage(error.response.data.error || 'เกิดข้อผิดพลาดในการลบหมวดหมู่')
+      } else {
+        setErrorMessage('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้')
+      }
     } finally {
       setLoading(false)
     }
@@ -399,23 +397,12 @@ const AddCategory = () => {
                       </button>
                       <button
                         onClick={() => {
-                          setCategoryToDelete(category) // เซ็ตหมวดหมู่ที่ต้องการลบ
-                          setDeleteType(false) // ตั้งค่าให้ลบแค่หมวดหมู่
-                          setShowDeleteModal(true) // แสดง Modal การยืนยันการลบ
-                        }}
-                        className="text-red-600 hover:bg-red-100 p-2 rounded"
-                      >
-                        ลบแค่หมวดหมู่
-                      </button>
-                      <button
-                        onClick={() => {
-                          setCategoryToDelete(category) // เซ็ตหมวดหมู่ที่ต้องการลบ
-                          setDeleteType(true) // ตั้งค่าให้ลบพร้อมเมนู
-                          setShowDeleteModal(true) // แสดง Modal การยืนยันการลบ
+                          setCategoryToDelete(category)
+                          setShowDeleteModal(true)
                         }}
                         className="text-red-600 hover:bg-red-100 p-2 rounded ml-2"
                       >
-                        ลบพร้อมเมนู
+                        ลบ
                       </button>
                     </td>
                   </tr>
@@ -555,8 +542,8 @@ const AddCategory = () => {
             </div>
             <h2 className="text-xl font-bold mb-4 text-center">ยืนยันการลบ</h2>
             <p className="text-center mb-4">
-              คุณต้องการลบหมวดหมู่ "{categoryToDelete.Name}"{' '}
-              {deleteType ? 'พร้อมเมนูทั้งหมด' : 'หรือไม่?'}
+              คุณต้องการลบหมวดหมู่ "{categoryToDelete.Name}" หรือไม่? 
+              (หมายเหตุ: เมนูในหมวดหมู่นี้จะถูกลบไปด้วย)
             </p>
             <div className="flex justify-between">
               <button

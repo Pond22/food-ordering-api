@@ -117,13 +117,19 @@ const Reprint = () => {
       const result = await response.json();
       
       if (isLoadMore) {
-        setJobs(prev => [...prev, ...result.data]);
+        if (result.data && Array.isArray(result.data)) {
+          setJobs(prev => [...prev, ...result.data]);
+        }
       } else {
-        setJobs(result.data);
+        if (result.data && Array.isArray(result.data)) {
+          setJobs(result.data);
+        } else {
+          setJobs([]);
+        }
       }
       
-      setTotalItems(result.pagination.total_items);
-      setHasMore(pageNum < result.pagination.total_pages);
+      setTotalItems(result.pagination?.total_items || 0);
+      setHasMore(result.pagination?.total_pages ? pageNum < result.pagination.total_pages : false);
     } catch (err) {
       console.error('Fetch error:', err);
       setError(err.message);
@@ -338,6 +344,8 @@ const Reprint = () => {
             loader={<div className="text-center py-4">กำลังโหลด...</div>}
             endMessage={<div className="text-center py-4">ไม่มีรายการเพิ่มเติม</div>}
             scrollableTarget="scrollableDiv"
+            className="overflow-auto"
+            height={600}
           >
             <Table>
               <TableHeader>

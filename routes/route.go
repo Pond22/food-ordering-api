@@ -21,7 +21,7 @@ func SetupRoutes(app *fiber.App) {
 		notifications.Get("/unread", api_handlers.GetUnreadNotifications)
 	}
 	// WebSocket สำหรับพนักงานรับแจ้งเตือน
-	app.Get("/ws/staff", websocket.New(api_handlers.HandleWebSocket))
+	app.Get("/ws/staff", utils.WebSocketAPIKeyMiddleware("websocket_staff"), websocket.New(api_handlers.HandleWebSocket))
 
 	pos := api.Group("/pos")
 	{

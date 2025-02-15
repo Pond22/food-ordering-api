@@ -200,32 +200,62 @@ type APIKeyConfig struct {
 }
 
 func InitAPIKeys() {
+	fmt.Println("\n=== Starting API Key Initialization ===")
 	APIKeyStore = map[string]APIKeyConfig{}
 
-	// เพิ่ม key เฉพาะเมื่อมีค่าใน environment
+	// แสดงค่า environment variables ทั้งหมด
+	fmt.Println("\nEnvironment Variables:")
+	fmt.Printf("WS_TABLE_KEY: '%s'\n", os.Getenv("WS_TABLE_KEY"))
+	fmt.Printf("WS_PRINTER_KEY: '%s'\n", os.Getenv("WS_PRINTER_KEY"))
+	fmt.Printf("WS_STAFF_KEY: '%s'\n", os.Getenv("WS_STAFF_KEY"))
+
+	// เพิ่ม Table Key
 	if tableKey := os.Getenv("WS_TABLE_KEY"); tableKey != "" {
-		fmt.Printf("Initializing table key: %s\n", tableKey)
+		fmt.Printf("\nAdding table key: %s\n", tableKey)
 		APIKeyStore[tableKey] = APIKeyConfig{
 			Key:      tableKey,
 			Type:     "websocket_table",
 			IsActive: true,
 		}
 	} else {
-		fmt.Println("Warning: WS_TABLE_KEY not found in environment")
+		fmt.Println("\nWarning: WS_TABLE_KEY not found in environment")
 	}
 
+	// เพิ่ม Printer Key
 	if printerKey := os.Getenv("WS_PRINTER_KEY"); printerKey != "" {
-		fmt.Printf("Initializing printer key: %s\n", printerKey)
+		fmt.Printf("\nAdding printer key: %s\n", printerKey)
 		APIKeyStore[printerKey] = APIKeyConfig{
 			Key:      printerKey,
 			Type:     "websocket_printer",
 			IsActive: true,
 		}
 	} else {
-		fmt.Println("Warning: WS_PRINTER_KEY not found in environment") // เพิ่ม log นี้
+		fmt.Println("\nWarning: WS_PRINTER_KEY not found in environment")
 	}
 
-	fmt.Printf("Initialized API Key Store: %v\n", APIKeyStore)
+	// เพิ่ม Staff Key
+	if staffKey := os.Getenv("WS_STAFF_KEY"); staffKey != "" {
+		fmt.Printf("\nAdding staff key: %s\n", staffKey)
+		APIKeyStore[staffKey] = APIKeyConfig{
+			Key:      staffKey,
+			Type:     "websocket_staff",
+			IsActive: true,
+		}
+		// ตรวจสอบว่า key ถูกเพิ่มเข้าไปจริงๆ
+		if _, exists := APIKeyStore[staffKey]; exists {
+			fmt.Printf("Successfully added staff key to store\n")
+		} else {
+			fmt.Printf("Failed to add staff key to store!\n")
+		}
+	} else {
+		fmt.Println("\nWarning: WS_STAFF_KEY not found in environment")
+	}
+
+	fmt.Println("\nFinal API Key Store contents:")
+	for key, config := range APIKeyStore {
+		fmt.Printf("Key: %s, Type: %s, Active: %v\n", key, config.Type, config.IsActive)
+	}
+	fmt.Println("=== API Key Initialization Complete ===\n")
 }
 
 // APIKeyStore เก็บ API Keys ที่อนุญาต
@@ -246,20 +276,34 @@ func ValidateAPIKeyByType(key string, keyType string) bool {
 // WebSocketAPIKeyMiddleware สำหรับ WebSocket โดยเฉพาะ
 func WebSocketAPIKeyMiddleware(wsType string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		fmt.Printf("\n=== WebSocket Connection Attempt ===\n")
+
 		apiKey := c.Get("X-API-Key")
 		if apiKey == "" {
 			apiKey = c.Query("api_key")
 		}
 
-		fmt.Printf("Received API Key: %s\n", apiKey)
-		fmt.Printf("API Key Store: %v\n", APIKeyStore)
+		fmt.Printf("Received request:\n")
+		fmt.Printf("- API Key: %s\n", apiKey)
+		fmt.Printf("- WebSocket Type: %s\n", wsType)
+
+		fmt.Printf("\nCurrent API Key Store:\n")
+		for key, config := range APIKeyStore {
+			fmt.Printf("- Key: %s, Type: %s, Active: %v\n", key, config.Type, config.IsActive)
+		}
 
 		if !ValidateAPIKeyByType(apiKey, wsType) {
+			fmt.Printf("\nValidation Failed!\n")
+			fmt.Printf("- Received Key: %s\n", apiKey)
+			fmt.Printf("- Required Type: %s\n", wsType)
+			fmt.Println("=== Connection Rejected ===\n")
+
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": fmt.Sprintf("Invalid %s API Key", wsType),
 			})
 		}
 
+		fmt.Println("=== Connection Accepted ===\n")
 		return c.Next()
 	}
 }

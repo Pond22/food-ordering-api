@@ -10,8 +10,9 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_HOST=postgres
       - DB_PORT=${DB_PORT}
-      - WS_TABLE_KEY=ws_key_1234567890
-      - WS_PRINTER_KEY=ws_key_printer_123
+      - WS_TABLE_KEY=${WS_TABLE_KEY}
+      - WS_PRINTER_KEY=${WS_PRINTER_KEY}
+      - WS_STAFF_KEY=${WS_STAFF_KEY}
     depends_on:
       - postgres
 
@@ -27,7 +28,8 @@ services:
     environment:
       - VITE_API_URL=http://localhost:8080
       - VITE_WS_TABLE_KEY=${VITE_WS_TABLE_KEY}
-      - VITE_WS_PRINTER_KEY=${VITE_WS_PRINTER_KEY}
+      - VITE_APP_WS_PRINTER_KEY=${VITE_APP_WS_PRINTER_KEY}
+      - VITE_APP_WS_STAFF_KEY=${VITE_APP_WS_STAFF_KEY}
     depends_on:
       - app
 
