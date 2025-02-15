@@ -13,7 +13,8 @@ import axios from 'axios'
 import MenuRestore from './MenuRestore'
 import Promotions from './Promotions'
 
-const API_BASE_URL = 'http://127.0.0.1:8080/api/menu' // กำหนด URL ของ API
+const API_BASE_URL = 'http://127.0.0.1:8080/api/menu'
+const API_BASE_URL_CATEGORIES = 'http://127.0.0.1:8080/api/categories' // กำหนด URL ของ API
 
 const MenuManagement = () => {
   const [menus, setMenus] = useState([]) // menus เริ่มต้นเป็นอาร์เรย์
@@ -36,6 +37,7 @@ const MenuManagement = () => {
   const [menuToDelete, setMenuToDelete] = useState(null) // เก็บเมนูที่ต้องการลบ
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [expandedOptions, setExpandedOptions] = useState({}) // เพิ่ม state สำหรับการจัดการการแสดง/ซ่อนตัวเลือก
+  const token = localStorage.getItem('token')
 
   const toggleDropdown = (ID) => {
     setIsDropdownOpen((prev) => (prev === ID ? null : ID))
@@ -106,19 +108,21 @@ const MenuManagement = () => {
   // ฟังก์ชันเปิด/ปิด อาหารหมด
   const toggleMenuStatus = async (menuId) => {
     try {
+      const token = localStorage.getItem('token')
       const response = await axios.put(
         `${API_BASE_URL}/status/${menuId}`,
-        null,
+        null, // ส่ง null เป็น data เพราะ API นี้ไม่ต้องการ request body
         {
           headers: {
-            'Content-Type': 'application/json',
+            accept: 'application/json',
+            Authorization: `Bearer ${token}`,
           },
         }
       )
 
       if (response.status === 200) {
         alert(`เปลี่ยนสถานะของเมนู ${response.data.Name} เรียบร้อย`)
-        fetchMenus() // โหลดข้อมูลใหม่
+        fetchMenus('getAll') // โหลดข้อมูลใหม่
       } else {
         throw new Error('เกิดข้อผิดพลาดในการเปลี่ยนสถานะ')
       }
@@ -133,7 +137,7 @@ const MenuManagement = () => {
     try {
       setLoading(true)
       const token = localStorage.getItem('token')
-      const response = await axios.get('http://127.0.0.1:8080/api/categories', {
+      const response = await axios.get(API_BASE_URL_CATEGORIES, {
         headers: {
           accept: 'application/json',
           Authorization: `Bearer ${token}`, // ส่ง JWT ใน Header
@@ -226,6 +230,8 @@ const MenuManagement = () => {
         formData,
         {
           headers: {
+            accept: 'application/json',
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data',
           },
         }
@@ -297,7 +303,7 @@ const MenuManagement = () => {
 
       const token = localStorage.getItem('token')
       const menuResponse = await axios.put(
-        `http://localhost:8080/api/menu/${menuDetails.ID}`,
+        `${API_BASE_URL}/${menuDetails.ID}`,
         menuPayload,
         {
           headers: {
@@ -324,7 +330,7 @@ const MenuManagement = () => {
         if (group.ID) {
           // อัปเดต Option Group ที่มีอยู่
           await axios.put(
-            `http://localhost:8080/api/menu/option-groups/${group.ID}`,
+            `${API_BASE_URL}/option-groups/${group.ID}`,
             groupPayload,
             {
               headers: {
@@ -336,7 +342,7 @@ const MenuManagement = () => {
         } else {
           // สร้าง Option Group ใหม่
           await axios.post(
-            `http://localhost:8080/api/menu/option-groups?menu_id=${menuDetails.ID}`,
+            `${API_BASE_URL}/option-groups?menu_id=${menuDetails.ID}`,
             groupPayload,
             {
               headers: {
@@ -360,7 +366,7 @@ const MenuManagement = () => {
             if (option.ID) {
               // อัปเดต Option ที่มีอยู่
               await axios.put(
-                `http://localhost:8080/api/menu/options/${option.ID}`,
+                `${API_BASE_URL}/options/${option.ID}`,
                 optionPayload,
                 {
                   headers: {
@@ -372,7 +378,7 @@ const MenuManagement = () => {
             } else if (group.ID) {
               // สร้าง Option ใหม่
               await axios.post(
-                `http://localhost:8080/api/menu/options?OptionGroupID=${group.ID}`,
+                `${API_BASE_URL}/options?OptionGroupID=${group.ID}`,
                 optionPayload,
                 {
                   headers: {
@@ -426,7 +432,7 @@ const MenuManagement = () => {
     try {
       const token = localStorage.getItem('token')
       const response = await axios.put(
-        `http://localhost:8080/api/menu/${selectedOption.GroupID}/options/${selectedOption.ID}`,
+        `${API_BASE_URL}/${selectedOption.GroupID}/options/${selectedOption.ID}`,
         updatedData,
         {
           headers: {
@@ -465,12 +471,15 @@ const MenuManagement = () => {
 
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.delete(`http://localhost:8080/api/menu/${menuToDelete.ID}`, {
-        headers: {
-          accept: 'application/json',
-          Authorization: `Bearer ${token}`, // ส่ง JWT ใน Header
-        },
-      })
+      const response = await axios.delete(
+        `${API_BASE_URL}/${menuToDelete.ID}`,
+        {
+          headers: {
+            accept: 'application/json',
+            Authorization: `Bearer ${token}`, // ส่ง JWT ใน Header
+          },
+        }
+      )
       if (response.status === 200) {
         alert('ลบเมนูสำเร็จ')
         setMenus((prevMenus) =>
@@ -523,16 +532,13 @@ const MenuManagement = () => {
     try {
       const token = localStorage.getItem('token') // ดึง JWT
   
-      const response = await fetch(
-        `http://localhost:8080/api/menu/options/${optionId}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`, // เพิ่ม JWT ใน Header
-          },
-        }
-      )
+      const response = await fetch(`${API_BASE_URL}/options/${optionId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`, // เพิ่ม JWT ใน Header
+        },
+      })
   
       if (response.ok) {
         alert('ลบตัวเลือกสำเร็จ')
@@ -553,14 +559,14 @@ const MenuManagement = () => {
         // ถ้ามี ID แสดงว่าเป็น group ที่มีอยู่แล้ว ต้องลบผ่าน API
         const token = localStorage.getItem('token');
         const response = await axios.delete(
-          `http://localhost:8080/api/menu/option-groups/${group.ID}`,
+          `${API_BASE_URL}/option-groups/${group.ID}`,
           {
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${token}`,
             },
           }
-        );
+        )
         
         if (response.status === 200) {
           // ลบสำเร็จ อัพเดท state
@@ -588,14 +594,14 @@ const MenuManagement = () => {
         // ถ้ามี ID แสดงว่าเป็น option ที่มีอยู่แล้ว ต้องลบผ่าน API
         const token = localStorage.getItem('token');
         const response = await axios.delete(
-          `http://localhost:8080/api/menu/options/${option.ID}`,
+          `${API_BASE_URL}/options/${option.ID}`,
           {
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${token}`,
             },
           }
-        );
+        )
         
         if (response.status === 200) {
           // ลบสำเร็จ อัพเดท state
@@ -959,7 +965,7 @@ const MenuManagement = () => {
                                     try {
                                       const token = localStorage.getItem('token')
                                       await axios.put(
-                                        `http://localhost:8080/api/menu/${menu.ID}/recommend`,
+                                        `${API_BASE_URL}/${menu.ID}/recommend`,
                                         {},
                                         {
                                           headers: {
@@ -1567,14 +1573,13 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
     const fetchCategories = async () => {
       try {
         const token = localStorage.getItem('token')
-        const response = await axios.get('http://127.0.0.1:8080/api/categories',
-          {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`, // เพิ่ม JWT ใน Header
-            },
-          })
+        const response = await axios.get(API_BASE_URL_CATEGORIES, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`, // เพิ่ม JWT ใน Header
+          },
+        })
         if (response.status === 200) {
           setCategories(response.data) // เก็บข้อมูลหมวดหมู่
         }
@@ -1683,7 +1688,7 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
     try {
       const token = localStorage.getItem('token')
       const response = await axios.post(
-        'http://localhost:8080/api/menu',
+        API_BASE_URL,
         menuData,
         {
           headers: {
@@ -1711,14 +1716,19 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
       <div className="bg-white p-8 rounded-xl lg:w-6/12 sm:w-8/12 md:8/12 ml-12 h-screen overflow-y-auto shadow-2xl">
         <div className="flex justify-between items-center border-b pb-4">
           <h2 className="text-2xl font-bold text-gray-800">เพิ่มเมนูอาหาร</h2>
-          <button onClick={onClose} className="hover:bg-gray-100 p-2 rounded-full transition-colors">
+          <button
+            onClick={onClose}
+            className="hover:bg-gray-100 p-2 rounded-full transition-colors"
+          >
             <X className="text-gray-500 hover:text-red-500" />
           </button>
         </div>
         <form onSubmit={handleAddMenu} className="mt-6 space-y-6">
           {/* ส่วนข้อมูลพื้นฐาน */}
           <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-            <h3 className="text-lg font-semibold text-gray-700 mb-4">ข้อมูลพื้นฐาน</h3>
+            <h3 className="text-lg font-semibold text-gray-700 mb-4">
+              ข้อมูลพื้นฐาน
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1799,7 +1809,9 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
 
           {/* ส่วนคำอธิบาย */}
           <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-            <h3 className="text-lg font-semibold text-gray-700 mb-4">คำอธิบายเมนู</h3>
+            <h3 className="text-lg font-semibold text-gray-700 mb-4">
+              คำอธิบายเมนู
+            </h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1840,7 +1852,9 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
           {/* ส่วนตัวเลือก */}
           <div className="bg-gray-50 p-4 rounded-lg">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-700">ตัวเลือกเพิ่มเติม</h3>
+              <h3 className="text-lg font-semibold text-gray-700">
+                ตัวเลือกเพิ่มเติม
+              </h3>
               <button
                 type="button"
                 onClick={handleAddOptionGroup}
@@ -1853,9 +1867,14 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
 
             <div className="space-y-4">
               {options.map((group, groupIndex) => (
-                <div key={groupIndex} className="border border-gray-200 rounded-lg p-4 bg-white">
+                <div
+                  key={groupIndex}
+                  className="border border-gray-200 rounded-lg p-4 bg-white"
+                >
                   <div className="flex justify-between items-center mb-4">
-                    <h4 className="text-md font-medium text-gray-700">กลุ่มตัวเลือกที่ {groupIndex + 1}</h4>
+                    <h4 className="text-md font-medium text-gray-700">
+                      กลุ่มตัวเลือกที่ {groupIndex + 1}
+                    </h4>
                     <button
                       type="button"
                       onClick={() => handleRemoveOptionGroup(groupIndex)}
@@ -1873,7 +1892,13 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
                       <input
                         type="number"
                         value={group.MaxSelections}
-                        onChange={(e) => handleOptionGroupChange(groupIndex, 'MaxSelections', e.target.value)}
+                        onChange={(e) =>
+                          handleOptionGroupChange(
+                            groupIndex,
+                            'MaxSelections',
+                            e.target.value
+                          )
+                        }
                         min="1"
                         className="w-full p-2 border border-gray-300 rounded-lg"
                       />
@@ -1883,10 +1908,18 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
                         <input
                           type="checkbox"
                           checked={group.is_required}
-                          onChange={(e) => handleOptionGroupChange(groupIndex, 'is_required', e.target.checked)}
+                          onChange={(e) =>
+                            handleOptionGroupChange(
+                              groupIndex,
+                              'is_required',
+                              e.target.checked
+                            )
+                          }
                           className="form-checkbox h-5 w-5 text-blue-500"
                         />
-                        <span className="ml-2 text-sm text-gray-700">บังคับให้เลือก</span>
+                        <span className="ml-2 text-sm text-gray-700">
+                          บังคับให้เลือก
+                        </span>
                       </label>
                     </div>
                   </div>
@@ -1896,28 +1929,48 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
                       type="text"
                       placeholder="ชื่อกลุ่ม (ไทย)"
                       value={group.name}
-                      onChange={(e) => handleOptionGroupChange(groupIndex, 'name', e.target.value)}
+                      onChange={(e) =>
+                        handleOptionGroupChange(
+                          groupIndex,
+                          'name',
+                          e.target.value
+                        )
+                      }
                       className="w-full p-2 border border-gray-300 rounded-lg"
                     />
                     <input
                       type="text"
                       placeholder="ชื่อกลุ่ม (อังกฤษ)"
                       value={group.nameEn}
-                      onChange={(e) => handleOptionGroupChange(groupIndex, 'name_en', e.target.value)}
+                      onChange={(e) =>
+                        handleOptionGroupChange(
+                          groupIndex,
+                          'name_en',
+                          e.target.value
+                        )
+                      }
                       className="w-full p-2 border border-gray-300 rounded-lg"
                     />
                     <input
                       type="text"
                       placeholder="ชื่อกลุ่ม (จีน)"
                       value={group.nameCh}
-                      onChange={(e) => handleOptionGroupChange(groupIndex, 'name_ch', e.target.value)}
+                      onChange={(e) =>
+                        handleOptionGroupChange(
+                          groupIndex,
+                          'name_ch',
+                          e.target.value
+                        )
+                      }
                       className="w-full p-2 border border-gray-300 rounded-lg"
                     />
                   </div>
 
                   <div className="border-t pt-4">
                     <div className="flex justify-between items-center mb-4">
-                      <h5 className="text-sm font-medium text-gray-700">ตัวเลือกในกลุ่ม</h5>
+                      <h5 className="text-sm font-medium text-gray-700">
+                        ตัวเลือกในกลุ่ม
+                      </h5>
                       <button
                         type="button"
                         onClick={() => handleAddOption(groupIndex)}
@@ -1930,27 +1983,58 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
 
                     <div className="space-y-4">
                       {group.options.map((option, optionIndex) => (
-                        <div key={optionIndex} className="flex items-center space-x-4 bg-gray-50 p-3 rounded-lg">
+                        <div
+                          key={optionIndex}
+                          className="flex items-center space-x-4 bg-gray-50 p-3 rounded-lg"
+                        >
                           <div className="grid grid-cols-4 gap-4 flex-grow">
                             <input
                               type="text"
                               placeholder="ชื่อ (ไทย)"
                               value={option.name}
-                              onChange={(e) => handleOptionChange(groupIndex, optionIndex, 'name', e.target.value)}
+                              onChange={(e) =>
+                                handleOptionChange(
+                                  groupIndex,
+                                  optionIndex,
+                                  'name',
+                                  e.target.value
+                                )
+                              }
                               className="w-full p-2 border border-gray-300 rounded-lg"
                             />
                             <input
                               type="text"
                               placeholder="ชื่อ (อังกฤษ)"
                               value={option.nameEn}
-                              onChange={(e) => handleOptionChange(groupIndex, optionIndex, 'name_en', e.target.value)}
+                              onChange={(e) =>
+                                handleOptionChange(
+                                  groupIndex,
+                                  optionIndex,
+                                  'name_en',
+                                  e.target.value
+                                )
+                              }
                               className="w-full p-2 border border-gray-300 rounded-lg"
                             />
+                            {/* <input
+                              type="text"
+                              placeholder="ชื่อ (อังกฤษ)"
+                              value={option.nameEn}
+                              onChange={(e) => handleOptionChange(groupIndex, optionIndex, 'name_en', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-lg"
+                            /> */}
                             <input
                               type="text"
                               placeholder="ชื่อ (จีน)"
                               value={option.nameCh}
-                              onChange={(e) => handleOptionChange(groupIndex, optionIndex, 'name_ch', e.target.value)}
+                              onChange={(e) =>
+                                handleOptionChange(
+                                  groupIndex,
+                                  optionIndex,
+                                  'name_ch',
+                                  e.target.value
+                                )
+                              }
                               className="w-full p-2 border border-gray-300 rounded-lg"
                             />
                             <div className="flex items-center space-x-2">
@@ -1958,12 +2042,21 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
                                 type="number"
                                 placeholder="ราคา"
                                 value={option.price}
-                                onChange={(e) => handleOptionChange(groupIndex, optionIndex, 'price', e.target.value)}
+                                onChange={(e) =>
+                                  handleOptionChange(
+                                    groupIndex,
+                                    optionIndex,
+                                    'price',
+                                    e.target.value
+                                  )
+                                }
                                 className="w-full p-2 border border-gray-300 rounded-lg"
                               />
                               <button
                                 type="button"
-                                onClick={() => handleRemoveOption(groupIndex, optionIndex)}
+                                onClick={() =>
+                                  handleRemoveOption(groupIndex, optionIndex)
+                                }
                                 className="text-red-500 hover:text-red-700 transition-colors"
                               >
                                 <Trash2 className="w-4 h-4" />

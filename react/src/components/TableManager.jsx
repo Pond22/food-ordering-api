@@ -27,7 +27,6 @@ const TableManager = ({ posToken }) => {
   const [isNameConflict, setIsNameConflict] = useState(false)
   const [selectedTables, setSelectedTables] = useState([])
   const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false)
-  const [primaryTable, setPrimaryTable] = useState(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [tableToDelete, setTableToDelete] = useState(null)
   const [showSplitPopup, setShowSplitPopup] = useState(false) // สำหรับแสดง Popup การแยกโต๊ะ
@@ -46,8 +45,6 @@ const TableManager = ({ posToken }) => {
     useState(false)
 
   const [qrData, setQrData] = useState(null)
-  const [isTableOpen, setIsTableOpen] = useState(false) // ใช้เพื่อแสดงสถานะโต๊ะ
-  const [loading, setLoading] = useState(false) // ใช้ในการโหลดข้อมูล
   const [uuid, setUuid] = useState('')
 
   const [uuidMap, setUuidMap] = useState({}) // เก็บ UUID ของแต่ละโต๊ะที่มี ID
@@ -68,7 +65,7 @@ const TableManager = ({ posToken }) => {
 
     // ส่งข้อมูลโต๊ะทั้งหมดที่มีสถานะ occupied พร้อมกับ tableID และ uuid ไปยังหน้า PaymentTables
     navigate('/payment-tables', {
-      state: { tableID, uuid, tableName, occupiedTables },
+      state: { tableID, uuid, tableName, occupiedTables, posToken },
     })
   }
 
@@ -218,7 +215,16 @@ const TableManager = ({ posToken }) => {
 
       console.log('Sending reservation data:', requestData) // Debug log
 
-      const response = await axios.post(endpoint, requestData)
+      const response = await axios.post(
+        endpoint,
+        requestData,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${posToken}`,
+          },
+        }
+      )
 
       alert(response.data.message || 'ดำเนินการสำเร็จ')
 
@@ -273,7 +279,7 @@ const TableManager = ({ posToken }) => {
         {
           headers: {
             'Content-Type': 'application/json',
-            accept: 'application/json',
+            Authorization: `Bearer ${posToken}`,
           },
         }
       )
@@ -297,7 +303,12 @@ const TableManager = ({ posToken }) => {
     if (tableToDelete && tableToDelete.ID) {
       try {
         const response = await axios.delete(
-          `http://localhost:8080/api/table/${tableToDelete.ID}`
+          `http://localhost:8080/api/table/${tableToDelete.ID}`,
+          {
+            headers: {
+              Authorization: `Bearer ${posToken}`,
+            },
+          }
         )
         if (response.status === 200) {
           alert('โต๊ะถูกลบเรียบร้อยแล้ว!')
@@ -342,6 +353,11 @@ const TableManager = ({ posToken }) => {
         {
           from_table_id: fromTableId,
           to_table_id: toTableId,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${posToken}`,
+          },
         }
       )
 
@@ -393,6 +409,11 @@ const TableManager = ({ posToken }) => {
         'http://localhost:8080/api/table/mergeTable',
         {
           table_ids: selectedTables,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${posToken}`,
+          },
         }
       )
 
@@ -443,7 +464,10 @@ const TableManager = ({ posToken }) => {
   const handleSplitTable = async (groupId) => {
     try {
       const response = await axios.post(
-        `http://localhost:8080/api/table/splitTable/${groupId}`
+        `http://localhost:8080/api/table/splitTable/${groupId}`,
+        {
+          Authorization: `Bearer ${posToken}`,
+        }
       )
 
       if (response.status === 200) {
@@ -484,7 +508,15 @@ const TableManager = ({ posToken }) => {
 
     try {
       // ใช้ PUT request แทน POST
-      const response = await axios.put(endpoint, {})
+      const response = await axios.put(
+        endpoint,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${posToken}`,
+          },
+        }
+      )
 
       // แสดงข้อความจาก API หรือข้อความที่กำหนดเอง
       alert(
@@ -515,7 +547,12 @@ const TableManager = ({ posToken }) => {
 
       // ดึงข้อมูล QR code จาก API
       const qrResponse = await axios.get(
-        `http://localhost:8080/api/qr/${table.ID}` // ส่ง table.ID ไปแทน
+        `http://localhost:8080/api/qr/${table.ID}`,
+        {
+          headers: {
+            Authorization: `Bearer ${posToken}`,
+          },
+        }
       )
 
       // ตรวจสอบว่า qrResponse.data มีข้อมูลที่จำเป็น

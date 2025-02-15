@@ -42,6 +42,7 @@ const App = () => {
       {/* POS Routes (ไม่ต้องการการล็อกอิน) */}
       <Route path="/pos/verify" element={<POSVerifyRoute />} />
       <Route path="/pos" element={<Pos />} />
+      {/* <Route path="/payment-tables" element={<PaymentTables user={user} />} /> */}
 
       {/* Public Routes */}
       <Route path="/menu" element={<Menu />} />
@@ -66,7 +67,7 @@ const App = () => {
           )
         }
       />
-
+      {/* <Route path="/tables" /> */}
       <Route path="/payment-tables" element={<PaymentTables user={user} />} />
     </Routes>
   )

@@ -5,7 +5,7 @@ import axios from 'axios'
 import OrderSummaryDetail from './OrderSummaryDetail'
 import PrintBillCheckModal from './PrintBillCheckModal'
 
-const PaymentTables = ({ user }) => {
+const PaymentTables = ({ user, posToken }) => {
   const [selectedPayment, setSelectedPayment] = useState('')
   const [vat, setVat] = useState(7)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -34,7 +34,7 @@ const PaymentTables = ({ user }) => {
 
   useEffect(() => {
     const fetchBillableItems = async () => {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('posToken')
       if (!token) {
         alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
         window.location.href = '/login'
@@ -310,7 +310,7 @@ const PaymentTables = ({ user }) => {
         {
           headers: {
             accept: 'application/json',
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${posToken}`,
           },
         }
       )
@@ -518,7 +518,7 @@ const PaymentTables = ({ user }) => {
                 {
                   headers: {
                     accept: 'application/json',
-                    Authorization: `Bearer ${token}`,
+                    Authorization: `Bearer ${posToken}`,
                   },
                 }
               )
@@ -539,7 +539,7 @@ const PaymentTables = ({ user }) => {
     }
 
     fetchOtherTablesBillableItems()
-  }, [showPrintModal, occupiedTables, tableID, tableBillableItems])
+  }, [showPrintModal, occupiedTables, tableID, tableBillableItems, posToken])
 
   const handleCloseTable = async () => {
     setIsClosingTable(true)

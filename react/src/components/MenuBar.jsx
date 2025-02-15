@@ -17,6 +17,8 @@ import MenuList from './MenuList2'
 export default function MenuBar({ tableID, uuid }) {
   const [openCallModal, setOpenCallModal] = useState(false)
   const [openCartModal, setOpenCartModal] = useState(false)
+  const [openMenuModal, setOpenMenuModal] = useState(false) // Modal state for menu popup
+  const [orderData, setOrderData] = useState([]) // State to store fetched order items
   const [language, setLanguage] = useState('th') // ภาษาเริ่มต้นคือไทย
   const {
     cart,
@@ -229,6 +231,28 @@ export default function MenuBar({ tableID, uuid }) {
     }
   }
 
+  // Function to fetch order items using the UUID
+  const fetchOrderData = async () => {
+    try {
+      const response = await axios.get(
+        `http://localhost:8080/api/orders/table/${uuid}`
+      )
+      if (response.status === 200) {
+        setOrderData(response.data) // Store the fetched data
+      } else {
+        console.error('Error fetching order data:', response)
+      }
+    } catch (error) {
+      console.error('Error fetching order data:', error)
+    }
+  }
+
+  // Handle opening the modal and fetch the order data
+  const handleOpenMenuModal = () => {
+    setOpenMenuModal(true) // Open modal
+    fetchOrderData() // Fetch the data when opening the modal
+  }
+
   return (
     <div>
       <nav className="bg-[#1C2B41] shadow-sm fixed top-0 w-full z-50">
@@ -315,7 +339,11 @@ export default function MenuBar({ tableID, uuid }) {
                 </Modal>
               </li>
               <li>
-                <button type="button" className="block py-2 text-white">
+                <button
+                  type="button"
+                  className="block py-2 text-white"
+                  onClick={handleOpenMenuModal}
+                >
                   <SquareMenu />
                 </button>
               </li>
@@ -564,6 +592,62 @@ export default function MenuBar({ tableID, uuid }) {
           </div>
         </div>
       </nav>
+      {/* Modal for Menu */}
+      <Modal
+        show={openMenuModal}
+        size="3xl"
+        onClose={() => setOpenMenuModal(false)}
+        popup
+        className="max-w-[1025px] min-w-[200px] h-screen" // Adjust width between 200px and 1025px
+      >
+        <Modal.Header className="bg-gray-200" />
+        <Modal.Body className="bg-gray-200 rounded-md h-full overflow-y-auto">
+          <div className="flex flex-col items-center justify-center">
+            <h3 className="text-xl font-semibold mb-4">รายการอาหาร</h3>
+
+            {/* Render order data */}
+            {orderData && orderData.length > 0 ? (
+              <div className="flex flex-col gap-4">
+                {/* Iterate over all orders */}
+                {orderData.map((order) => (
+                  <div key={order.id} className="mb-4">
+                    <h4 className="text-lg font-semibold">
+                      Order ID: {order.id}
+                    </h4>
+                    <p>Status: {order.status}</p>
+                    <p>Total: {order.total} ฿</p>
+                    <div className="flex flex-col gap-4">
+                      {/* Iterate over items in each order */}
+                      {order.items.map((item, index) => (
+                        <div
+                          key={item.id}
+                          className="flex justify-between items-center"
+                        >
+                          <div className="flex flex-col">
+                            <h5 className="text-md">{item.menu_item.name}</h5>
+                            <span className="text-sm">
+                              Price: {item.menu_item.price} ฿
+                            </span>
+                            <span className="text-sm">
+                              Quantity: {item.quantity}
+                            </span>
+                          </div>
+                          <div className="flex flex-col items-center gap-2">
+                            {/* Optional actions can be added here */}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center text-lg">ไม่มีรายการอาหาร</div>
+            )}
+          </div>
+        </Modal.Body>
+      </Modal>
+
       <MenuList language={language} />
     </div>
   )
