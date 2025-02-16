@@ -11,7 +11,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/swagger"
 )
 
 // @title Food Ordering API
@@ -75,7 +74,7 @@ func main() {
 	go api_handlers.ManageTableReservationStatus()
 	go api_handlers.AutoManageReservations()
 
-	app.Get("/swagger/*", swagger.HandlerDefault)
+	// app.Get("/swagger/*", swagger.HandlerDefault)
 
 	app.Get("/ws/tables", utils.WebSocketAPIKeyMiddleware("websocket_table"), api_handlers.TableWebSocketHandler(db.DB))
 
