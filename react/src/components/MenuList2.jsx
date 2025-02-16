@@ -5,6 +5,8 @@ import { Plus, Minus, PlusIcon } from 'lucide-react'
 import useCartStore from '../hooks/cart-store'
 import { useSearchParams } from 'react-router-dom'
 
+const API_BASE_URL = 'http://127.0.0.1:8080/api'
+
 export default function MenuList({ language }) {
   const [categories, setCategories] = useState([])
   const [menus, setMenus] = useState([])
@@ -138,7 +140,7 @@ export default function MenuList({ language }) {
   useEffect(() => {
     const fetchCategoryData = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/categories')
+        const response = await fetch(`${API_BASE_URL}/categories`)
         const data = await response.json()
         setCategories(data)
       } catch (error) {
@@ -149,7 +151,7 @@ export default function MenuList({ language }) {
     const fetchMenuData = async () => {
       try {
         const response = await fetch(
-          'http://localhost:8080/api/menu/ActiveMenu'
+          `${API_BASE_URL}/menu/ActiveMenu`
         )
         const data = await response.json()
         setMenus(data)
@@ -161,7 +163,7 @@ export default function MenuList({ language }) {
     const fetchPromotionData = async () => {
       try {
         const response = await fetch(
-          'http://localhost:8080/api/promotions/Active',
+          `${API_BASE_URL}/promotions/Active`,
           {
             headers: { accept: 'application/json' },
           }

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
 
+const API_BASE_URL = 'http://127.0.0.1:8080/api'
+
 const Home = () => {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [verificationCode, setVerificationCode] = useState(null) // State สำหรับเก็บ verification_code
@@ -28,7 +30,7 @@ const Home = () => {
   const generateVerificationCode = async () => {
     try {
       const response = await fetch(
-        'http://localhost:8080/api/pos/generate-code',
+        `${API_BASE_URL}/pos/generate-code`,
         {
           method: 'POST',
           headers: {

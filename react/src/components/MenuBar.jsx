@@ -14,6 +14,8 @@ import {
 import useCartStore from '../hooks/cart-store'
 import MenuList from './MenuList2'
 
+const API_BASE_URL = 'http://127.0.0.1:8080/api'
+
 export default function MenuBar({ tableID, uuid }) {
   const [openCallModal, setOpenCallModal] = useState(false)
   const [openCartModal, setOpenCartModal] = useState(false)
@@ -113,7 +115,7 @@ export default function MenuBar({ tableID, uuid }) {
 
     try {
       const response = await axios.post(
-        'http://localhost:8080/api/orders',
+        `${API_BASE_URL}/orders`,
         requestPayload
       )
 
@@ -182,7 +184,7 @@ export default function MenuBar({ tableID, uuid }) {
       }
 
       const response = await axios.post(
-        'http://localhost:8080/api/notifications/call',
+        `${API_BASE_URL}/notifications/call`,
         {
           table_id: tableID.toString(),
           type: type,
@@ -235,7 +237,7 @@ export default function MenuBar({ tableID, uuid }) {
   const fetchOrderData = async () => {
     try {
       const response = await axios.get(
-        `http://localhost:8080/api/orders/table/${uuid}`
+        `${API_BASE_URL}/orders/table/${uuid}`
       )
       if (response.status === 200) {
         setOrderData(response.data) // Store the fetched data

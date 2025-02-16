@@ -4,6 +4,7 @@ import { Minus, Plus, PlusIcon, ThumbsUp } from 'lucide-react'
 import useCartStore from '../hooks/cart-store'
 import { useSearchParams } from 'react-router-dom'
 
+
 const MenuItem = ({ item, language, isPremium }) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false) // Popup state
   const [note, setNote] = useState('') // Note for the kitchen
