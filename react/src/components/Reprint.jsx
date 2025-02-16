@@ -72,7 +72,7 @@ const renderJobDetails = (job) => (
   </div>
 );
 
-const Reprint = () => {
+const Reprint = ({ posToken }) => {
   const today = new Date();
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -110,7 +110,11 @@ const Reprint = () => {
         ...(filters.endDate && { end_date: filters.endDate })
       });
 
-      const response = await fetch(`${endpoint}?${params}`);
+      const response = await fetch(`${endpoint}?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${posToken}`,
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`Request failed with status ${response.status}`);
@@ -160,7 +164,8 @@ const Reprint = () => {
       const response = await fetch(`${API_BASE_URL}/reprint/${jobId}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${posToken}`,
         }
       });
       
