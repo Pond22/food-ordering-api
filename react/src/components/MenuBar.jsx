@@ -264,7 +264,7 @@ export default function MenuBar({ tableID, uuid }) {
               EasyOrder
             </span>
             <span className="text-base font-semibold whitespace-nowrap">
-              โต๊ะที่ {tableID}
+              โต๊ะที่ {tableID.Name}
             </span>
           </div>
           <div className="block w-auto">

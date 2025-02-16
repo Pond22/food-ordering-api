@@ -185,7 +185,7 @@ export default function MenuList({ language }) {
   }, [])
 
   return (
-    <div className="mt-[5.5rem] bg-gradient-to-br from-[#1c2025] via-[#34393f] to-[#6f757c] max-w-screen-xl mx-auto">
+    <div className="mt-[4.5rem] bg-gradient-to-br from-[#1c2025] via-[#34393f] to-[#6f757c] max-w-screen-xl mx-auto">
       <div className="bg-[#1c2025] border-b border-[#3D3038]/30">
         <div 
           className="flex items-center gap-1.5 overflow-x-auto scrollbar-hidden py-2 px-3"

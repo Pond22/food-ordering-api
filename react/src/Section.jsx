@@ -294,14 +294,14 @@ const Section = ({ isLoggedIn, user, handleLogout, token }) => {
                 จัดการโต๊ะ
               </Link> */}
 
-              <Link
+              {/* <Link
                 to="/reprint"
                 className={`${styles.navLink} ${
                   location.pathname === '/reprint' ? styles.activeLink : ''
                 }`}
               >
                 rePrint
-              </Link>
+              </Link> */}
 
               <Link
                 to="/comfirmation"

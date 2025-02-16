@@ -61,6 +61,12 @@ const TableManager = ({ posToken , user }) => {
   const [toTableId, setToTableId] = useState(null)
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false)
 
+  // เพิ่ม state สำหรับ edit dialog
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editingTable, setEditingTable] = useState(null)
+  const [editTableName, setEditTableName] = useState('')
+  const [editTableCapacity, setEditTableCapacity] = useState(0)
+
   const navigate = useNavigate()
   useEffect(() => {
     if (!posToken) {
@@ -575,6 +581,8 @@ const TableManager = ({ posToken , user }) => {
         {
           headers: {
             Authorization: `Bearer ${posToken}`,
+            accept: 'application/json',
+            'Content-Type': 'application/json',
           },
         }
       )
@@ -595,6 +603,47 @@ const TableManager = ({ posToken , user }) => {
       console.error('Error fetching QR code:', error)
       alert('เกิดข้อผิดพลาดในการดึง QR code')
       return null
+    }
+  }
+
+  // เพิ่มฟังก์ชันสำหรับการแก้ไขโต๊ะ
+  const handleEditTable = async () => {
+    try {
+      const response = await axios.put(
+        `${API_BASE_URL_TABLE}/${editingTable.ID}`,
+        {
+          name: editTableName,
+          capacity: parseInt(editTableCapacity),
+          status: 'available'
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${posToken}`,
+            accept: 'application/json',
+          },
+        }
+      )
+
+      if (response.status === 200) {
+        // อัพเดทข้อมูลโต๊ะในสถานะ
+        setTables(prevTables =>
+          prevTables.map(table =>
+            table.ID === editingTable.ID ? response.data : table
+          )
+        )
+        setIsEditDialogOpen(false)
+        alert('แก้ไขโต๊ะสำเร็จ')
+      }
+    } catch (error) {
+      if (error.response?.status === 409) {
+        alert('ชื่อโต๊ะซ้ำกับที่มีอยู่แล้ว')
+      } else if (error.response?.status === 422) {
+        alert('ไม่สามารถแก้ไขโต๊ะที่กำลังใช้งานอยู่')
+      } else {
+        alert('เกิดข้อผิดพลาดในการแก้ไขโต๊ะ')
+      }
+      console.error('Error editing table:', error)
     }
   }
 
@@ -630,7 +679,7 @@ const TableManager = ({ posToken , user }) => {
                   </div>
                 </div>
 
-                <div className="relative group">
+                {/* <div className="relative group">
                   <button
                     className="bg-white border text-black p-2 rounded-full hover:bg-gray-100"
                     onClick={() => handleToggleTable(table, true)}
@@ -640,7 +689,7 @@ const TableManager = ({ posToken , user }) => {
                   <div className="absolute left-1/2 -translate-x-1/2 w-16 bottom-full mb-2 hidden group-hover:block bg-gray-400 text-white text-sm py-1 px-2 rounded-md shadow-lg">
                     เปลี่ยนสถานะ
                   </div>
-                </div>
+                </div> */}
                 <div className="relative group">
                   <button
                     className="bg-white border text-black p-2 rounded-full hover:bg-gray-100"
@@ -662,6 +711,22 @@ const TableManager = ({ posToken , user }) => {
                 >
                   <Trash2 className="size-6"></Trash2>
                 </button>
+              </div>
+              <div className="relative group">
+                <button
+                  className="bg-white border text-black p-2 rounded-full hover:bg-gray-100"
+                  onClick={() => {
+                    setEditingTable(table)
+                    setEditTableName(table.Name)
+                    setEditTableCapacity(table.Capacity)
+                    setIsEditDialogOpen(true)
+                  }}
+                >
+                  <Edit />
+                </button>
+                <div className="absolute left-1/2 -translate-x-1/2 w-16 bottom-full mb-2 hidden group-hover:block bg-gray-400 text-white text-sm py-1 px-2 rounded-md shadow-lg">
+                  แก้ไขโต๊ะ
+                </div>
               </div>
             </>
           )}
@@ -824,12 +889,12 @@ const TableManager = ({ posToken , user }) => {
         สร้างโต๊ะใหม่
       </button>
 
-      <button
+      {/* <button
         onClick={() => setIsMergeDialogOpen(true)}
         className={styles.btnAction}
       >
         รวมกลุ่มโต๊ะ
-      </button>
+      </button> */}
       {/* Render tables */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {tables
@@ -1102,6 +1167,47 @@ const TableManager = ({ posToken , user }) => {
           </div>
         </div>
       )}
+
+      {/* Edit Table Dialog */}
+      {isEditDialogOpen && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+            <h3 className="text-xl mb-4">แก้ไขโต๊ะ</h3>
+            <label>ชื่อโต๊ะ</label>
+            <input
+              type="text"
+              value={editTableName}
+              onChange={(e) => setEditTableName(e.target.value)}
+              className="border p-2 mb-4 w-full"
+              placeholder="ชื่อโต๊ะ"
+            />
+            <label>จำนวนที่นั่ง</label>
+            <input
+              type="number"
+              value={editTableCapacity}
+              onChange={(e) => setEditTableCapacity(e.target.value)}
+              className="border p-2 mb-4 w-full"
+              placeholder="ความจุ"
+              onWheel={(e) => e.preventDefault()}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setIsEditDialogOpen(false)}
+                className="bg-red-500 text-white px-4 py-2 rounded"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleEditTable}
+                className="bg-blue-500 text-white px-4 py-2 rounded"
+              >
+                บันทึก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ReservationManagement
         isOpen={isReservationManagementOpen}
         onClose={() => setIsReservationManagementOpen(false)}

@@ -7,7 +7,7 @@ import Menu from './pages/Menu';
 import Pos from './pages/POS';
 import POSVerifyRoute from './pages/POSVerifyRoute';
 import PaymentTables from './components/PaymentTables';
-import PosSection from './PosSection';
+// import PosSection from './PosSection';
 import TableManager from './components/TableManager';
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);

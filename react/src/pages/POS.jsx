@@ -10,8 +10,11 @@ import {
   Globe,
   Cpu,
   Network,
+  Printer,
+  X,
 } from 'lucide-react'
 import TableManager from '../components/TableManager'
+import Reprint from '../components/Reprint'
 
 const API_BASE_URL = 'http://127.0.0.1:8080/api/pos'
 
@@ -21,6 +24,7 @@ const POS = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [showReprintDialog, setShowReprintDialog] = useState(false)
 
   // ตรวจสอบ session status ทุก 1 นาที
   useEffect(() => {
@@ -268,15 +272,25 @@ const POS = () => {
               </div>
             </div>
 
-            {/* Logout Button */}
-            <button
-              onClick={() => setShowLogoutDialog(true)}
-              disabled={isLoggingOut}
-              className="flex items-center px-4 py-2 text-red-600 hover:text-red-700 bg-white hover:bg-red-50 border border-red-200 rounded-lg transition-colors disabled:opacity-50"
-            >
-              <Power className="h-4 w-4 mr-2" />
-              {isLoggingOut ? 'Logging out...' : 'End Session'}
-            </button>
+            {/* เพิ่มปุ่ม Reprint ก่อนปุ่ม Logout */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowReprintDialog(true)}
+                className="flex items-center px-4 py-2 text-blue-600 hover:text-blue-700 bg-white hover:bg-blue-50 border border-blue-200 rounded-lg transition-colors"
+              >
+                <Printer className="h-4 w-4 mr-2" />
+                รีปริ้น
+              </button>
+              
+              <button
+                onClick={() => setShowLogoutDialog(true)}
+                disabled={isLoggingOut}
+                className="flex items-center px-4 py-2 text-red-600 hover:text-red-700 bg-white hover:bg-red-50 border border-red-200 rounded-lg transition-colors disabled:opacity-50"
+              >
+                <Power className="h-4 w-4 mr-2" />
+                {isLoggingOut ? 'Logging out...' : 'End Session'}
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -289,6 +303,26 @@ const POS = () => {
           posToken={localStorage.getItem('posToken')}
         />
       </main>
+
+      {/* เพิ่ม Reprint Dialog */}
+      {showReprintDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl h-[90vh] overflow-hidden">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h2 className="text-lg font-semibold">ระบบจัดการรีปริ้น</h2>
+              <button
+                onClick={() => setShowReprintDialog(false)}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-4 h-[calc(90vh-80px)] overflow-auto">
+              <Reprint posToken={localStorage.getItem('posToken')} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Logout confirmation dialog */}
       {showLogoutDialog && (
