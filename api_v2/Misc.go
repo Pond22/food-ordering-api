@@ -364,11 +364,12 @@ func PrepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
 	// แสดงค่าใช้จ่ายเพิ่มเติม
 	if job.Receipt.ChargeTotal > 0 {
 		for _, charge := range job.Receipt.Charges {
+			chargeAmount := charge.Amount * float64(charge.Quantity)
 			summaryLines = append(summaryLines,
 				fmt.Sprintf("%-35s ~~%5s **%12.2f",
 					fmt.Sprintf("%s x%d", charge.ChargeType.Name, charge.Quantity),
 					"",
-					charge.Amount*float64(charge.Quantity)))
+					chargeAmount))
 		}
 	}
 

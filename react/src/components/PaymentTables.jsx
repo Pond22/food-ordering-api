@@ -319,15 +319,18 @@ const PaymentTables = () => {
           .filter((discount) => discount.discountID)
           .map((discount) => ({
             discount_type_id: Number(discount.discountID),
-            reason: discount.discountName || '',
+            reason: discount.reason || '',
           })),
         extra_charges: selectedCharges
-          .filter((charge) => charge.chargeID)
-          .map((charge) => ({
-            charge_type_id: Number(charge.chargeID),
-            note: charge.chargeOption || '',
-            quantity: charge.quantity || 1,
-          })),
+          .filter((charge) => charge.chargeID && charge.value)
+          .map((charge) => {
+            const chargeType = charges.find(c => c.ID === parseInt(charge.chargeID))
+            return {
+              charge_type_id: Number(charge.chargeID),
+              quantity: parseInt(charge.value) || 1,
+              note: charge.note || '',
+            }
+          }),
       }
 
       let apiEndpoint = `${API_BASE_URL}/process`
@@ -1028,7 +1031,14 @@ const PaymentTables = () => {
                           {tableBillableItems[table.ID] && (
                             <span className="text-gray-600">
                               {tableBillableItems[table.ID]
-                                .reduce((sum, item) => sum + item.price, 0)
+                                .reduce((sum, item) => {
+                                  let itemTotal = item.price * item.quantity;
+                                  if (item.options) {
+                                    itemTotal += item.options.reduce((optSum, opt) => 
+                                      optSum + (opt.price * opt.quantity), 0);
+                                  }
+                                  return sum + itemTotal;
+                                }, 0)
                                 .toLocaleString()}{' '}
                               ฿
                             </span>

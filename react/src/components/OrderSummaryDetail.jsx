@@ -257,7 +257,7 @@ const OrderSummaryDetail = ({
               {option.price > 0 && (
                 <div className="flex items-center space-x-3">
                   <span className="font-medium text-green-600">
-                    +{(option.price * option.quantity).toLocaleString()} ฿
+                    +{option.price.toLocaleString()} ฿
                   </span>
                   <DeleteButton itemId={item.id} optionId={option.id} />
                 </div>

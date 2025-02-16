@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import axios from 'axios'
 import MenuRestore from './MenuRestore'
-// import Promotions from './Promotions'
+import Promotions from './Promotions'
 const API_BASE_URL = `${import.meta.env.VITE_APP_API_URL}/api/menu`
 const API_BASE_URL_CATEGORIES = `${import.meta.env.VITE_APP_API_URL}/api/categories` // กำหนด URL ของ API
 
