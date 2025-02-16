@@ -313,7 +313,12 @@ const Section = ({ isLoggedIn, user, handleLogout, token }) => {
               </Link>
             </nav>
 
-            <button className={styles.logoutButton} onClick={handleLogout}>
+            <button className={styles.logoutButton} onClick={() => {
+              // ลบ token ออกจาก localStorage
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              handleLogout();
+            }}>
               LOGOUT
             </button>
           </aside>

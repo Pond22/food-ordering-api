@@ -4,6 +4,7 @@ import (
 	"food-ordering-api/db"
 	"food-ordering-api/models"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -31,6 +32,12 @@ type UserProfile struct {
 	Username string          `json:"username"`
 	Name     string          `json:"name"`
 	Role     models.UserRole `json:"role"`
+}
+
+// GetJWTSecretKey ดึง secret key สำหรับ JWT
+func GetJWTSecretKey() []byte {
+	secret := os.Getenv("JWT_SECRET_KEY")
+	return []byte(secret)
 }
 
 // @Summary เข้าสู่ระบบ
@@ -83,7 +90,7 @@ func Login(c *fiber.Ctx) error {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte("your-secret-key")) // ควรย้าย secret key ไปไว้ใน config
+	tokenString, err := token.SignedString(GetJWTSecretKey())
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Could not generate token",
@@ -128,7 +135,7 @@ func VerifyToken(c *fiber.Ctx) error {
 	// ตรวจสอบและถอดรหัส token
 	claims := jwt.MapClaims{}
 	parsedToken, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte("your-secret-key"), nil // ควรย้าย secret key ไปไว้ใน config
+		return GetJWTSecretKey(), nil
 	})
 
 	if err != nil || !parsedToken.Valid {
@@ -174,7 +181,7 @@ func AuthMiddleware() fiber.Handler {
 		// ตรวจสอบและถอดรหัส token
 		claims := jwt.MapClaims{}
 		parsedToken, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-			return []byte("your-secret-key"), nil // ควรย้าย secret key ไปไว้ใน config
+			return GetJWTSecretKey(), nil
 		})
 
 		if err != nil || !parsedToken.Valid {
@@ -189,4 +196,3 @@ func AuthMiddleware() fiber.Handler {
 		return c.Next()
 	}
 }
-

@@ -14,6 +14,7 @@ services:
       - WS_PRINTER_KEY=${WS_PRINTER_KEY}
       - WS_STAFF_KEY=${WS_STAFF_KEY}
       - POS_JWT_SECRET=${POS_JWT_SECRET}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     depends_on:
       - postgres
 

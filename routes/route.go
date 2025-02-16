@@ -16,7 +16,7 @@ func SetupRoutes(app *fiber.App) {
 
 	notifications := api.Group("/notifications")
 	{
-		notifications.Post("/call", api_handlers.HandleCall)
+		notifications.Post("/call", api_handlers.HandleCall) // สำหรับเรียกพนักงาน
 		notifications.Post("/:id/read", api_handlers.MarkAsRead)
 		notifications.Get("/unread", api_handlers.GetUnreadNotifications)
 	}
@@ -49,7 +49,7 @@ func SetupRoutes(app *fiber.App) {
 	user := api.Group("/member", utils.AuthRequired()) //เอา middleware ออก deploy อย่าลืมเอาใส่
 	{
 		user.Post("/", utils.RoleRequired(models.RoleManager), api_handlers.CreateUser)
-		user.Get("/", api_handlers.GetUsers, utils.RoleRequired(models.RoleManager))
+		user.Get("/", api_handlers.GetUsers)
 		user.Get("/get_member_profile", api_handlers.GetUserProfile)
 		user.Put("/change-password", api_handlers.ChangePassword)
 		user.Put("/:id/reset-password", utils.RoleRequired(models.RoleManager), api_handlers.ResetUserPassword) // ผจก. เปลี่ยนรหัสผ่านพนักงาน
@@ -61,13 +61,13 @@ func SetupRoutes(app *fiber.App) {
 	menu := api.Group("/menu")
 	{
 		// เมนูพื้นฐาน
-		menu.Post("/import", utils.AuthRequired(), api_handlers.ImportMenuFromExcel)
-		menu.Post("/", utils.AuthRequired(), api_handlers.CreateMenuItemHandler)
-		menu.Get("/ActiveMenu", api_handlers.GetActiveMenu)
-		menu.Get("/", utils.AuthRequired(), api_handlers.GetMenu)
-		menu.Put("/:id", utils.AuthRequired(), api_handlers.UpdateMenuItem)
-		menu.Put("/image/:id", utils.AuthRequired(), api_handlers.UpdateMenuImage)
-		menu.Delete("/:id", utils.AuthRequired(), api_handlers.SoftDelete_Menu)
+		menu.Post("/import", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.ImportMenuFromExcel)
+		menu.Post("/", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.CreateMenuItemHandler)
+		menu.Get("/ActiveMenu", api_handlers.GetActiveMenu) // สำหรับดึงเมนูที่เปิดใช้งาน
+		menu.Get("/", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.GetMenu)
+		menu.Put("/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.UpdateMenuItem)
+		menu.Put("/image/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.UpdateMenuImage)
+		menu.Delete("/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.SoftDelete_Menu)
 
 		menu.Get("/recommended", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.GetRecommendedMenuItems)
 		menu.Put("/:id/recommend", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.ToggleMenuItemRecommendation)
@@ -97,7 +97,7 @@ func SetupRoutes(app *fiber.App) {
 	{
 		promotion.Post("/", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.CreatePromotion)
 		promotion.Get("/", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.GetAllPromotion)
-		promotion.Get("/Active", api_handlers.GetActivePromotions)
+		promotion.Get("/Active", api_handlers.GetActivePromotions) // สำหรับดึงโปรโมชั่นที่เปิดใช้งาน
 		promotion.Patch("/status/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.UpdatePromotionStatus)
 		promotion.Put("/image/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.UpdatePromotionImage)
 		promotion.Put("/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.UpdatePromotion)
@@ -112,7 +112,7 @@ func SetupRoutes(app *fiber.App) {
 	categories := api.Group("/categories")
 	{
 		categories.Post("/", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.CreateCategoryHandler)
-		categories.Get("/", api_handlers.GetCategoriesHandler)
+		categories.Get("/", api_handlers.GetCategoriesHandler) // สำหรับดึงหมวดหมู่อาหาร
 		categories.Put("/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.UpdateCategoryHandler)
 		categories.Delete("/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.Delete_categoryHandler)
 		categories.Post("/restore_categories/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.Restore_categoryHandler)
@@ -122,14 +122,14 @@ func SetupRoutes(app *fiber.App) {
 	// Order Management Routes
 	orders := api.Group("/orders")
 	{
-		orders.Post("/", api_handlers.CreateOrder) //สั่งอาหารa
-		orders.Post("/items/cancel", api_handlers.CancelOrderItem)
-		orders.Put("/status/:id", api_handlers.UpdateOrderStatus) //สั่งอาหารa
-		orders.Post("/items/serve/:id", api_handlers.ServeOrderItem)
-		orders.Get("/active", api_handlers.GetActiveOrders)
-		orders.Get("/table/:uuid", api_handlers.GetOrdersByid)
+		orders.Post("/", api_handlers.CreateOrder) // สำหรับสั่งอาหาร
+		orders.Post("/items/cancel", utils.AuthRequired(), api_handlers.CancelOrderItem)
+		orders.Put("/status/:id", utils.AuthRequired(), api_handlers.UpdateOrderStatus) //สั่งอาหารa
+		orders.Post("/items/serve/:id", utils.AuthRequired(), api_handlers.ServeOrderItem)
+		orders.Get("/active", utils.POSAuthRequired(), api_handlers.GetActiveOrders)
+		orders.Get("/table/:uuid", api_handlers.GetOrdersByid) // สำหรับดูรายการอาหารที่สั่งของโต๊ะ
 		orders.Post("/finalize", utils.POSAuthRequired(), api_handlers.FinalizeOrderItems)
-		orders.Get("/cancellation-logs", api_handlers.GetCancellationLogs)
+		orders.Get("/cancellation-logs", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.GetCancellationLogs)
 		// สำหรับพนักงาน (ต้องการการยืนยันตัวตน)
 		// orderStaff := orders.Group("/", utils.AuthRequired())
 		// {
@@ -169,14 +169,14 @@ func SetupRoutes(app *fiber.App) {
 		// printer.Put("/printer-categories/:id", api_handlers.UpdatePrinterCategory)
 		// printer.Delete("/printer-categories/:id", api_handlers.DeletePrinterCategory)
 
-		printer.Post("/categories/:id", api_handlers.AssignPrinterCategories)
-		printer.Get("/categories/:id", api_handlers.GetPrinterCategoriesById)
+		printer.Post("/categories/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.AssignPrinterCategories)
+		printer.Get("/categories/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.GetPrinterCategoriesById)
 
-		printer.Post("reprint/:id", api_handlers.ReprintDocument)
-		printer.Get("failed-jobs", api_handlers.GetFailedPrintJobs)
-		printer.Get("/reprintable-jobs", api_handlers.GetReprintableJobs)
-		printer.Get("/", api_handlers.GetAllPrinters)
-		printer.Post("/bill-check", api_handlers.PrintBillCheck)
+		printer.Post("reprint/:id", utils.POSAuthRequired(), api_handlers.ReprintDocument)
+		printer.Get("failed-jobs", utils.POSAuthRequired(), api_handlers.GetFailedPrintJobs)
+		printer.Get("/reprintable-jobs", utils.POSAuthRequired(), api_handlers.GetReprintableJobs)
+		printer.Get("/", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.GetAllPrinters)
+		printer.Post("/bill-check", utils.POSAuthRequired(), api_handlers.PrintBillCheck)
 
 		// เฉพาะ endpoints ที่ต้องการใช้ API key
 		printer.Get("/pending-jobs", utils.PrinterAPIKeyMiddleware(), api_handlers.GetPendingPrintJobs)
@@ -192,26 +192,26 @@ func SetupRoutes(app *fiber.App) {
 		// จัดการประเภทส่วนลด
 		discountTypes := payment.Group("/discount-types")
 		{
-			discountTypes.Get("/active", api_handlers.GetActiveDiscountTypes) // ดึงเฉพาะที่เปิดใช้งาน
-			discountTypes.Get("/", api_handlers.GetAllDiscountTypes)          // ดึงทั้งหมด
-			discountTypes.Get("/:id", api_handlers.GetDiscountType)           // ดึงตาม ID
-			discountTypes.Post("/", api_handlers.CreateDiscountType)          // สร้างใหม่
-			discountTypes.Put("/:id", api_handlers.UpdateDiscountType)        // แก้ไข
-			discountTypes.Delete("/:id", api_handlers.DeleteDiscountType)     // ลบ/ปิดใช้งาน
+			discountTypes.Get("/active", utils.POSAuthRequired(), api_handlers.GetActiveDiscountTypes)                                  // ดึงเฉพาะที่เปิดใช้งาน
+			discountTypes.Get("/", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.GetAllDiscountTypes)      // ดึงทั้งหมด
+			discountTypes.Get("/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.GetDiscountType)       // ดึงตาม ID
+			discountTypes.Post("/", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.CreateDiscountType)      // สร้างใหม่
+			discountTypes.Put("/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.UpdateDiscountType)    // แก้ไข
+			discountTypes.Delete("/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.DeleteDiscountType) // ลบ/ปิดใช้งาน
 		}
 
 		// จัดการประเภทค่าใช้จ่ายเพิ่มเติม
 		chargeTypes := payment.Group("/charge-types")
 		{
-			chargeTypes.Get("/active", api_handlers.GetActiveChargeTypes) // ดึงเฉพาะที่เปิดใช้งาน
-			chargeTypes.Get("/", api_handlers.GetAllChargeTypes)          // ดึงทั้งหมด
-			chargeTypes.Get("/:id", api_handlers.GetChargeType)           // ดึงตาม ID
-			chargeTypes.Post("/", api_handlers.CreateChargeType)          // สร้างใหม่
-			chargeTypes.Put("/:id", api_handlers.UpdateChargeType)        // แก้ไข
-			chargeTypes.Delete("/:id", api_handlers.DeleteChargeType)     // ลบ/ปิดใช้งาน
+			chargeTypes.Get("/active", utils.POSAuthRequired(), api_handlers.GetActiveChargeTypes)                                  // ดึงเฉพาะที่เปิดใช้งาน
+			chargeTypes.Get("/", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.GetAllChargeTypes)      // ดึงทั้งหมด
+			chargeTypes.Get("/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.GetChargeType)       // ดึงตาม ID
+			chargeTypes.Post("/", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.CreateChargeType)      // สร้างใหม่
+			chargeTypes.Put("/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.UpdateChargeType)    // แก้ไข
+			chargeTypes.Delete("/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.DeleteChargeType) // ลบ/ปิดใช้งาน
 		}
 
-		reservation := api.Group("/reservation")
+		reservation := api.Group("/reservation", utils.AuthRequired(), utils.RoleRequired(models.RoleManager))
 		{
 			reservation.Get("/rules/active", api_handlers.GetActiveReservationRule)
 			reservation.Post("/rules", api_handlers.SetReservationRules)

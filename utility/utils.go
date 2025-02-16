@@ -17,6 +17,11 @@ import (
 	"gorm.io/gorm"
 )
 
+func GetSecretKey() []byte {
+	posSecret := os.Getenv("JWT_SECRET_KEY")
+	return []byte(posSecret)
+}
+
 // GetUserFromToken ดึงข้อมูลผู้ใช้จาก JWT token
 func GetUserFromToken(c *fiber.Ctx) (*jwt.MapClaims, error) {
 	// ดึง token จาก Authorization header
@@ -31,7 +36,7 @@ func GetUserFromToken(c *fiber.Ctx) (*jwt.MapClaims, error) {
 	// ตรวจสอบและถอดรหัส token
 	claims := &jwt.MapClaims{}
 	_, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte("your-secret-key"), nil // ควรย้าย secret key ไปไว้ใน config
+		return GetSecretKey(), nil
 	})
 
 	if err != nil {
