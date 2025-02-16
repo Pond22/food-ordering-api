@@ -889,12 +889,12 @@ const TableManager = ({ posToken , user }) => {
         สร้างโต๊ะใหม่
       </button>
 
-      <button
+      {/* <button
         onClick={() => setIsMergeDialogOpen(true)}
         className={styles.btnAction}
       >
         รวมกลุ่มโต๊ะ
-      </button>
+      </button> */}
       {/* Render tables */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {tables
