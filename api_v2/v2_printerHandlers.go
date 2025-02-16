@@ -107,7 +107,7 @@ func GetPendingPrintJobs(c *fiber.Ctx) error {
 
 				switch job.JobType {
 				case "order":
-					preparedContent, err = prepareOrderPrintContent(job)
+					preparedContent, err = V2_prepareOrderPrintContent(job)
 				case "receipt":
 					preparedContent, err = PrepareReceiptPrintContent(job)
 				case "cancelation":
@@ -191,7 +191,7 @@ func ReprintDocument(c *fiber.Ctx) error {
 	var err error
 	switch originalJob.JobType {
 	case "order":
-		newJob.Content, err = prepareOrderPrintContent(originalJob)
+		newJob.Content, err = V2_prepareOrderPrintContent(originalJob)
 	case "receipt":
 		newJob.Content, err = PrepareReceiptPrintContent(originalJob)
 	case "cancelation":
@@ -330,7 +330,7 @@ func GetReprintableJobs(c *fiber.Ctx) error {
 
 		switch jobs[i].JobType {
 		case "order":
-			content, err = prepareOrderPrintContent(jobs[i])
+			content, err = V2_prepareOrderPrintContent(jobs[i])
 		case "receipt":
 			content, err = PrepareReceiptPrintContent(jobs[i])
 		case "cancelation":

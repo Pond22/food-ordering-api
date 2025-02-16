@@ -112,22 +112,8 @@ const Section = ({ isLoggedIn, user, handleLogout, token }) => {
   }, [isSidebarOpen])
 
   useEffect(() => {
-    console.log('Environment variables:', {
-      VITE_APP_WS_STAFF_KEY: import.meta.env.VITE_APP_WS_STAFF_KEY,
-      VITE_WS_TABLE_KEY: import.meta.env.VITE_WS_TABLE_KEY,
-      VITE_APP_WS_PRINTER_KEY: import.meta.env.VITE_APP_WS_PRINTER_KEY
-    });
-    
     const ws = new WebSocket(`ws://localhost:8080/ws/staff?api_key=${import.meta.env.VITE_APP_WS_STAFF_KEY}`);
     
-    ws.onopen = () => {
-      console.log('WebSocket connection established');
-    };
-
-    ws.onclose = (event) => {
-      console.log('WebSocket connection closed:', event);
-    };
-
     ws.onmessage = (event) => {
       const notification = JSON.parse(event.data);
       

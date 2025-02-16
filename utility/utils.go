@@ -3,11 +3,13 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"food-ordering-api/db"
 	"food-ordering-api/models"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -203,15 +205,8 @@ func InitAPIKeys() {
 	fmt.Println("\n=== Starting API Key Initialization ===")
 	APIKeyStore = map[string]APIKeyConfig{}
 
-	// แสดงค่า environment variables ทั้งหมด
-	fmt.Println("\nEnvironment Variables:")
-	fmt.Printf("WS_TABLE_KEY: '%s'\n", os.Getenv("WS_TABLE_KEY"))
-	fmt.Printf("WS_PRINTER_KEY: '%s'\n", os.Getenv("WS_PRINTER_KEY"))
-	fmt.Printf("WS_STAFF_KEY: '%s'\n", os.Getenv("WS_STAFF_KEY"))
-
 	// เพิ่ม Table Key
 	if tableKey := os.Getenv("WS_TABLE_KEY"); tableKey != "" {
-		fmt.Printf("\nAdding table key: %s\n", tableKey)
 		APIKeyStore[tableKey] = APIKeyConfig{
 			Key:      tableKey,
 			Type:     "websocket_table",
@@ -223,7 +218,6 @@ func InitAPIKeys() {
 
 	// เพิ่ม Printer Key
 	if printerKey := os.Getenv("WS_PRINTER_KEY"); printerKey != "" {
-		fmt.Printf("\nAdding printer key: %s\n", printerKey)
 		APIKeyStore[printerKey] = APIKeyConfig{
 			Key:      printerKey,
 			Type:     "websocket_printer",
@@ -251,11 +245,9 @@ func InitAPIKeys() {
 		fmt.Println("\nWarning: WS_STAFF_KEY not found in environment")
 	}
 
-	fmt.Println("\nFinal API Key Store contents:")
 	for key, config := range APIKeyStore {
 		fmt.Printf("Key: %s, Type: %s, Active: %v\n", key, config.Type, config.IsActive)
 	}
-	fmt.Println("=== API Key Initialization Complete ===\n")
 }
 
 // APIKeyStore เก็บ API Keys ที่อนุญาต
@@ -322,6 +314,69 @@ func PrinterAPIKeyMiddleware() fiber.Handler {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "Invalid Printer API Key",
 			})
+		}
+
+		return c.Next()
+	}
+}
+
+// GetPOSSecretKey ดึง secret key สำหรับ POS
+func GetPOSSecretKey() []byte {
+	posSecret := os.Getenv("POS_JWT_SECRET")
+	return []byte(posSecret)
+}
+
+// GetUserFromPOSToken ดึงข้อมูลผู้ใช้จาก POS JWT token
+func GetUserFromPOSToken(c *fiber.Ctx) (*jwt.MapClaims, error) {
+	// ดึง token จาก Authorization header
+	token := c.Get("Authorization")
+	if token == "" {
+		return nil, fiber.NewError(fiber.StatusUnauthorized, "Missing authorization token")
+	}
+
+	// แยก Bearer token
+	tokenString := strings.Replace(token, "Bearer ", "", 1)
+
+	// ตรวจสอบและถอดรหัส token ด้วย POS secret key
+	claims := &jwt.MapClaims{}
+	_, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		return GetPOSSecretKey(), nil
+	})
+
+	if err != nil {
+		return nil, fiber.NewError(fiber.StatusUnauthorized, "Invalid POS token")
+	}
+
+	// ตรวจสอบว่ามี pos_session_id
+	if _, exists := (*claims)["pos_session_id"]; !exists {
+		return nil, fiber.NewError(fiber.StatusUnauthorized, "Invalid POS token: missing session ID")
+	}
+
+	return claims, nil
+}
+
+// POSAuthRequired middleware สำหรับตรวจสอบการ authentication ของ POS
+func POSAuthRequired() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		claims, err := GetUserFromPOSToken(c)
+		if err != nil {
+			return err
+		}
+
+		// ตรวจสอบว่า session ยังใช้งานได้
+		sessionIDFloat, ok := (*claims)["pos_session_id"].(float64)
+		if !ok {
+			return fiber.NewError(fiber.StatusUnauthorized, "Invalid session ID format")
+		}
+
+		var session models.POSSession
+		if err := db.DB.Where("id = ? AND status = ?", uint(sessionIDFloat), "active").First(&session).Error; err != nil {
+			return fiber.NewError(fiber.StatusUnauthorized, "Invalid or expired POS session")
+		}
+
+		// ตรวจสอบเวลาหมดอายุของ session
+		if session.UpdatedAt.Add(8 * time.Hour).Before(time.Now()) {
+			return fiber.NewError(fiber.StatusUnauthorized, "POS session expired")
 		}
 
 		return c.Next()

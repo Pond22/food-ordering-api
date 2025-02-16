@@ -27,13 +27,11 @@ func SetupRoutes(app *fiber.App) {
 	{
 		// Public endpoints (ไม่ต้องการ authentication)
 		pos.Post("/verify-code", api_handlers.VerifyPOSAccessCode)
-
+		pos.Get("/session-status", api_handlers.GetPOSSessionStatus)
+		pos.Post("/generate-code", utils.AuthRequired(), api_handlers.GeneratePOSVerificationCode)
 		// Protected endpoints (ต้องการ authentication)
-		posAuth := pos.Group("", utils.AuthRequired())
+		posAuth := pos.Group("", utils.POSAuthRequired())
 		{
-			// สำหรับเครื่องต้นทาง (ที่ staff login อยู่)
-			posAuth.Post("/generate-code", api_handlers.GeneratePOSVerificationCode)
-
 			// สำหรับการจัดการ POS session
 			posAuth.Post("/logout", api_handlers.LogoutPOS)
 			posAuth.Get("/session-status", api_handlers.GetPOSSessionStatus)
@@ -71,13 +69,13 @@ func SetupRoutes(app *fiber.App) {
 		menu.Put("/image/:id", utils.AuthRequired(), api_handlers.UpdateMenuImage)
 		menu.Delete("/:id", utils.AuthRequired(), api_handlers.SoftDelete_Menu)
 
-		menu.Get("/recommended", api_handlers.GetRecommendedMenuItems)
+		menu.Get("/recommended", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.GetRecommendedMenuItems)
 		menu.Put("/:id/recommend", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.ToggleMenuItemRecommendation)
 
 		// Option Groups
 		menu.Get("/option-groups/:id", api_handlers.GetOptionByid)
-		menu.Post("/option-groups", api_handlers.AddMoreGroup)
-		menu.Put("/option-groups/:id", api_handlers.UpdateOptionGroup)
+		menu.Post("/option-groups", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.AddMoreGroup)
+		menu.Put("/option-groups/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.UpdateOptionGroup)
 		menu.Delete("/option-groups/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.SoftDelete_OptionGroup)
 
 		// Options
@@ -105,6 +103,8 @@ func SetupRoutes(app *fiber.App) {
 		promotion.Put("/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.UpdatePromotion)
 		promotion.Delete("/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.DeletePromotion)
 		promotion.Get("/:id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.GetPromotionByID)
+		promotion.Delete("/:id/items/:item_id", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.DeletePromotionItem)
+		promotion.Post("/:id/items", utils.AuthRequired(), utils.RoleRequired(models.RoleManager), api_handlers.AddPromotionItems)
 	}
 
 	// Category Management Routes - ต้องการการยืนยันตัวตน และต้องเป็น manager
@@ -128,7 +128,7 @@ func SetupRoutes(app *fiber.App) {
 		orders.Post("/items/serve/:id", api_handlers.ServeOrderItem)
 		orders.Get("/active", api_handlers.GetActiveOrders)
 		orders.Get("/table/:uuid", api_handlers.GetOrdersByid)
-		orders.Post("/finalize", api_handlers.FinalizeOrderItems)
+		orders.Post("/finalize", utils.POSAuthRequired(), api_handlers.FinalizeOrderItems)
 		orders.Get("/cancellation-logs", api_handlers.GetCancellationLogs)
 		// สำหรับพนักงาน (ต้องการการยืนยันตัวตน)
 		// orderStaff := orders.Group("/", utils.AuthRequired())
@@ -140,23 +140,23 @@ func SetupRoutes(app *fiber.App) {
 
 	table := api.Group("/table")
 	{
-		table.Get("/reservations", api_handlers.GetAllReservations)
-		table.Get("/billable/:uuid", api_handlers.GetBillableItems)
-		table.Post("/", api_handlers.Addtable)
-		table.Delete("/:id", api_handlers.DeleteTable)
-		table.Put("/:id", api_handlers.UpdateTable)
-		table.Post("/mergeTable", api_handlers.MergeTables)
-		table.Post("/moveTable", api_handlers.MoveTable)
-		table.Post("/splitTable/:id", api_handlers.SplitTables)
-		table.Post("/reservedTable/:id", api_handlers.ReservedTable)
-		table.Post("/unreservedTable/:id", api_handlers.UnreservedTable)
-		table.Put("/setstatus/:id", api_handlers.ToggleTableStatus)
-		table.Post("/close/:id", api_handlers.CloseTable)
+		table.Get("/reservations", utils.POSAuthRequired(), api_handlers.GetAllReservations)
+		table.Get("/billable/:uuid", utils.POSAuthRequired(), api_handlers.GetBillableItems)
+		table.Post("/", utils.POSAuthRequired(), api_handlers.Addtable)
+		table.Delete("/:id", utils.POSAuthRequired(), api_handlers.DeleteTable)
+		table.Put("/:id", utils.POSAuthRequired(), api_handlers.UpdateTable)
+		table.Post("/mergeTable", utils.POSAuthRequired(), api_handlers.MergeTables)
+		table.Post("/moveTable", utils.POSAuthRequired(), api_handlers.MoveTable)
+		table.Post("/splitTable/:id", utils.POSAuthRequired(), api_handlers.SplitTables)
+		table.Post("/reservedTable/:id", utils.POSAuthRequired(), api_handlers.ReservedTable)
+		table.Post("/unreservedTable/:id", utils.POSAuthRequired(), api_handlers.UnreservedTable)
+		table.Put("/setstatus/:id", utils.POSAuthRequired(), api_handlers.ToggleTableStatus)
+		table.Post("/close/:id", utils.POSAuthRequired(), api_handlers.CloseTable)
 	}
 
 	// QR Code Management Routes
 	// qr := api.Group("/qr", utils.AuthRequired(), utils.RoleRequired(models.RoleStaff, models.RoleManager))
-	qr := api.Group("/qr")
+	qr := api.Group("/qr", utils.POSAuthRequired())
 	{
 		qr.Post("/reprint/:id", qr_service.HandleQRCodeReprint)
 		qr.Get("/:id", qr_service.HandleQRCodeRequest)
@@ -186,8 +186,8 @@ func SetupRoutes(app *fiber.App) {
 	payment := api.Group("/payment")
 	{
 		// การชำระเงินและใบเสร็จ
-		payment.Post("/process", api_handlers.ProcessPayment) // ชำระเงิน
-		payment.Get("/receipt/:id", api_handlers.GetReceipt)  // ดึงข้อมูลใบเสร็จ
+		payment.Post("/process", utils.POSAuthRequired(), api_handlers.ProcessPayment) // ชำระเงิน
+		payment.Get("/receipt/:id", utils.POSAuthRequired(), api_handlers.GetReceipt)  // ดึงข้อมูลใบเสร็จ
 
 		// จัดการประเภทส่วนลด
 		discountTypes := payment.Group("/discount-types")

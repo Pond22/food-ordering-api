@@ -13,6 +13,7 @@ services:
       - WS_TABLE_KEY=${WS_TABLE_KEY}
       - WS_PRINTER_KEY=${WS_PRINTER_KEY}
       - WS_STAFF_KEY=${WS_STAFF_KEY}
+      - POS_JWT_SECRET=${POS_JWT_SECRET}
     depends_on:
       - postgres
 

@@ -236,7 +236,7 @@ func VerifyPOSAccessCode(c *fiber.Ctx) error {
 	})
 }
 
-var jwtSecret = []byte("your-secret-key")
+var jwtSecret = utils.GetPOSSecretKey()
 
 // POSAuthMiddleware ตรวจสอบสิทธิ์ของ POS Session
 func POSAuthMiddleware() fiber.Handler {
@@ -424,7 +424,7 @@ type SessionStatusResponse struct {
 // GetPOSSessionStatus ตรวจสอบสถานะ POS session ปัจจุบัน
 func GetPOSSessionStatus(c *fiber.Ctx) error {
 	// ดึง token จาก Authorization header
-	claims, err := utils.GetUserFromToken(c)
+	claims, err := utils.GetUserFromPOSToken(c)
 	if err != nil {
 		return c.Status(401).JSON(fiber.Map{
 			"error":   "Unauthorized",
@@ -441,19 +441,14 @@ func GetPOSSessionStatus(c *fiber.Ctx) error {
 	}
 	staffID := uint(staffIDFloat)
 
-	// ดึง pos_session_id จาก claims ถ้ามี
-	var sessionID uint
-	if sessionIDFloat, ok := (*claims)["pos_session_id"].(float64); ok {
-		sessionID = uint(sessionIDFloat)
-	}
-
-	// ถ้าไม่มี pos_session_id ใน token แสดงว่าไม่ได้อยู่ใน POS session
-	if sessionID == 0 {
-		return c.JSON(SessionStatusResponse{
-			IsActive: false,
-			StaffID:  staffID,
+	// ดึง pos_session_id จาก claims
+	sessionIDFloat, ok := (*claims)["pos_session_id"].(float64)
+	if !ok {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Invalid session data in token",
 		})
 	}
+	sessionID := uint(sessionIDFloat)
 
 	// ค้นหา session ในฐานข้อมูล
 	var session models.POSSession

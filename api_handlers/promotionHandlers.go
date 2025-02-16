@@ -41,14 +41,16 @@ type PromotionResponse struct {
 }
 
 type createPromo_req struct {
-	Name        string    `json:"name" binding:"required"`
-	NameEn      string    `json:"nameEn"`
-	NameCh      string    `json:"nameCh"`
-	Description string    `json:"description"`
-	StartDate   time.Time `json:"start_date" form:"2006-01-02 15:04:05Z07:00"`
-	EndDate     time.Time `json:"end_date" form:"2006-01-02 15:04:05Z07:00"`
-	Price       float64   `json:"price" binding:"required"`
-	Items       []struct {
+	Name          string    `json:"name" binding:"required"`
+	NameEn        string    `json:"nameEn"`
+	NameCh        string    `json:"nameCh"`
+	Description   string    `json:"description"`
+	DescriptionEn string    `json:"descriptionEn"`
+	DescriptionCh string    `json:"descriptionCh"`
+	StartDate     time.Time `json:"start_date" form:"2006-01-02 15:04:05Z07:00"`
+	EndDate       time.Time `json:"end_date" form:"2006-01-02 15:04:05Z07:00"`
+	Price         float64   `json:"price" binding:"required"`
+	Items         []struct {
 		MenuItemID uint `json:"menu_item_id" binding:"required"`
 		Quantity   int  `json:"quantity" binding:"required,min=1"`
 	} `json:"items" binding:"required"`
@@ -57,18 +59,15 @@ type createPromo_req struct {
 }
 
 type updatePromo_req struct {
-	Name        string     `json:"name,omitempty"`
-	NameEn      string     `json:"nameEn,omitempty"`
-	NameCh      string     `json:"nameCh,omitempty"`
-	Description string     `json:"description,omitempty"`
-	StartDate   *time.Time `json:"start_date,omitempty"`
-	EndDate     *time.Time `json:"end_date,omitempty"`
-	Price       *float64   `json:"price,omitempty"`
-	Items       []struct {
-		ID         uint `json:"id,omitempty"` // สำหรับ item ที่มีอยู่แล้ว
-		MenuItemID uint `json:"menu_item_id"`
-		Quantity   int  `json:"quantity" binding:"min=1"`
-	} `json:"items"`
+	Name          string     `json:"name,omitempty"`
+	NameEn        string     `json:"nameEn,omitempty"`
+	NameCh        string     `json:"nameCh,omitempty"`
+	Description   string     `json:"description,omitempty"`
+	DescriptionEn string     `json:"descriptionEn,omitempty"`
+	DescriptionCh string     `json:"descriptionCh,omitempty"`
+	StartDate     *time.Time `json:"start_date,omitempty"`
+	EndDate       *time.Time `json:"end_date,omitempty"`
+	Price         *float64   `json:"price,omitempty"`
 }
 
 type UpdateStatusRequest struct {
@@ -117,6 +116,8 @@ func CreatePromotion(c *fiber.Ctx) error {
 		NameEn:        req.NameEn,
 		NameCh:        req.NameCh,
 		Description:   req.Description,
+		DescriptionEn: req.DescriptionEn,
+		DescriptionCh: req.DescriptionCh,
 		StartDate:     req.StartDate,
 		EndDate:       req.EndDate,
 		Price:         req.Price, // เพิ่มราคาโปรโมชั่น
@@ -245,7 +246,7 @@ func UpdatePromotionStatus(c *fiber.Ctx) error {
 }
 
 // @Summary อัพเดตข้อมูลโปรโมชั่น
-// @Description อัพเดตข้อมูลโปรโมชั่นและรายการสินค้าที่ร่วมรายการ
+// @Description อัพเดตข้อมูลพื้นฐานของโปรโมชั่น (ไม่รวมรายการอาหาร)
 // @Tags promotions
 // @Accept json
 // @Produce json
@@ -280,13 +281,19 @@ func UpdatePromotion(c *fiber.Ctx) error {
 		updates["name"] = req.Name
 	}
 	if req.NameEn != "" {
-		updates["name_en"] = req.NameEn
+		updates["NameEn"] = req.NameEn
 	}
 	if req.NameCh != "" {
-		updates["name_ch"] = req.NameCh
+		updates["NameCh"] = req.NameCh
 	}
 	if req.Description != "" {
 		updates["description"] = req.Description
+	}
+	if req.DescriptionEn != "" {
+		updates["DescriptionEn"] = req.DescriptionEn
+	}
+	if req.DescriptionCh != "" {
+		updates["DescriptionCh"] = req.DescriptionCh
 	}
 	if req.StartDate != nil {
 		updates["start_date"] = req.StartDate
@@ -298,6 +305,7 @@ func UpdatePromotion(c *fiber.Ctx) error {
 		updates["price"] = req.Price
 	}
 
+	// อัพเดทข้อมูลโปรโมชัน
 	if err := tx.Model(&promo).Updates(updates).Error; err != nil {
 		tx.Rollback()
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to update promotion"})
@@ -307,7 +315,13 @@ func UpdatePromotion(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to commit transaction"})
 	}
 
-	return c.JSON(fiber.Map{"message": "Promotion updated successfully"})
+	// ดึงข้อมูลที่อัพเดทแล้วมาแสดง
+	var updatedPromo models.Promotion
+	if err := db.DB.Preload("Items.MenuItem").First(&updatedPromo, promoID).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to load updated promotion"})
+	}
+
+	return c.JSON(updatedPromo)
 }
 
 // @Summary ลบโปรโมชั่น (Soft Delete)
@@ -496,4 +510,151 @@ func UpdatePromotionImage(c *fiber.Ctx) error { //Security BearerAuth
 	}
 
 	return c.JSON(updatedPromotion)
+}
+
+// @Summary ลบรายการอาหารในโปรโมชั่น
+// @Description ลบรายการอาหารที่ระบุออกจากโปรโมชั่น
+// @Tags promotions
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "ID ของโปรโมชั่น"
+// @Param item_id path int true "ID ของรายการอาหารในโปรโมชั่น"
+// @Success 200 {object} SuccessResponse "ลบรายการอาหารสำเร็จ"
+// @Failure 400 {object} ErrorResponse "ข้อมูลไม่ถูกต้อง"
+// @Failure 401 {object} ErrorResponse "ไม่ได้รับอนุญาต"
+// @Failure 404 {object} ErrorResponse "ไม่พบรายการที่ระบุ"
+// @Failure 500 {object} ErrorResponse "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์"
+// @Router /api/promotions/{id}/items/{item_id} [delete]
+func DeletePromotionItem(c *fiber.Ctx) error {
+	promoID := c.Params("id")
+	itemID := c.Params("item_id")
+
+	tx := db.DB.Begin()
+
+	// ตรวจสอบว่ามีโปรโมชั่นนี้อยู่จริง
+	var promo models.Promotion
+	if err := tx.First(&promo, promoID).Error; err != nil {
+		tx.Rollback()
+		return c.Status(404).JSON(fiber.Map{"error": "Promotion not found"})
+	}
+
+	// ลบรายการอาหาร
+	if err := tx.Where("id = ? AND promotion_id = ?", itemID, promoID).Delete(&models.PromotionItem{}).Error; err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to delete promotion item"})
+	}
+
+	// นับจำนวนรายการที่เหลือ
+	var totalItems int64
+	if err := tx.Model(&models.PromotionItem{}).Where("promotion_id = ?", promoID).Count(&totalItems).Error; err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to count remaining items"})
+	}
+
+	// อัพเดท total_items ในโปรโมชั่น
+	if err := tx.Model(&promo).Update("total_items", totalItems).Error; err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to update total items"})
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to commit transaction"})
+	}
+
+	return c.JSON(fiber.Map{"message": "Promotion item deleted successfully"})
+}
+
+// @Summary เพิ่มรายการอาหารในโปรโมชั่น
+// @Description เพิ่มรายการอาหารใหม่เข้าไปในโปรโมชั่นที่มีอยู่แล้ว
+// @Tags promotions
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "ID ของโปรโมชั่น"
+// @Param items body []struct{MenuItemID uint "json:\"menu_item_id\"" binding:"required" Quantity int "json:\"quantity\"" binding:"required,min=1"} true "รายการอาหารที่ต้องการเพิ่ม"
+// @Success 200 {object} PromotionResponse "รายละเอียดของโปรโมชั่นที่อัพเดทแล้ว"
+// @Failure 400 {object} ErrorResponse "ข้อมูลไม่ถูกต้อง"
+// @Failure 401 {object} ErrorResponse "ไม่ได้รับอนุญาต"
+// @Failure 404 {object} ErrorResponse "ไม่พบโปรโมชั่นที่ระบุ"
+// @Failure 500 {object} ErrorResponse "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์"
+// @Router /api/promotions/{id}/items [post]
+func AddPromotionItems(c *fiber.Ctx) error {
+	promoID := c.Params("id")
+	var req struct {
+		Items []struct {
+			MenuItemID uint `json:"menu_item_id" binding:"required"`
+			Quantity   int  `json:"quantity" binding:"required,min=1"`
+		} `json:"items" binding:"required"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid input format"})
+	}
+
+	tx := db.DB.Begin()
+
+	// ตรวจสอบว่ามีโปรโมชั่นนี้อยู่จริง
+	var promo models.Promotion
+	if err := tx.First(&promo, promoID).Error; err != nil {
+		tx.Rollback()
+		return c.Status(404).JSON(fiber.Map{"error": "Promotion not found"})
+	}
+
+	// ตรวจสอบและเพิ่มรายการในโปรโมชั่น
+	for _, item := range req.Items {
+		// ตรวจสอบว่ามีเมนูนี้อยู่จริง
+		var menuItem models.MenuItem
+		if err := tx.First(&menuItem, item.MenuItemID).Error; err != nil {
+			tx.Rollback()
+			return c.Status(400).JSON(fiber.Map{
+				"error": fmt.Sprintf("Menu item ID %d not found", item.MenuItemID),
+			})
+		}
+
+		// ตรวจสอบว่าเมนูนี้ยังไม่มีในโปรโมชั่น
+		var existingItem models.PromotionItem
+		if err := tx.Where("promotion_id = ? AND menu_item_id = ?", promoID, item.MenuItemID).First(&existingItem).Error; err == nil {
+			tx.Rollback()
+			return c.Status(400).JSON(fiber.Map{
+				"error": fmt.Sprintf("Menu item ID %d already exists in this promotion", item.MenuItemID),
+			})
+		}
+
+		promoItem := models.PromotionItem{
+			PromotionID: promo.ID,
+			MenuItemID:  item.MenuItemID,
+			Quantity:    item.Quantity,
+		}
+
+		if err := tx.Create(&promoItem).Error; err != nil {
+			tx.Rollback()
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to create promotion items"})
+		}
+	}
+
+	// นับจำนวนรายการทั้งหมดที่มีอยู่
+	var totalItems int64
+	if err := tx.Model(&models.PromotionItem{}).Where("promotion_id = ?", promoID).Count(&totalItems).Error; err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to count total items"})
+	}
+
+	// อัพเดท TotalItems
+	if err := tx.Model(&promo).Update("total_items", totalItems).Error; err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to update total items"})
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to commit transaction"})
+	}
+
+	// ดึงข้อมูลที่อัพเดทแล้วมาแสดง
+	var updatedPromo models.Promotion
+	if err := db.DB.Preload("Items.MenuItem").First(&updatedPromo, promoID).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to load updated promotion"})
+	}
+
+	return c.JSON(updatedPromo)
 }

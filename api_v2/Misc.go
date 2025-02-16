@@ -14,7 +14,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/draw"
@@ -63,18 +62,19 @@ type PrinterResponse struct {
 }
 
 // ฟังก์ชันสำหรับเตรียมเนื้อหาสำหรับพิมพ์ออเดอร์ไปครัว
-func prepareOrderPrintContent(job models.PrintJob) ([]byte, error) {
-	// สร้าง formatter ตามขนาดกระดาษ
-	formatter := service.NewPrintFormatter(job.Printer.PaperSize)
+func V2_prepareOrderPrintContent(job models.PrintJob) ([]byte, error) {
 	var content bytes.Buffer
 
 	if job.Order != nil {
+		// ส่วนหัวของใบออเดอร์
 		headerLines := []string{
-			formatter.CenterText("Order #" + fmt.Sprintf("%d", job.Order.ID)),
-			formatter.FormatLine("โต๊ะ: " + fmt.Sprintf("%d", job.Order.TableID)),
-			formatter.GetDivider(),
-			formatter.FormatLine(fmt.Sprintf("วันที่-เวลา: %s", time.Now().Format("02/01/2006 15:04:05"))),
-			formatter.GetDivider(),
+			"",
+			fmt.Sprintf("~=== ออเดอร์โต๊ะ %d ===", job.Order.TableID),
+			fmt.Sprintf("~Order #%d", job.Order.ID),
+			"",
+			"====",
+			fmt.Sprintf("วันที่-เวลา: %s", time.Now().Format("02/01/2006 15:04:05")),
+			"====",
 		}
 
 		for _, line := range headerLines {
@@ -90,41 +90,71 @@ func prepareOrderPrintContent(job models.PrintJob) ([]byte, error) {
 		}
 
 		if len(newItems) > 0 {
-			content.WriteString("\n" + formatter.FormatLine("[รายการใหม่]") + "\n")
-			content.WriteString(formatter.GetDivider() + "\n")
+			content.WriteString("\n~รายการใหม่\n")
+			content.WriteString("----\n")
 
 			for i, item := range newItems {
 				// หมายเลขรายการและชื่ออาหาร
-				itemLine := fmt.Sprintf("%d. %s", i+1, item.MenuItem.Name)
+				itemName := fmt.Sprintf("%d. %s", i+1, item.MenuItem.Name)
+
+				// แสดงจำนวนให้ชัดเจนขึ้น
+				quantityText := ""
 				if item.Quantity > 1 {
-					itemLine += fmt.Sprintf(" x%d", item.Quantity)
+					quantityText = fmt.Sprintf("~>>> จำนวน %d ที่ <<<", item.Quantity)
 				}
-				content.WriteString(formatter.FormatLine(itemLine) + "\n")
+
+				// ใช้ฟังก์ชัน wrapItemName สำหรับตัดคำ
+				itemLines := wrapItemName(itemName, 35)
+
+				// พิมพ์ชื่อรายการ
+				for _, line := range itemLines {
+					content.WriteString(line + "\n")
+				}
+
+				// พิมพ์จำนวน (ถ้ามีมากกว่า 1)
+				if quantityText != "" {
+					content.WriteString(quantityText + "\n")
+				}
 
 				// ตัวเลือกเพิ่มเติม
-				for _, opt := range item.Options {
-					optionLine := fmt.Sprintf("   • %s: %s",
-						opt.MenuOption.OptionGroup.Name,
-						opt.MenuOption.Name)
-					content.WriteString(formatter.FormatLine(optionLine) + "\n")
+				if len(item.Options) > 0 {
+					content.WriteString("รายละเอียดเพิ่มเติม:\n")
+					for _, opt := range item.Options {
+						optName := "   • " + opt.MenuOption.OptionGroup.Name + ": " + opt.MenuOption.Name
+						// ใช้ wrapItemName สำหรับตัวเลือกด้วย
+						optLines := wrapItemName(optName, 35)
+						for _, line := range optLines {
+							content.WriteString(line + "\n")
+						}
+					}
 				}
 
 				// หมายเหตุพิเศษ
 				if item.Notes != "" {
-					content.WriteString(formatter.FormatLine(fmt.Sprintf("   [หมายเหตุ: %s]", item.Notes)) + "\n")
+					content.WriteString("~[หมายเหตุ]\n")
+					noteLine := "   " + item.Notes
+					// ใช้ wrapItemName สำหรับหมายเหตุ
+					noteLines := wrapItemName(noteLine, 35)
+					for _, line := range noteLines {
+						content.WriteString(line + "\n")
+					}
 				}
 
 				// เว้นบรรทัดระหว่างรายการ
 				if i < len(newItems)-1 {
-					content.WriteString(formatter.FormatLine("----------------") + "\n")
+					content.WriteString("\n")
+					content.WriteString("====\n")
+					content.WriteString("\n")
 				}
 			}
 		}
 
 		footerLines := []string{
-			formatter.GetDoubleDivider(),
-			formatter.CenterText("** กรุณาตรวจสอบรายการให้ครบถ้วน **"),
-			formatter.GetDoubleDivider(),
+			"",
+			"====",
+			"~โปรดตรวจสอบรายการให้ครบถ้วน",
+			fmt.Sprintf("~จำนวนรายการทั้งหมด: %d รายการ", len(newItems)),
+			"====",
 		}
 
 		for _, line := range footerLines {
@@ -135,19 +165,6 @@ func prepareOrderPrintContent(job models.PrintJob) ([]byte, error) {
 	}
 
 	return content.Bytes(), nil
-}
-
-// perfectCenterText จัดข้อความให้อยู่กึ่งกลางอย่างสมบูรณ์
-func perfectCenterText(text string, width int) string {
-	textLength := utf8.RuneCountInString(text)
-	if textLength >= width {
-		return text
-	}
-
-	leftPadding := (width - textLength) / 2
-	rightPadding := width - textLength - leftPadding
-
-	return strings.Repeat(" ", leftPadding) + text + strings.Repeat(" ", rightPadding)
 }
 
 func PrepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
@@ -421,6 +438,21 @@ func convertToBitmap(content []byte, paperSize string) ([]byte, error) {
 	scanner := bufio.NewScanner(bytes.NewReader(content))
 	for scanner.Scan() {
 		text := scanner.Text()
+
+		// ตรวจสอบรูปแบบเส้นคั่น
+		if strings.Contains(text, "----") || strings.Contains(text, "====") {
+			// สร้างเส้นคั่นใหม่ที่เต็มความกว้าง
+			var dividerChar string
+			if strings.Contains(text, "====") {
+				dividerChar = "="
+			} else {
+				dividerChar = "-"
+			}
+			// สร้างเส้นคั่นที่เต็มความกว้างโดยเว้นขอบ 2 ตัวอักษร
+			fullWidthDivider := strings.Repeat(dividerChar, template.Width/8-4)
+			text = "  " + fullWidthDivider + "  "
+		}
+
 		// ใช้ formatter เพื่อจัดรูปแบบข้อความให้พอดีกับความกว้าง
 		formatter := service.NewPrintFormatter(paperSize)
 		wrappedLines := formatter.WrapText(text)
@@ -439,11 +471,91 @@ func convertToBitmap(content []byte, paperSize string) ([]byte, error) {
 	// วาดข้อความ
 	y := int(template.FontSize * 3.0)
 	for _, text := range allLines {
+		// ตรวจสอบประเภทของข้อความและกำหนดการจัดวาง
+		var x int
+		var processedText string = text
+
+		// กรณีมี ~~ หรือ ** อยู่ในข้อความ (ไม่ใช่นำหน้า)
+		if !strings.HasPrefix(text, "~") && !strings.HasPrefix(text, "*") {
+			// แยกส่วนที่มี ~~ ก่อน
+			if strings.Contains(text, "~~") {
+				parts := strings.Split(text, "~~")
+				if len(parts) == 2 {
+					leftPart := parts[0]
+					rightPart := parts[1]
+
+					// ตรวจสอบว่าส่วนที่สองมี ** หรือไม่
+					if strings.Contains(rightPart, "**") {
+						subParts := strings.Split(rightPart, "**")
+						if len(subParts) == 2 {
+							// วาดส่วนแรกชิดซ้าย
+							d.Dot = fixed.Point26_6{
+								X: fixed.I(template.LeftPadding),
+								Y: fixed.I(y),
+							}
+							d.DrawString(leftPart)
+
+							// วาดส่วนกลาง
+							width := d.MeasureString(subParts[0]).Ceil()
+							x = (template.Width - width) / 2
+							if x < template.LeftPadding {
+								x = template.LeftPadding
+							}
+							d.Dot = fixed.Point26_6{
+								X: fixed.I(x),
+								Y: fixed.I(y),
+							}
+							d.DrawString(subParts[0])
+
+							// วาดส่วนขวา
+							width = d.MeasureString(subParts[1]).Ceil()
+							x = template.Width - width - template.LeftPadding
+							if x < template.LeftPadding {
+								x = template.LeftPadding
+							}
+							d.Dot = fixed.Point26_6{
+								X: fixed.I(x),
+								Y: fixed.I(y),
+							}
+							d.DrawString(subParts[1])
+							y += int(template.FontSize * template.LineSpacing)
+							continue
+						}
+					}
+				}
+			}
+		}
+
+		// กรณีปกติ (เครื่องหมายนำหน้าหรือไม่มีเครื่องหมาย)
+		switch {
+		// จัดกึ่งกลาง
+		case strings.HasPrefix(text, "~"):
+			processedText = strings.TrimPrefix(text, "~")
+			width := d.MeasureString(processedText).Ceil()
+			x = (template.Width - width) / 2
+
+		// จัดชิดขวา
+		case strings.HasPrefix(text, "*"):
+			processedText = strings.TrimPrefix(text, "*")
+			width := d.MeasureString(processedText).Ceil()
+			x = template.Width - width - template.LeftPadding
+
+		// กรณีอื่นๆ จัดชิดซ้าย
+		default:
+			processedText = text
+			x = template.LeftPadding
+		}
+
+		// ป้องกันไม่ให้ x น้อยกว่า padding ขั้นต่ำ
+		if x < template.LeftPadding {
+			x = template.LeftPadding
+		}
+
 		d.Dot = fixed.Point26_6{
-			X: fixed.I(template.LeftPadding),
+			X: fixed.I(x),
 			Y: fixed.I(y),
 		}
-		d.DrawString(text)
+		d.DrawString(processedText)
 		y += int(template.FontSize * template.LineSpacing)
 	}
 
@@ -474,7 +586,7 @@ func convertToBitmap(content []byte, paperSize string) ([]byte, error) {
 				if x+bit < template.Width {
 					r, g, b_, _ := img.At(x+bit, y).RGBA()
 					brightness := (r*299 + g*587 + b_*114) / 1000
-					if brightness < 0xAFFF { // ลดค่า threshold จาก 0x3FFF เป็น 0x1FFF เพื่อให้ตัวอักษรเข้มที่สุด
+					if brightness < 0xAFFF { // ลดค่า threshold ให้เท่ากับ convertToBitmap
 						b |= 1 << (7 - bit)
 					}
 				}

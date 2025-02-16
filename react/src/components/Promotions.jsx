@@ -34,39 +34,75 @@ const Promotions = () => {
   const [promotionsActive, setPromotionsActive] = useState([])
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('') // ฟิลด์ค้นหา
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(null)
+  const [isEditMode, setIsEditMode] = useState(false)
 
-  // ใช้ useEffect เพื่อดึงข้อมูลเมนูเมื่อโหลด component
-  useEffect(() => {
-    fetchMenuItems()
-    fetchPromotions() // ดึงข้อมูลโปรโมชั่น
-    fetchPromotionsActive()
-  }, [])
+  // สถานะสำหรับฟอร์มแก้ไข
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    nameEn: '',
+    nameCh: '',
+    description: '',
+    descriptionEn: '',
+    descriptionCh: '',
+    startDate: '',
+    endDate: '',
+    price: 0,
+    maxSelections: 0,
+    minSelections: 0,
+    items: []
+  })
+
   const token = localStorage.getItem('token')
 
+  // ฟังก์ชันดึงข้อมูลเมนูทั้งหมด
+  const fetchMenuItems = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL_MENU}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          accept: 'application/json'
+        },
+        params: {
+          action: 'getAll'
+        }
+      })
+      setMenuItems(response.data)
+    } catch (error) {
+      console.error('Error fetching menu items:', error)
+      setError('ไม่สามารถดึงข้อมูลเมนูได้')
+    }
+  }
+
+  // ใช้ useEffect เพื่อดึงข้อมูลเมื่อโหลด component
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        await Promise.all([
+          fetchMenuItems(),
+          fetchPromotions(),
+          fetchPromotionsActive()
+        ])
+      } catch (error) {
+        console.error('Error fetching data:', error)
+        setError('เกิดข้อผิดพลาดในการดึงข้อมูล')
+      }
+    }
+    fetchData()
+  }, [])
+
+  // ฟังก์ชันดึงข้อมูลโปรโมชั่นทั้งหมด
   const fetchPromotions = async () => {
     try {
       const response = await axios.get(API_BASE_URL_PROMOTIONS, {
         headers: {
-          accept: 'application/json',
           Authorization: `Bearer ${token}`,
         },
       })
-
-      if (response.data) {
-        const promotions = Array.isArray(response.data)
-          ? response.data
-          : [response.data]
-
-        // เรียงข้อมูลตาม ID
-        promotions.sort((a, b) => a.ID - b.ID)
-
-        setPromotions(promotions)
-      } else {
-        console.error('โครงสร้างข้อมูลไม่ถูกต้อง', response.data)
-      }
+      setPromotions(response.data)
     } catch (error) {
-      console.error('ไม่สามารถดึงข้อมูลโปรโมชั่นได้:', error)
+      console.error('Error fetching promotions:', error)
+      alert('เกิดข้อผิดพลาดในการดึงข้อมูลโปรโมชั่น')
     }
   }
 
@@ -94,23 +130,213 @@ const Promotions = () => {
     }
   }
 
-  // ฟังก์ชันดึงข้อมูลเมนู
-  const fetchMenuItems = async (action = 'getAll', params = {}) => {
+  // ฟังก์ชันจัดการการแก้ไขข้อมูลในฟอร์ม
+  const handleEditFormChange = (e) => {
+    const { name, value } = e.target
+    setEditFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  // ฟังก์ชันเปิดโหมดแก้ไข
+  const handleEdit = (promotion) => {
+    setSelectedPromotion(promotion)
+    setEditFormData({
+      name: promotion.Name,
+      nameEn: promotion.NameEn,
+      nameCh: promotion.NameCh,
+      description: promotion.Description,
+      descriptionEn: promotion.DescriptionEn,
+      descriptionCh: promotion.DescriptionCh,
+      startDate: new Date(promotion.StartDate).toISOString().split('T')[0],
+      endDate: new Date(promotion.EndDate).toISOString().split('T')[0],
+      price: promotion.Price,
+      maxSelections: promotion.MaxSelections,
+      minSelections: promotion.MinSelections,
+      items: promotion.Items.map(item => ({
+        menu_item_id: item.MenuItem.ID,
+        quantity: item.Quantity,
+        ID: item.ID,
+        MenuItem: item.MenuItem
+      }))
+    })
+    setIsEditMode(true)
+    setIsDropdownOpen(null)
+  }
+
+  // ฟังก์ชันบันทึกการแก้ไข
+  const handleUpdatePromotion = async (e) => {
+    e.preventDefault()
     try {
-      const response = await axios.get(API_BASE_URL_MENU, {
-        headers: {
-          accept: 'application/json',
-          Authorization: `Bearer ${token}`,
+      // อัพเดทข้อมูลพื้นฐานของโปรโมชัน
+      const response = await axios.put(
+        `${API_BASE_URL_PROMOTIONS}/${selectedPromotion.ID}`,
+        {
+          name: editFormData.name,
+          nameEn: editFormData.nameEn,
+          nameCh: editFormData.nameCh,
+          description: editFormData.description,
+          descriptionEn: editFormData.descriptionEn,
+          descriptionCh: editFormData.descriptionCh,
+          start_date: new Date(editFormData.startDate).toISOString(),
+          end_date: new Date(editFormData.endDate).toISOString(),
+          price: parseFloat(editFormData.price),
+          max_selections: parseInt(editFormData.maxSelections),
+          min_selections: parseInt(editFormData.minSelections)
         },
-        params: {
-          action, // ใช้ action ตามที่ต้องการ เช่น getByID, getByCategory, getAll
-          ...params, // พารามิเตอร์เพิ่มเติม เช่น category_id หรือ id
-        },
-      })
-      setMenuItems(response.data) // เซ็ตข้อมูลเมนูที่ดึงมา
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (response.status === 200) {
+        // เพิ่มรายการอาหารใหม่ (ถ้ามี)
+        const newItems = editFormData.items.filter(item => !item.ID)
+        if (newItems.length > 0) {
+          const itemsToAdd = newItems.map(item => ({
+            menu_item_id: parseInt(item.menu_item_id),
+            quantity: parseInt(item.quantity)
+          }))
+          
+          await axios.post(
+            `${API_BASE_URL_PROMOTIONS}/${selectedPromotion.ID}/items`,
+            { items: itemsToAdd },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          )
+        }
+
+        alert('อัพเดทโปรโมชั่นสำเร็จ')
+        setIsEditMode(false)
+        setSelectedPromotion(null)
+        fetchPromotions() // รีเฟรชข้อมูลทั้งหมด
+      }
     } catch (error) {
-      console.error('Error fetching menu items:', error)
+      console.error('Error updating promotion:', error)
+      alert(error.response?.data?.error || 'เกิดข้อผิดพลาดในการอัพเดทโปรโมชั่น')
     }
+  }
+
+  // ฟังก์ชันลบรายการอาหารในโปรโมชั่น
+  const handleDeletePromotionItem = async (promoId, itemId) => {
+    if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการอาหารนี้?')) {
+      try {
+        const response = await axios.delete(
+          `${API_BASE_URL_PROMOTIONS}/${promoId}/items/${itemId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        )
+        if (response.status === 200) {
+          alert('ลบรายการอาหารสำเร็จ')
+          // อัพเดท state โดยตรง
+          setPromotions(prevPromotions =>
+            prevPromotions.map(promo => {
+              if (promo.ID === promoId) {
+                return {
+                  ...promo,
+                  Items: promo.Items.filter(item => item.ID !== itemId),
+                  TotalItems: promo.TotalItems - 1
+                }
+              }
+              return promo
+            })
+          )
+          // อัพเดท editFormData ถ้าอยู่ในโหมดแก้ไข
+          if (isEditMode && selectedPromotion?.ID === promoId) {
+            setEditFormData(prev => ({
+              ...prev,
+              items: prev.items.filter(item => item.ID !== itemId)
+            }))
+          }
+        }
+      } catch (error) {
+        console.error('Error deleting promotion item:', error)
+        if (error.response?.status === 404) {
+          alert('ไม่พบรายการอาหารที่ระบุ')
+        } else {
+          alert('เกิดข้อผิดพลาดในการลบรายการอาหาร')
+        }
+      }
+    }
+  }
+
+  // ฟังก์ชันเพิ่มรายการอาหารในโปรโมชั่น
+  const handleAddPromotionItems = async (promoId, newItems) => {
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL_PROMOTIONS}/${promoId}/items`,
+        { items: newItems },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (response.status === 200) {
+        setPromotions(prevPromotions =>
+          prevPromotions.map(promo => {
+            if (promo.ID === promoId) {
+              return {
+                ...promo,
+                Items: [...promo.Items, ...response.data.Items],
+                TotalItems: response.data.TotalItems
+              }
+            }
+            return promo
+          })
+        )
+        // อัพเดท editFormData ถ้าอยู่ในโหมดแก้ไข
+        if (isEditMode && selectedPromotion?.ID === promoId) {
+          setEditFormData(prev => ({
+            ...prev,
+            items: [...prev.items, ...response.data.Items]
+          }))
+        }
+        alert('เพิ่มรายการอาหารสำเร็จ')
+      }
+    } catch (error) {
+      console.error('Error adding promotion items:', error)
+      if (error.response?.status === 404) {
+        alert('ไม่พบโปรโมชันที่ระบุ')
+      } else if (error.response?.status === 400) {
+        alert(error.response.data.error || 'ข้อมูลไม่ถูกต้อง')
+      } else {
+        alert('เกิดข้อผิดพลาดในการเพิ่มรายการอาหาร')
+      }
+    }
+  }
+
+  // ฟังก์ชันปิดโหมดแก้ไข
+  const handleCancelEdit = () => {
+    setIsEditMode(false)
+    setSelectedPromotion(null)
+    setEditFormData({
+      name: '',
+      nameEn: '',
+      nameCh: '',
+      description: '',
+      descriptionEn: '',
+      descriptionCh: '',
+      startDate: '',
+      endDate: '',
+      price: 0,
+      maxSelections: 0,
+      minSelections: 0,
+      items: []
+    })
   }
 
   // ฟังก์ชันจัดการการเปลี่ยนแปลงของ input ทั่วไป
@@ -134,10 +360,8 @@ const Promotions = () => {
       // อัพเดทค่าใน item
       updatedItems[index] = {
         ...updatedItems[index],
-        [name]: value
+        [name]: name === 'menu_item_id' ? parseInt(value) : value
       }
-
-      console.log('Updated items in state:', updatedItems) // ตรวจสอบการอัพเดต state
       
       return {
         ...prevData,
@@ -290,29 +514,6 @@ const Promotions = () => {
     })
   }
 
-  const handleEdit = (promotion) => {
-    setSelectedPromotionId(promotion.ID)
-    setPromotionData({
-      name: promotion.Name,
-      nameEn: promotion.NameEn,
-      nameCh: promotion.NameCh,
-      description: promotion.Description,
-      descriptionEn: promotion.DescriptionEn,
-      descriptionCh: promotion.DescriptionCh,
-      startDate: new Date(promotion.StartDate).toISOString().slice(0, 16),
-      endDate: new Date(promotion.EndDate).toISOString().slice(0, 16),
-      price: promotion.Price,
-      isActive: promotion.IsActive,
-      maxSelections: promotion.MaxSelections,
-      minSelections: promotion.MinSelections,
-      items: promotion.Items.map((item) => ({
-        menu_item_id: item.MenuItemID.toString(),
-        quantity: item.Quantity,
-      })),
-    })
-    setIsEditPopupOpen(true)
-  }
-
   // ฟังก์ชันเปิด/ปิด popup อัปเดตรูป
   const toggleImageUploadPopup = () => {
     setIsImageUploadPopupOpen(!isImageUploadPopupOpen)
@@ -372,140 +573,6 @@ const Promotions = () => {
     }
   }
 
-  const handleUpdatePromotion = async (e) => {
-    e.preventDefault()
-
-    if (!selectedPromotionId) {
-      alert('ไม่พบข้อมูลโปรโมชั่นที่ต้องการแก้ไข')
-      return
-    }
-
-    try {
-      const {
-        name,
-        nameEn,
-        nameCh,
-        description,
-        descriptionEn,
-        descriptionCh,
-        startDate,
-        endDate,
-        price,
-        isActive,
-        maxSelections,
-        minSelections,
-        items,
-      } = promotionData
-
-      // ตรวจสอบว่ามีรายการสินค้า
-      if (!items || items.length === 0) {
-        alert('กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ')
-        return
-      }
-
-      // ตรวจสอบความถูกต้องของข้อมูล
-      const isValidItems = items.every(
-        (item) => item.menu_item_id && item.quantity > 0
-      )
-      if (!isValidItems) {
-        alert('กรุณาระบุเมนูและจำนวนให้ครบทุกรายการ')
-        return
-      }
-
-      // ตรวจสอบเมนูซ้ำ
-      const menuIds = items.map(item => item.menu_item_id)
-      const hasDuplicates = menuIds.length !== new Set(menuIds).size
-      if (hasDuplicates) {
-        alert('ไม่สามารถเพิ่มเมนูซ้ำในโปรโมชันเดียวกันได้')
-        return
-      }
-
-      // แปลงข้อมูลให้ตรงกับ API
-      const formattedItems = items.map((item) => ({
-        menu_item_id: Number(item.menu_item_id), // แปลงเป็น number อย่างชัดเจน
-        quantity: Number(item.quantity),
-      }))
-
-      const promotionPayload = {
-        name,
-        nameEn,
-        nameCh,
-        description,
-        descriptionEn,
-        descriptionCh,
-        start_date: new Date(startDate).toISOString(),
-        end_date: new Date(endDate).toISOString(),
-        price: Number(price),
-        is_active: Boolean(isActive),
-        max_selections: Number(maxSelections),
-        min_selections: Number(minSelections),
-        items: formattedItems,
-      }
-
-      console.log('Sending payload:', promotionPayload) // ตรวจสอบข้อมูลที่ส่ง
-
-      const response = await axios.put(
-        `${API_BASE_URL_PROMOTIONS}/${selectedPromotionId}`,
-        promotionPayload,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-            accept: 'application/json',
-          },
-        }
-      )
-
-      if (response.status === 200) {
-        console.log('API Response:', response.data) // ตรวจสอบการตอบกลับจาก API
-        await fetchPromotions() // รอให้การดึงข้อมูลใหม่เสร็จสิ้น
-        alert('แก้ไขโปรโมชั่นสำเร็จ')
-        setIsEditPopupOpen(false)
-      }
-    } catch (error) {
-      console.error('Error updating promotion:', error)
-      console.error('Error response:', error.response) // เพิ่มการแสดงรายละเอียดข้อผิดพลาด
-      const errorMessage = error.response?.data?.message || 'เกิดข้อผิดพลาดในการแก้ไขโปรโมชั่น'
-      alert(errorMessage)
-    }
-  }
-
-  const confirmDelete = (id) => {
-    if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบโปรโมชั่นนี้?')) {
-      handleDelete(id)
-    }
-  }
-
-  const handleDelete = async (id) => {
-    try {
-      const response = await axios.delete(
-        `${API_BASE_URL_PROMOTIONS}/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            accept: 'application/json',
-          },
-        }
-      )
-      if (response.status === 200) {
-        alert('ลบโปรโมชั่นสำเร็จ')
-
-        // ลบข้อมูลจาก State ทันที
-        setPromotions((prevPromotions) =>
-          prevPromotions.filter((promotion) => promotion.ID !== id)
-        )
-      } else {
-        alert('เกิดข้อผิดพลาด')
-      }
-    } catch (error) {
-      if (error.response?.status === 404) {
-        alert('ไม่พบโปรโมชั่นที่ระบุ')
-      } else {
-        alert('เกิดข้อผิดพลาดในการลบ')
-      }
-    }
-  }
-
   // ฟังก์ชันการค้นหา
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value)
@@ -521,6 +588,47 @@ const Promotions = () => {
 
   const toggleDropdown = (ID) => {
     setIsDropdownOpen((prev) => (prev === ID ? null : ID))
+  }
+
+  // ฟังก์ชันจัดการการเปลี่ยนแปลงในรายการสินค้าสำหรับโหมดแก้ไข
+  const handleEditItemChange = (index, e) => {
+    const { name, value } = e.target
+    
+    setEditFormData(prevData => {
+      const updatedItems = [...prevData.items]
+      
+      // สร้าง item ใหม่ถ้ายังไม่มี
+      if (!updatedItems[index]) {
+        updatedItems[index] = { menu_item_id: '', quantity: 1 }
+      }
+      
+      // อัพเดทค่าใน item
+      updatedItems[index] = {
+        ...updatedItems[index],
+        [name]: name === 'menu_item_id' ? parseInt(value) : parseInt(value)
+      }
+      
+      return {
+        ...prevData,
+        items: updatedItems
+      }
+    })
+  }
+
+  // ฟังก์ชันเพิ่มรายการสินค้าในโหมดแก้ไข
+  const handleAddEditItem = () => {
+    setEditFormData(prevData => ({
+      ...prevData,
+      items: [...prevData.items, { menu_item_id: '', quantity: 1 }]
+    }))
+  }
+
+  // ฟังก์ชันลบรายการสินค้าในโหมดแก้ไข
+  const handleRemoveEditItem = (index) => {
+    setEditFormData(prevData => ({
+      ...prevData,
+      items: prevData.items.filter((_, i) => i !== index)
+    }))
   }
 
   return (
@@ -613,7 +721,10 @@ const Promotions = () => {
                         อัปโหลดรูปภาพ
                       </button>
                       <button
-                        onClick={() => confirmDelete(promotion.ID)}
+                        onClick={() => {
+                          setSelectedPromotion(promotion)
+                          setShowDeleteConfirm(true)
+                        }}
                         className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -671,6 +782,27 @@ const Promotions = () => {
                       จำนวนรายการที่เลือกได้: {promotion.MinSelections} -{' '}
                       {promotion.MaxSelections}
                     </span>
+                  </div>
+                  
+                  {/* เพิ่มส่วนแสดงรายการอาหาร */}
+                  <div className="mt-4">
+                    <h4 className="font-medium text-gray-700 mb-2">รายการอาหาร</h4>
+                    <div className="space-y-2">
+                      {promotion.Items?.map((item) => (
+                        <div key={item.ID} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600">{item.MenuItem.Name}</span>
+                            <span className="text-xs text-gray-500">x{item.Quantity}</span>
+                          </div>
+                          <button
+                            onClick={() => handleDeletePromotionItem(promotion.ID, item.ID)}
+                            className="p-1 text-red-500 hover:text-red-700 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -866,14 +998,30 @@ const Promotions = () => {
                     <h3 className="text-lg font-semibold text-gray-700">
                       รายการสินค้า
                     </h3>
-                    <button
-                      type="button"
-                      onClick={handleAddItem}
-                      className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      เพิ่มรายการ
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (promotionData.items.length > 0) {
+                            handleAddPromotionItems(selectedPromotionId, promotionData.items)
+                          } else {
+                            alert('กรุณาเพิ่มรายการอาหารอย่างน้อย 1 รายการ')
+                          }
+                        }}
+                        className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        บันทึกรายการใหม่
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAddItem}
+                        className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        เพิ่มรายการ
+                      </button>
+                    </div>
                   </div>
 
                   <div className="space-y-4">
@@ -1015,7 +1163,7 @@ const Promotions = () => {
       )}
 
       {/* Edit Promotion Modal */}
-      {isEditPopupOpen && (
+      {isEditMode && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
@@ -1024,7 +1172,7 @@ const Promotions = () => {
                   แก้ไขโปรโมชัน
                 </h2>
                 <button
-                  onClick={() => setIsEditPopupOpen(false)}
+                  onClick={handleCancelEdit}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <X size={24} />
@@ -1045,8 +1193,8 @@ const Promotions = () => {
                       <input
                         type="text"
                         name="name"
-                        value={promotionData.name}
-                        onChange={handleInputChange}
+                        value={editFormData.name}
+                        onChange={handleEditFormChange}
                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         required
                       />
@@ -1058,8 +1206,8 @@ const Promotions = () => {
                       <input
                         type="text"
                         name="nameEn"
-                        value={promotionData.nameEn}
-                        onChange={handleInputChange}
+                        value={editFormData.nameEn}
+                        onChange={handleEditFormChange}
                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
@@ -1070,8 +1218,8 @@ const Promotions = () => {
                       <input
                         type="text"
                         name="nameCh"
-                        value={promotionData.nameCh}
-                        onChange={handleInputChange}
+                        value={editFormData.nameCh}
+                        onChange={handleEditFormChange}
                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
@@ -1083,10 +1231,10 @@ const Promotions = () => {
                         วันที่เริ่มต้น
                       </label>
                       <input
-                        type="datetime-local"
+                        type="date"
                         name="startDate"
-                        value={promotionData.startDate}
-                        onChange={handleInputChange}
+                        value={editFormData.startDate}
+                        onChange={handleEditFormChange}
                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         required
                       />
@@ -1096,10 +1244,10 @@ const Promotions = () => {
                         วันที่สิ้นสุด
                       </label>
                       <input
-                        type="datetime-local"
+                        type="date"
                         name="endDate"
-                        value={promotionData.endDate}
-                        onChange={handleInputChange}
+                        value={editFormData.endDate}
+                        onChange={handleEditFormChange}
                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         required
                       />
@@ -1111,8 +1259,8 @@ const Promotions = () => {
                       <input
                         type="number"
                         name="price"
-                        value={promotionData.price}
-                        onChange={handleInputChange}
+                        value={editFormData.price}
+                        onChange={handleEditFormChange}
                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         required
                       />
@@ -1132,10 +1280,10 @@ const Promotions = () => {
                       </label>
                       <textarea
                         name="description"
-                        value={promotionData.description}
-                        onChange={handleInputChange}
+                        value={editFormData.description}
+                        onChange={handleEditFormChange}
                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        rows="2"
+                        rows="3"
                       />
                     </div>
                     <div>
@@ -1144,10 +1292,10 @@ const Promotions = () => {
                       </label>
                       <textarea
                         name="descriptionEn"
-                        value={promotionData.descriptionEn}
-                        onChange={handleInputChange}
+                        value={editFormData.descriptionEn}
+                        onChange={handleEditFormChange}
                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        rows="2"
+                        rows="3"
                       />
                     </div>
                     <div>
@@ -1156,10 +1304,10 @@ const Promotions = () => {
                       </label>
                       <textarea
                         name="descriptionCh"
-                        value={promotionData.descriptionCh}
-                        onChange={handleInputChange}
+                        value={editFormData.descriptionCh}
+                        onChange={handleEditFormChange}
                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        rows="2"
+                        rows="3"
                       />
                     </div>
                   </div>
@@ -1169,11 +1317,11 @@ const Promotions = () => {
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold text-gray-700">
-                      รายการสินค้า
+                      รายการอาหาร
                     </h3>
                     <button
                       type="button"
-                      onClick={handleAddItem}
+                      onClick={handleAddEditItem}
                       className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
                     >
                       <Plus className="w-4 h-4 mr-2" />
@@ -1182,7 +1330,7 @@ const Promotions = () => {
                   </div>
 
                   <div className="space-y-4">
-                    {promotionData.items.map((item, index) => (
+                    {editFormData.items.map((item, index) => (
                       <div
                         key={index}
                         className="flex items-center gap-4 bg-white p-4 rounded-lg border border-gray-200"
@@ -1191,38 +1339,51 @@ const Promotions = () => {
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             เมนู
                           </label>
-                          <select
-                            name="menu_item_id"
-                            value={item.menu_item_id}
-                            onChange={(e) => handleItemChange(index, e)}
-                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            required
-                          >
-                            <option value="">เลือกเมนู</option>
-                            {menuItems.map((menuItem) => (
-                              <option key={menuItem.ID} value={menuItem.ID}>
-                                {menuItem.Name}
-                              </option>
-                            ))}
-                          </select>
+                          {item.ID ? (
+                            // ถ้าเป็นรายการที่มีอยู่แล้ว
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-700">{item.MenuItem.Name}</span>
+                              <span className="text-sm text-gray-500">x{item.quantity}</span>
+                            </div>
+                          ) : (
+                            // ถ้าเป็นรายการใหม่
+                            <select
+                              name="menu_item_id"
+                              value={item.menu_item_id}
+                              onChange={(e) => handleEditItemChange(index, e)}
+                              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              required
+                            >
+                              <option value="">เลือกเมนู</option>
+                              {menuItems.map((menuItem) => (
+                                <option key={menuItem.ID} value={menuItem.ID}>
+                                  {menuItem.Name}
+                                </option>
+                              ))}
+                            </select>
+                          )}
                         </div>
-                        <div className="w-32">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            จำนวน
-                          </label>
-                          <input
-                            type="number"
-                            name="quantity"
-                            value={item.quantity}
-                            onChange={(e) => handleItemChange(index, e)}
-                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            min="1"
-                            required
-                          />
-                        </div>
+                        {!item.ID && (
+                          <div className="w-32">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              จำนวน
+                            </label>
+                            <input
+                              type="number"
+                              name="quantity"
+                              value={item.quantity}
+                              onChange={(e) => handleEditItemChange(index, e)}
+                              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              min="1"
+                              required
+                            />
+                          </div>
+                        )}
                         <button
                           type="button"
-                          onClick={() => handleRemoveItem(index)}
+                          onClick={() => item.ID ? 
+                            handleDeletePromotionItem(selectedPromotion.ID, item.ID) : 
+                            handleRemoveEditItem(index)}
                           className="self-end p-2 text-red-500 hover:text-red-700 transition-colors"
                         >
                           <Trash2 className="w-5 h-5" />
@@ -1235,7 +1396,7 @@ const Promotions = () => {
                 <div className="flex justify-end space-x-4 pt-4 border-t">
                   <button
                     type="button"
-                    onClick={() => setIsEditPopupOpen(false)}
+                    onClick={handleCancelEdit}
                     className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                   >
                     ยกเลิก

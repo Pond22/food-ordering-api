@@ -23,6 +23,16 @@ const UserManagement = () => {
   const [roleFilter, setRoleFilter] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const token = localStorage.getItem('token');
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+  });
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
+  const [resetPasswordData, setResetPasswordData] = useState({
+    userId: null,
+    newPassword: '',
+  });
 
   // ดึงข้อมูลผู้ใช้จาก API
   useEffect(() => {
@@ -153,6 +163,73 @@ const UserManagement = () => {
     setRoleFilter('');
   };
 
+  const handleChangePassword = async () => {
+    if (!passwordData.currentPassword || !passwordData.newPassword) {
+      alert('กรุณากรอกข้อมูลให้ครบ');
+      return;
+    }
+
+    try {
+      const response = await axios.put(
+        `${API_BASE_URL}/change-password`,
+        {
+          current_password: passwordData.currentPassword,
+          new_password: passwordData.newPassword,
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      alert('เปลี่ยนรหัสผ่านสำเร็จ');
+      setIsChangePasswordModalOpen(false);
+      setPasswordData({ currentPassword: '', newPassword: '' });
+    } catch (error) {
+      console.error('Error changing password:', error);
+      if (error.response?.data?.error) {
+        alert(error.response.data.error);
+      } else {
+        alert('เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน');
+      }
+    }
+  };
+
+  const handleResetUserPassword = async () => {
+    if (!resetPasswordData.newPassword) {
+      alert('กรุณากรอกรหัสผ่านใหม่');
+      return;
+    }
+
+    try {
+      const response = await axios.put(
+        `${API_BASE_URL}/${resetPasswordData.userId}/reset-password`,
+        {
+          new_password: resetPasswordData.newPassword,
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      alert('รีเซ็ตรหัสผ่านสำเร็จ');
+      setIsResetPasswordModalOpen(false);
+      setResetPasswordData({ userId: null, newPassword: '' });
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      if (error.response?.data?.error) {
+        alert(error.response.data.error);
+      } else {
+        alert('เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน');
+      }
+    }
+  };
+
   return (
     <div className="w-min-screen p-5  bg-gray-50  ">
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
@@ -161,12 +238,20 @@ const UserManagement = () => {
             <ShieldCheck className="mr-3" />
             <h1 className="text-2xl font-bold">การจัดการผู้ใช้</h1>
           </div>
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 flex items-center"
-          >
-            <Plus className="mr-2" size={20} /> เพิ่มผู้ใช้
-          </button>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setIsChangePasswordModalOpen(true)}
+              className="bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600 flex items-center"
+            >
+              <Edit className="mr-2" size={20} /> เปลี่ยนรหัสผ่าน
+            </button>
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 flex items-center"
+            >
+              <Plus className="mr-2" size={20} /> เพิ่มผู้ใช้
+            </button>
+          </div>
         </div>
 
         <div className="p-4 bg-gray-100 flex space-x-4">
@@ -234,12 +319,23 @@ const UserManagement = () => {
                     </span>
                   </td>
                   <td className="p-4 text-right">
-                    <button
-                      onClick={() => handleDeleteUser(user.id)}
-                      className="text-red-600 hover:bg-red-100 p-2 rounded"
-                    >
-                      <Trash2 size={20} />
-                    </button>
+                    <div className="flex justify-end space-x-2">
+                      <button
+                        onClick={() => {
+                          setResetPasswordData({ userId: user.id, newPassword: '' });
+                          setIsResetPasswordModalOpen(true);
+                        }}
+                        className="text-yellow-600 hover:bg-yellow-100 p-2 rounded"
+                      >
+                        <Edit size={20} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(user.id)}
+                        className="text-red-600 hover:bg-red-100 p-2 rounded"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -317,7 +413,78 @@ const UserManagement = () => {
         </div>
       )}
 
-      
+      {/* Modal สำหรับเปลี่ยนรหัสผ่าน */}
+      {isChangePasswordModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+          <div className="bg-white p-6 rounded-lg w-96">
+            <h2 className="text-xl font-bold mb-4">เปลี่ยนรหัสผ่าน</h2>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700">รหัสผ่านปัจจุบัน</label>
+              <input
+                type="password"
+                value={passwordData.currentPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                className="w-full p-2 border rounded-md"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700">รหัสผ่านใหม่</label>
+              <input
+                type="password"
+                value={passwordData.newPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                className="w-full p-2 border rounded-md"
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setIsChangePasswordModalOpen(false)}
+                className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleChangePassword}
+                className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+              >
+                ยืนยัน
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal สำหรับรีเซ็ตรหัสผ่านของผู้ใช้อื่น */}
+      {isResetPasswordModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+          <div className="bg-white p-6 rounded-lg w-96">
+            <h2 className="text-xl font-bold mb-4">รีเซ็ตรหัสผ่านผู้ใช้</h2>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700">รหัสผ่านใหม่</label>
+              <input
+                type="password"
+                value={resetPasswordData.newPassword}
+                onChange={(e) => setResetPasswordData({ ...resetPasswordData, newPassword: e.target.value })}
+                className="w-full p-2 border rounded-md"
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setIsResetPasswordModalOpen(false)}
+                className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleResetUserPassword}
+                className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+              >
+                ยืนยัน
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
