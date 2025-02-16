@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://127.0.0.1:8080/api/table'
-const API_BASE_URL_RESERVATION = 'http://127.0.0.1:8080/api/v2/reservation'
+const API_BASE_URL = `${import.meta.env.VITE_APP_API_URL}/api/table`
+const API_BASE_URL_RESERVATION = `${import.meta.env.VITE_APP_API_URL}/api/v2/reservation`
 
 const ReservationManagement = ({ isOpen, onClose }) => {
   const [reservations, setReservations] = useState([]);

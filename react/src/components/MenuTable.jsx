@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Image, Plus, Search, Filter, X, User, Edit, Trash2 } from 'lucide-react';
 
 
-const API_BASE_URL = "http://127.0.0.1:8080/api/menu"; // URL ของ API หลัก
+const API_BASE_URL = `${import.meta.env.VITE_APP_API_URL}/api/menu"`; // URL ของ API หลัก
 
 const MenuTable = ({ menuItemId }) => {
   const [menuOptions, setMenuOptions] = useState([]);
@@ -16,7 +16,7 @@ const MenuTable = ({ menuItemId }) => {
       setLoading(true);
       try {
         const token = localStorage.getItem('token')
-        const response = await axios.get(`http://127.0.0.1:8080/api/menu/options/${menuItemId}`, {
+        const response = await axios.get(`${import.meta.env.VITE_APP_API_URL}/api/menu/options/${menuItemId}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Printer } from 'lucide-react';
 
-const API_BASE_URL = 'http://127.0.0.1:8080/api/qr'
+const API_BASE_URL = `${import.meta.env.VITE_APP_API_URL}/api/qr`
 
 
 const QRCodeReprint = ({ tableId, uuid }) => {
@@ -14,9 +14,15 @@ const QRCodeReprint = ({ tableId, uuid }) => {
       setLoading(true);
       setError(null);
       
+      const posToken = localStorage.getItem('posToken');
       const response = await axios.post(
         `${API_BASE_URL}/reprint/${tableId}`,
-        { uuid }
+        { uuid },
+        {
+          headers: {
+            Authorization: `Bearer ${posToken}`
+          }
+        }
       );
 
       if (response.status === 200) {

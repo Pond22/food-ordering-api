@@ -20,7 +20,7 @@ const DeletedMenuTable = () => {
   const fetchDeletedMenus = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.get('http://localhost:8080/api/menu/deleted', {
+      const response = await axios.get(`${import.meta.env.VITE_APP_API_URL}/api/menu/deleted`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -38,7 +38,7 @@ const DeletedMenuTable = () => {
     try {
       const token = localStorage.getItem('token')
       const response = await axios.post(
-        `http://localhost:8080/api/menu/restore/${menuId}`, {
+        `${import.meta.env.VITE_APP_API_URL}/api/menu/restore/${menuId}`, {
           headers: {
             Authorization: `Bearer ${token}`, // ✅ เพิ่ม JWT
           },

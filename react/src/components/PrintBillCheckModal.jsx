@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { X, Plus, Trash2 } from 'lucide-react'
 import axios from 'axios'
+import { useNavigate } from 'react-router-dom'
 
-const API_BASE_URL = 'http://127.0.0.1:8080/api/printers'
+const API_BASE_URL = `${import.meta.env.VITE_APP_API_URL}/api/printers`
 
 const PrintBillCheckModal = ({
   isOpen,
@@ -16,22 +17,39 @@ const PrintBillCheckModal = ({
   serviceCharge,
   user,
   discounts,
-  charges
+  charges,
+  posToken
 }) => {
   const [isPrinting, setIsPrinting] = useState(false)
   const [printSelectedTables, setPrintSelectedTables] = useState([])
   const [error, setError] = useState(null)
   const [localDiscounts, setLocalDiscounts] = useState([{ discountID: '', reason: '' }])
   const [localCharges, setLocalCharges] = useState([{ chargeID: '', quantity: 1, note: '' }])
+  const navigate = useNavigate()
 
   useEffect(() => {
     if (!isOpen) {
       setPrintSelectedTables([])
       setError(null)
-      setLocalDiscounts([{ discountID: '', reason: '' }])
-      setLocalCharges([{ chargeID: '', quantity: 1, note: '' }])
+      setLocalDiscounts(
+        selectedDiscounts.length > 0 
+          ? selectedDiscounts.map(d => ({
+              discountID: d.discountID,
+              reason: d.reason || ''
+            }))
+          : [{ discountID: '', reason: '' }]
+      )
+      setLocalCharges(
+        selectedCharges.length > 0
+          ? selectedCharges.map(c => ({
+              chargeID: c.chargeID,
+              quantity: parseInt(c.value) || 1,
+              note: c.note || ''
+            }))
+          : [{ chargeID: '', quantity: 1, note: '' }]
+      )
     }
-  }, [isOpen])
+  }, [isOpen, selectedDiscounts, selectedCharges])
 
   const handleTableSelection = (tableId) => {
     setPrintSelectedTables(prev => {
@@ -77,11 +95,11 @@ const PrintBillCheckModal = ({
   const handlePrintBillCheck = async () => {
     setIsPrinting(true)
     setError(null)
-
     try {
-      const token = localStorage.getItem('token')
-      if (!token) {
-        throw new Error('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
+      if (!posToken) {
+        alert('กรุณาเข้าสู่ระบบใหม่')
+        navigate('/pos/verify')
+        return
       }
 
       // รวบรวม table IDs ที่จะพิมพ์
@@ -89,10 +107,10 @@ const PrintBillCheckModal = ({
         ? printSelectedTables 
         : [mainTable.ID]
 
-      // สร้าง request body ที่มีข้อมูลครบถ้วน
-      const requestBody = {
+      // เตรียมข้อมูลส่วนลดและค่าใช้จ่ายเพิ่มเติม
+      const requestData = {
         table_ids: tableIDsToPrint,
-        service_charge: serviceCharge,
+        service_charge: serviceCharge, // VAT
         discounts: localDiscounts
           .filter(discount => discount.discountID)
           .map(discount => ({
@@ -100,21 +118,24 @@ const PrintBillCheckModal = ({
             reason: discount.reason || ''
           })),
         extra_charges: localCharges
-          .filter(charge => charge.chargeID)
+          .filter(charge => charge.chargeID && charge.quantity)
           .map(charge => ({
             charge_type_id: parseInt(charge.chargeID),
-            quantity: parseInt(charge.quantity) || 1,
+            quantity: parseInt(charge.quantity),
             note: charge.note || ''
-          }))
+          })),
+        staff_id: user
       }
+
+      console.log('Sending print request:', requestData)
 
       const response = await axios.post(
         `${API_BASE_URL}/bill-check`,
-        requestBody,
+        requestData,
         {
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${posToken}`,
           },
         }
       )
@@ -125,7 +146,10 @@ const PrintBillCheckModal = ({
       }
     } catch (error) {
       console.error('Error printing bill check:', error)
-      setError(error.response?.data?.error || 'ไม่สามารถพิมพ์ใบรายการอาหารได้')
+      const errorMessage = error.response?.data?.error || 
+                          (error.message === 'Network Error' ? 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์' : 'เกิดข้อผิดพลาดในการพิมพ์')
+      setError(errorMessage)
+      alert(errorMessage)
     } finally {
       setIsPrinting(false)
     }

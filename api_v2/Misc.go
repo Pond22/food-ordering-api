@@ -195,12 +195,11 @@ func PrepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
 	// ข้อมูลการขาย
 	saleInfo := []string{
 		fmt.Sprintf("เลขที่:                           %d", job.Receipt.ID),
-		fmt.Sprintf("โต๊ะที่:                      ภายในร้าน - วี"),
+		fmt.Sprintf("โต๊ะที่:                          %s", job.Receipt.TableID),
 		fmt.Sprintf("พนักงาน:                      %s", job.Receipt.Staff.Name),
 		fmt.Sprintf("วันที่:                         %s", time.Now().Format("02-01-2006")),
 		fmt.Sprintf("เวลาเข้า:                         %s", job.Receipt.CreatedAt.Format("15:04")),
 		fmt.Sprintf("เวลาออก:                         %s", time.Now().Format("15:04")),
-		// fmt.Sprintf("ทดสอบ~~การพิมพ์**ใบเสร็จ"),
 		formatter.GetDivider(),
 	}
 
@@ -212,55 +211,135 @@ func PrepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
 	content.WriteString(fmt.Sprintf("%-35s ~~%5s **%12s\n", "รายการ", "จำนวน", "ราคา"))
 	content.WriteString(formatter.GetDivider() + "\n")
 
-	// รายการสินค้า
+	// จัดกลุ่มรายการที่เหมือนกัน
+	type OrderItemKey struct {
+		MenuItemID uint
+		Notes      string
+		Options    string
+	}
+
+	itemGroups := make(map[OrderItemKey]struct {
+		MenuItem models.MenuItem
+		Quantity int
+		Price    float64
+		Options  []models.OrderItemOption
+		Notes    string
+	})
+
+	// คำนวณยอดรวม
 	var totalItems int
 	for _, order := range job.Receipt.Orders {
 		for _, item := range order.Items {
 			if item.Status != "cancelled" {
 				totalItems += item.Quantity
-				itemName := item.MenuItem.Name
-				itemPrice := item.Price * float64(item.Quantity)
+				var optStrings []string
+				for _, opt := range item.Options {
+					optStrings = append(optStrings, fmt.Sprintf("%d:%d:%.2f",
+						opt.MenuOptionID, opt.Quantity, opt.Price))
+				}
+				sort.Strings(optStrings)
+				optionsStr := strings.Join(optStrings, "|")
 
-				// ตัดข้อความที่ยาวเกิน 35 ตัวอักษร
-				itemLines := wrapItemName(itemName, 35)
-
-				// พิมพ์บรรทัดแรกพร้อมจำนวนและราคา
-				content.WriteString(fmt.Sprintf("%-35s ~~%5d **%12.2f\n",
-					itemLines[0],
-					item.Quantity,
-					itemPrice))
-
-				// ถ้ามีบรรทัดต่อไป ให้พิมพ์โดยไม่มีจำนวนและราคา
-				for i := 1; i < len(itemLines); i++ {
-					content.WriteString(fmt.Sprintf("%-35s ~~%5s **%12s\n",
-						itemLines[i],
-						"",
-						""))
+				key := OrderItemKey{
+					MenuItemID: item.MenuItemID,
+					Notes:      item.Notes,
+					Options:    optionsStr,
 				}
 
-				// ตัวเลือกเพิ่มเติม
+				itemTotal := item.Price * float64(item.Quantity)
+				// เพิ่มราคาตัวเลือกเสริม
 				for _, opt := range item.Options {
-					optName := "  • " + opt.MenuOption.Name
-					optPrice := opt.Price * float64(opt.Quantity)
+					itemTotal += opt.Price * float64(opt.Quantity)
+				}
 
-					// ตัดข้อความตัวเลือกที่ยาวเกิน
-					optLines := wrapItemName(optName, 35)
+				// ตรวจสอบและปรับราคาตามโปรโมชั่น
+				if item.PromotionUsage != nil && item.PromotionUsage.Promotion.ID > 0 {
+					itemTotal = item.PromotionUsage.Promotion.Price
+				}
 
-					// พิมพ์บรรทัดแรกพร้อมจำนวนและราคา
-					content.WriteString(fmt.Sprintf("%-35s ~~%5d **%12.2f\n",
-						optLines[0],
-						opt.Quantity,
-						optPrice))
-
-					// ถ้ามีบรรทัดต่อไป ให้พิมพ์โดยไม่มีจำนวนและราคา
-					for i := 1; i < len(optLines); i++ {
-						content.WriteString(fmt.Sprintf("%-35s ~~%5s **%12s\n",
-							optLines[i],
-							"",
-							""))
+				if group, exists := itemGroups[key]; exists {
+					group.Quantity += item.Quantity
+					group.Price += itemTotal
+					itemGroups[key] = group
+				} else {
+					itemGroups[key] = struct {
+						MenuItem models.MenuItem
+						Quantity int
+						Price    float64
+						Options  []models.OrderItemOption
+						Notes    string
+					}{
+						MenuItem: item.MenuItem,
+						Quantity: item.Quantity,
+						Price:    itemTotal,
+						Options:  item.Options,
+						Notes:    item.Notes,
 					}
 				}
 			}
+		}
+	}
+
+	// แปลง map เป็น slice และเรียงตามชื่อเมนู
+	var groupedItems []struct {
+		MenuItem models.MenuItem
+		Quantity int
+		Price    float64
+		Options  []models.OrderItemOption
+		Notes    string
+	}
+	for _, group := range itemGroups {
+		groupedItems = append(groupedItems, group)
+	}
+
+	sort.Slice(groupedItems, func(i, j int) bool {
+		return groupedItems[i].MenuItem.Name < groupedItems[j].MenuItem.Name
+	})
+
+	// พิมพ์รายการ
+	for _, group := range groupedItems {
+		itemName := group.MenuItem.Name
+		itemLines := wrapItemName(itemName, 35)
+
+		// พิมพ์บรรทัดแรกพร้อมจำนวนและราคา
+		content.WriteString(fmt.Sprintf("%-35s ~~%5d **%12.2f\n",
+			itemLines[0],
+			group.Quantity,
+			group.Price))
+
+		// ถ้ามีบรรทัดต่อไป ให้พิมพ์โดยไม่มีจำนวนและราคา
+		for i := 1; i < len(itemLines); i++ {
+			content.WriteString(fmt.Sprintf("%-35s ~~%5s **%12s\n",
+				itemLines[i],
+				"",
+				""))
+		}
+
+		// ตัวเลือกเพิ่มเติม
+		for _, opt := range group.Options {
+			optName := "  • " + opt.MenuOption.Name
+			optPrice := opt.Price * float64(opt.Quantity)
+
+			// ตัดข้อความตัวเลือกที่ยาวเกิน
+			optLines := wrapItemName(optName, 35)
+
+			// พิมพ์บรรทัดแรกพร้อมจำนวนและราคา
+			content.WriteString(fmt.Sprintf("%-35s ~~%5d **%12.2f\n",
+				optLines[0],
+				opt.Quantity,
+				optPrice))
+
+			// ถ้ามีบรรทัดต่อไป ให้พิมพ์โดยไม่มีจำนวนและราคา
+			for i := 1; i < len(optLines); i++ {
+				content.WriteString(fmt.Sprintf("%-35s ~~%5s **%12s\n",
+					optLines[i],
+					"",
+					""))
+			}
+		}
+
+		if group.Notes != "" {
+			content.WriteString(fmt.Sprintf("   [หมายเหตุ: %s]\n", group.Notes))
 		}
 	}
 
@@ -269,19 +348,39 @@ func PrepareReceiptPrintContent(job models.PrintJob) ([]byte, error) {
 	// สรุปยอด
 	summaryLines := []string{
 		fmt.Sprintf("%-35s ~~%5d **%12.2f", "ยอดรวม", totalItems, job.Receipt.SubTotal),
-		fmt.Sprintf("%-35s ~~%5s **%12.2f", "ภาษีมูลค่าเพิ่ม 7%", "", job.Receipt.ServiceCharge),
 	}
 
+	// แสดงส่วนลด
 	if job.Receipt.DiscountTotal > 0 {
-		summaryLines = append(summaryLines,
-			fmt.Sprintf("%-35s ~~%5s **%12.2f", "ส่วนลด", "", job.Receipt.DiscountTotal))
+		for _, discount := range job.Receipt.Discounts {
+			summaryLines = append(summaryLines,
+				fmt.Sprintf("%-35s ~~%5s **%12.2f",
+					fmt.Sprintf("ส่วนลด - %s", discount.DiscountType.Name),
+					"",
+					-discount.Value))
+		}
 	}
+
+	// แสดงค่าใช้จ่ายเพิ่มเติม
+	if job.Receipt.ChargeTotal > 0 {
+		for _, charge := range job.Receipt.Charges {
+			summaryLines = append(summaryLines,
+				fmt.Sprintf("%-35s ~~%5s **%12.2f",
+					fmt.Sprintf("%s x%d", charge.ChargeType.Name, charge.Quantity),
+					"",
+					charge.Amount*float64(charge.Quantity)))
+		}
+	}
+
+	// แสดง VAT
+	summaryLines = append(summaryLines,
+		fmt.Sprintf("%-35s ~~%5s **%12.2f", "ภาษีมูลค่าเพิ่ม 7%", "", job.Receipt.ServiceCharge))
 
 	// ยอดสุทธิ
 	summaryLines = append(summaryLines,
 		formatter.GetDivider(),
-		fmt.Sprintf("%-35s ~~%5s **฿%11.2f", "ทั้งหมด", "", job.Receipt.Total),
-		fmt.Sprintf("%-35s ~~%5s **฿%11.2f", "ไม่ใช่เงินสด - อื่นๆ", "", job.Receipt.Total),
+		fmt.Sprintf("%-35s ~~%5s **฿%11.2f", "ยอดรวมสุทธิ", "", job.Receipt.Total),
+		fmt.Sprintf("%-35s ~~%5s **฿%11.2f", job.Receipt.PaymentMethod, "", job.Receipt.Total),
 		"",
 		"~~ขอขอบพระคุณที่มาใช้บริการค่ะ",
 	)
@@ -1211,8 +1310,7 @@ func V2_prepareBillCheckPrintContent(orders []models.Order, tableIDs []string, d
 		formatter.GetDivider(),
 		fmt.Sprintf("%-35s ~~%5s **฿%11.2f", "ยอดรวมสุทธิ", "", netTotal),
 		"",
-		"~~กรุณาตรวจสอบรายการให้ครบถ้วน",
-		"~~ขอบคุณที่ใช้บริการ",
+		"~~ขอขอบพระคุณที่มาใช้บริการค่ะ",
 	)
 
 	for _, line := range summaryLines {

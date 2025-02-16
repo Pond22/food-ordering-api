@@ -2,17 +2,16 @@ import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { Printer as PrinterIcon, Save, Plus, Trash2 } from 'lucide-react'
 
-const API_BASE_URL = 'http://127.0.0.1:8080/api/printers'
-const API_BASE_URL_CATEGORIES = 'http://127.0.0.1:8080/api/categories'
+const API_BASE_URL = `${import.meta.env.VITE_APP_API_URL}/api/printers`
+const API_BASE_URL_CATEGORIES = `${import.meta.env.VITE_APP_API_URL}/api/categories`
 
 const Printer = () => {
   const [printers, setPrinters] = useState([])
   const [categories, setCategories] = useState([])
   const [categoryPrinters, setCategoryPrinters] = useState({})
   const [printerCategories, setPrinterCategories] = useState({})
-  // const [showAddPrinter, setShowAddPrinter] = useState(false)
-  // const [newPrinter, setNewPrinter] = useState({ name: '', ip: '' })
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedPrinter, setSelectedPrinter] = useState(null)
 
   // Fetch printers
   useEffect(() => {
@@ -26,7 +25,7 @@ const Printer = () => {
             headers: { Authorization: `Bearer ${token}` },
             accept: 'application/json',
           }),
-          axios.get(`http://127.0.0.1:8080/api/categories`, {
+          axios.get(`${API_BASE_URL_CATEGORIES}`, {
             headers: { Authorization: `Bearer ${token}` },
             Accept: 'application/json',
           }),
@@ -59,85 +58,40 @@ const Printer = () => {
     fetchPrintersAndCategories()
   }, [])
 
-  // Fetch categories
-  useEffect(() => {
-    const token = localStorage.getItem('token')
-    axios
-      .get(`${API_BASE_URL_CATEGORIES}`, {
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      .then((response) => {
-        setCategories(response.data)
-      })
-      .catch((error) => {
-        console.error('Error fetching categories data:', error)
-      })
-  }, [])
-
   const handleSaveSettings = async () => {
     setIsLoading(true)
     try {
-      // Prepare category assignments with existing and new categories
-      const categoryAssignments = {}
-      const printersToCategoriesMap = {}
+      const token = localStorage.getItem('token')
+      if (!token) return
 
-      // First, collect existing categories for each printer
-      printers.forEach((printer) => {
-        const existingCategories = getExistingCategories(printer.ID)
-        if (existingCategories.length > 0) {
-          printersToCategoriesMap[printer.ID] = existingCategories.map((cat) =>
-            parseInt(cat.ID)
-          )
-        }
-      })
+      // เตรียมข้อมูลสำหรับส่งไปยัง API
+      const selectedCategories = Object.entries(categoryPrinters)
+        .filter(([_, printerId]) => printerId === selectedPrinter.ID)
+        .map(([categoryId]) => parseInt(categoryId))
 
-      // Process newly selected categories
-      categories.forEach((category) => {
-        const newPrinterId = categoryPrinters[category.ID]
-        if (newPrinterId) {
-          // Remove this category from its current printer's categories
-          Object.entries(printersToCategoriesMap).forEach(
-            ([oldPrinterId, categoryIds]) => {
-              printersToCategoriesMap[oldPrinterId] = categoryIds.filter(
-                (catId) => catId !== parseInt(category.ID)
-              )
-            }
-          )
-
-          // Add category to new printer
-          if (!printersToCategoriesMap[newPrinterId]) {
-            printersToCategoriesMap[newPrinterId] = []
-          }
-          printersToCategoriesMap[newPrinterId].push(parseInt(category.ID))
-        }
-      })
-
-      // Prepare API calls
-      const apiCalls = Object.entries(printersToCategoriesMap).map(
-        ([printerId, categoryIds]) =>
-          axios.post(
-            `${API_BASE_URL}/categories/${printerId}`,
-            { category_ids: [...new Set(categoryIds)] }
-          )
-      )
-
-      // Execute API calls
-      await Promise.all(apiCalls)
-
-      // Update local state
-      const updatedPrinterCategories = {}
-      Object.entries(printersToCategoriesMap).forEach(
-        ([printerId, categoryIds]) => {
-          updatedPrinterCategories[printerId] = categoryIds.map((catId) =>
-            categories.find((cat) => parseInt(cat.ID) === catId)
-          )
+      // ส่งข้อมูลไปยัง API
+      const response = await axios.post(
+        `${API_BASE_URL}/categories/${selectedPrinter.ID}`,
+        { category_ids: selectedCategories },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
         }
       )
 
+      // อัปเดตข้อมูลในหน้าจอ
+      const updatedPrinterCategories = { ...printerCategories }
+      updatedPrinterCategories[selectedPrinter.ID] = response.data.Categories
       setPrinterCategories(updatedPrinterCategories)
+
+      // รีเซ็ต categoryPrinters สำหรับเครื่องพิมพ์ที่เลือก
+      const newCategoryPrinters = {}
+      response.data.Categories.forEach(category => {
+        newCategoryPrinters[category.ID] = selectedPrinter.ID
+      })
+      setCategoryPrinters(newCategoryPrinters)
 
       alert('บันทึกการตั้งค่าหมวดหมู่สำเร็จ')
     } catch (error) {
@@ -148,13 +102,17 @@ const Printer = () => {
     }
   }
 
-
   // Delete printer
   const handleDeletePrinter = async (printerId) => {
+    if (!window.confirm('คุณแน่ใจหรือไม่ที่จะลบเครื่องพิมพ์นี้?')) return
+
     try {
       const token = localStorage.getItem('token')
-      await axios.delete(`${API_BASE_URL}/${printerId}`)
+      await axios.delete(`${API_BASE_URL}/${printerId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       setPrinters(printers.filter((printer) => printer.ID !== printerId))
+      alert('ลบเครื่องพิมพ์สำเร็จ')
     } catch (error) {
       console.error('Error deleting printer:', error)
       alert('เกิดข้อผิดพลาดในการลบเครื่องพิมพ์')
@@ -165,6 +123,19 @@ const Printer = () => {
   const getExistingCategories = (printerId) => {
     return printerCategories[printerId] || []
   }
+
+  // เลือกเครื่องพิมพ์
+  const handleSelectPrinter = (printer) => {
+    setSelectedPrinter(printer)
+    // อัปเดต categoryPrinters ตามหมวดหมู่ที่มีอยู่
+    const existingCategories = getExistingCategories(printer.ID)
+    const newCategoryPrinters = { ...categoryPrinters }
+    existingCategories.forEach(category => {
+      newCategoryPrinters[category.ID] = printer.ID
+    })
+    setCategoryPrinters(newCategoryPrinters)
+  }
+
   return (
     <div className="max-h-full h-full px-6 pb-8 mx-auto bg-gray-100">
       <div className="flex justify-between items-center p-4 mb-6 bg-gray-800 rounded-lg">
@@ -174,27 +145,27 @@ const Printer = () => {
         </h1>
       </div>
 
-      <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">เครื่องพิมพ์ที่ตั้งค่าไว้</h2>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2 text-left">ชื่อเครื่องพิมพ์</th>
-                <th className="px-4 py-2 text-left">IP Address</th>
-                <th className="px-4 py-2 text-left">สถานะ</th>
-                <th className="px-4 py-2 text-right">จัดการ</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {printers.map((printer) => (
-                <tr key={printer.ID}>
-                  <td className="px-4 py-2">{printer.Name}</td>
-                  <td className="px-4 py-2">{printer.IPAddress}</td>
-                  <td className="px-4 py-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* รายการเครื่องพิมพ์ */}
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <h2 className="text-xl font-semibold mb-4">เครื่องพิมพ์ทั้งหมด</h2>
+          <div className="space-y-4">
+            {printers.map((printer) => (
+              <div
+                key={printer.ID}
+                className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                  selectedPrinter?.ID === printer.ID
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-blue-300'
+                }`}
+                onClick={() => handleSelectPrinter(printer)}
+              >
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="font-medium">{printer.Name}</h3>
+                    <p className="text-sm text-gray-600">{printer.IPAddress}</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
                     <span
                       className={`px-2 py-1 rounded-full text-xs ${
                         printer.Status === 'active'
@@ -202,97 +173,78 @@ const Printer = () => {
                           : 'bg-red-100 text-red-800'
                       }`}
                     >
-                      {printer.Status === 'active'
-                        ? 'พร้อมใช้งาน'
-                        : 'ไม่พร้อมใช้งาน'}
+                      {printer.Status === 'active' ? 'พร้อมใช้งาน' : 'ไม่พร้อมใช้งาน'}
                     </span>
-                  </td>
-                  <td className="px-4 py-2 text-right">
                     <button
-                      onClick={() => handleDeletePrinter(printer.ID)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeletePrinter(printer.ID)
+                      }}
                       className="text-red-600 hover:text-red-900"
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="flex justify-between">
-          <h2 className="text-xl font-semibold mb-4">
-            ตั้งค่าเครื่องพิมพ์ตามหมวดหมู่
-          </h2>
-          <button
-            onClick={handleSaveSettings}
-            disabled={isLoading}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 mb-4"
-          >
-            <Save className="w-5 h-5 mr-2" />
-            {isLoading ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}
-          </button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ">
-          {categories.map((category) => (
-            <div key={category.ID} className="p-4 border rounded-lg shadow-md">
-              <div className="flex items-center mb-2">
-                <span className="text-2xl mr-2">{category.Name}</span>
+                  </div>
+                </div>
               </div>
-              <select
-                className="w-full p-2 border rounded-md bg-white"
-                value={categoryPrinters[category.ID] || ''}
-                onChange={(e) =>
-                  setCategoryPrinters({
-                    ...categoryPrinters,
-                    [category.ID]: e.target.value,
-                  })
-                }
-              >
-                <option value="">
-                  {printers.filter((printer) => {
-                    const existingCategories = getExistingCategories(printer.ID)
-                    return existingCategories.some(
-                      (existingCategory) => existingCategory.ID === category.ID
-                    )
-                  }).length > 0
-                    ? printers
-                        .filter((printer) => {
-                          const existingCategories = getExistingCategories(
-                            printer.ID
-                          )
-                          return existingCategories.some(
-                            (existingCategory) =>
-                              existingCategory.ID === category.ID
-                          )
-                        })
-                        .map((printer) => `${printer.Name} (เลือกอยู่)`)
-                        .join(', ')
-                    : 'เลือกเครื่องพิมพ์'}
-                </option>
-                {printers.map((printer) => {
-                  const existingCategories = getExistingCategories(printer.ID)
-                  const isCategoryAssigned = existingCategories.some(
-                    (existingCategory) => existingCategory.ID === category.ID
-                  )
+            ))}
+          </div>
+        </div>
 
-                  return (
-                    <option
-                      key={printer.ID}
-                      value={printer.ID}
-                      className={isCategoryAssigned ? 'bg-green-100' : ''}
-                    >
-                      {printer.Name}
-                      {isCategoryAssigned ? ' (เลือกอยู่)' : ''}
-                    </option>
-                  )
-                })}
-              </select>
+        {/* กำหนดหมวดหมู่ */}
+        <div className="md:col-span-2 bg-white rounded-lg shadow-lg p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">
+              {selectedPrinter
+                ? `กำหนดหมวดหมู่สำหรับ ${selectedPrinter.Name}`
+                : 'เลือกเครื่องพิมพ์เพื่อกำหนดหมวดหมู่'}
+            </h2>
+            {selectedPrinter && (
+              <button
+                onClick={handleSaveSettings}
+                disabled={isLoading}
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                <Save className="w-5 h-5 mr-2" />
+                {isLoading ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}
+              </button>
+            )}
+          </div>
+
+          {selectedPrinter ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {categories.map((category) => {
+                const isAssigned = categoryPrinters[category.ID] === selectedPrinter.ID
+                return (
+                  <div
+                    key={category.ID}
+                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                      isAssigned
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200 hover:border-blue-300'
+                    }`}
+                    onClick={() => {
+                      setCategoryPrinters({
+                        ...categoryPrinters,
+                        [category.ID]: isAssigned ? null : selectedPrinter.ID,
+                      })
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{category.Name}</span>
+                      {isAssigned && (
+                        <div className="w-4 h-4 rounded-full bg-green-500"></div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-          ))}
+          ) : (
+            <div className="text-center text-gray-500 py-8">
+              กรุณาเลือกเครื่องพิมพ์จากรายการด้านซ้าย
+            </div>
+          )}
         </div>
       </div>
     </div>

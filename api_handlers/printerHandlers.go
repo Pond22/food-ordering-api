@@ -162,13 +162,6 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 		})
 	}
 
-	// ตรวจสอบว่ามี category IDs ส่งมาหรือไม่
-	if len(req.CategoryIDs) == 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Category IDs are required",
-		})
-	}
-
 	tx := db.DB.Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -186,51 +179,39 @@ func AssignPrinterCategories(c *fiber.Ctx) error {
 	}
 
 	// ตรวจสอบว่าหมวดหมู่ทั้งหมดที่ส่งมามีอยู่จริง
-	var categories []models.Category
-	if err := tx.Find(&categories, req.CategoryIDs).Error; err != nil {
-		tx.Rollback()
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Failed to fetch categories",
-		})
+	if len(req.CategoryIDs) > 0 {
+		var categories []models.Category
+		if err := tx.Find(&categories, req.CategoryIDs).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Failed to fetch categories",
+			})
+		}
+
+		if len(categories) != len(req.CategoryIDs) {
+			tx.Rollback()
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Some categories not found",
+			})
+		}
 	}
 
-	if len(categories) != len(req.CategoryIDs) {
-		tx.Rollback()
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Some categories not found",
-		})
-	}
-
-	// ดึงความสัมพันธ์ที่มีอยู่เดิม
-	var existingRelations []struct {
-		PrinterID  uint
-		CategoryID uint
-	}
-	if err := tx.Table("printer_categories").
-		Where("printer_id = ?", printer.ID).
-		Find(&existingRelations).Error; err != nil {
+	// ลบความสัมพันธ์เก่าทั้งหมด
+	if err := tx.Exec("DELETE FROM printer_categories WHERE printer_id = ?", printer.ID).Error; err != nil {
 		tx.Rollback()
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to fetch existing relations",
+			"error": "Failed to remove old category assignments",
 		})
 	}
 
-	// สร้าง map เพื่อเช็คความสัมพันธ์ที่มีอยู่แล้ว
-	existingMap := make(map[uint]bool)
-	for _, rel := range existingRelations {
-		existingMap[rel.CategoryID] = true
-	}
-
-	// เพิ่มเฉพาะความสัมพันธ์ใหม่ที่ยังไม่มี
+	// เพิ่มความสัมพันธ์ใหม่
 	for _, catID := range req.CategoryIDs {
-		if !existingMap[catID] {
-			if err := tx.Exec("INSERT INTO printer_categories (printer_id, category_id) VALUES (?, ?)",
-				printer.ID, catID).Error; err != nil {
-				tx.Rollback()
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": "Failed to assign categories",
-				})
-			}
+		if err := tx.Exec("INSERT INTO printer_categories (printer_id, category_id) VALUES (?, ?)",
+			printer.ID, catID).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to assign categories",
+			})
 		}
 	}
 
@@ -1794,8 +1775,9 @@ func PrintBillCheck(c *fiber.Ctx) error {
 		}
 	}
 
-	// คำนวณส่วนลด
+	// ดึงข้อมูลและคำนวณส่วนลด
 	var totalDiscount float64
+	var discountDetails []models.DiscountType
 	for _, discount := range req.Discounts {
 		var discountType models.DiscountType
 		if err := db.DB.First(&discountType, discount.DiscountTypeID).Error; err != nil {
@@ -1803,6 +1785,7 @@ func PrintBillCheck(c *fiber.Ctx) error {
 				"error": "ประเภทส่วนลดไม่ถูกต้อง",
 			})
 		}
+		discountDetails = append(discountDetails, discountType)
 
 		var discountAmount float64
 		if discountType.Type == "percentage" {
@@ -1813,8 +1796,9 @@ func PrintBillCheck(c *fiber.Ctx) error {
 		totalDiscount += discountAmount
 	}
 
-	// คำนวณค่าใช้จ่ายเพิ่มเติม
+	// ดึงข้อมูลและคำนวณค่าใช้จ่ายเพิ่มเติม
 	var totalExtraCharge float64
+	var chargeDetails []models.AdditionalChargeType
 	for _, charge := range req.ExtraCharges {
 		var chargeType models.AdditionalChargeType
 		if err := db.DB.First(&chargeType, charge.ChargeTypeID).Error; err != nil {
@@ -1822,13 +1806,11 @@ func PrintBillCheck(c *fiber.Ctx) error {
 				"error": "ประเภทค่าใช้จ่ายเพิ่มเติมไม่ถูกต้อง",
 			})
 		}
+		chargeDetails = append(chargeDetails, chargeType)
 
 		chargeAmount := chargeType.DefaultAmount * float64(charge.Quantity)
 		totalExtraCharge += chargeAmount
 	}
-
-	// คำนวณ Service Charge
-	// serviceChargeAmount := (subTotal * req.ServiceCharge) / 100
 
 	// คำนวณ VAT 7%
 	subTotalAfterDiscount := subTotal - totalDiscount
@@ -1851,7 +1833,25 @@ func PrintBillCheck(c *fiber.Ctx) error {
 		tableNames[i] = table.Name
 	}
 
-	content, err := api_v2.V2_prepareBillCheckPrintContent(allOrders, tableNames, req.Discounts, req.ExtraCharges, req.ServiceCharge, subTotal, totalDiscount, totalExtraCharge, vatAmount, netTotal)
+	// แปลงข้อมูลส่วนลดและค่าใช้จ่ายเพิ่มเติมให้อยู่ในรูปแบบที่ถูกต้อง
+	var discountsForPrint []api_v2.PrintBillCheckDiscount
+	for _, discount := range req.Discounts {
+		discountsForPrint = append(discountsForPrint, api_v2.PrintBillCheckDiscount{
+			DiscountTypeID: discount.DiscountTypeID,
+			Reason:         discount.Reason,
+		})
+	}
+
+	var chargesForPrint []api_v2.PrintBillCheckCharge
+	for _, charge := range req.ExtraCharges {
+		chargesForPrint = append(chargesForPrint, api_v2.PrintBillCheckCharge{
+			ChargeTypeID: charge.ChargeTypeID,
+			Quantity:     charge.Quantity,
+			Note:         charge.Note,
+		})
+	}
+
+	content, err := api_v2.V2_prepareBillCheckPrintContent(allOrders, tableNames, discountsForPrint, chargesForPrint, req.ServiceCharge, subTotal, totalDiscount, totalExtraCharge, vatAmount, netTotal)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "ไม่สามารถสร้างเนื้อหาสำหรับพิมพ์ได้",
@@ -1875,11 +1875,10 @@ func PrintBillCheck(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"message":   "สร้างงานพิมพ์ใบรายการอาหารสำเร็จ",
-		"job_id":    printJob.ID,
-		"sub_total": subTotal,
-		"discount":  totalDiscount,
-		// "service_charge": serviceChargeAmount,
+		"message":       "สร้างงานพิมพ์ใบรายการอาหารสำเร็จ",
+		"job_id":        printJob.ID,
+		"sub_total":     subTotal,
+		"discount":      totalDiscount,
 		"extra_charges": totalExtraCharge,
 		"vat":           vatAmount,
 		"net_total":     netTotal,

@@ -11,10 +11,9 @@ import {
 } from 'lucide-react'
 import axios from 'axios'
 import MenuRestore from './MenuRestore'
-import Promotions from './Promotions'
-
-const API_BASE_URL = 'http://127.0.0.1:8080/api/menu'
-const API_BASE_URL_CATEGORIES = 'http://127.0.0.1:8080/api/categories' // กำหนด URL ของ API
+// import Promotions from './Promotions'
+const API_BASE_URL = `${import.meta.env.VITE_APP_API_URL}/api/menu`
+const API_BASE_URL_CATEGORIES = `${import.meta.env.VITE_APP_API_URL}/api/categories` // กำหนด URL ของ API
 
 const MenuManagement = () => {
   const [menus, setMenus] = useState([]) // menus เริ่มต้นเป็นอาร์เรย์

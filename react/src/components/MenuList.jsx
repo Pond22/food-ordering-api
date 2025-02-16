@@ -19,7 +19,7 @@ const MenuList = () => {
     const fetchData = async () => {
       try {
         const response = await fetch(
-          'http://localhost:8080/api/menu/ActiveMenu'
+          `${import.meta.env.VITE_APP_API_URL}/api/menu/ActiveMenu`
         )
         const data = await response.json()
         setMenuItems(data)

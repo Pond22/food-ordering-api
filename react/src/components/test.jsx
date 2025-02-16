@@ -8,7 +8,7 @@ const ActivePromotionsTable = () => {
     const fetchPromotions = async () => {
       try {
         const response = await fetch(
-          'http://localhost:8080/api/promotions/Active',
+          `${import.meta.env.VITE_APP_API_URL}/api/promotions/Active`,
           {
             method: 'GET',
             headers: {

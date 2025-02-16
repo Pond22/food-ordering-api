@@ -25,7 +25,8 @@ const AddCategory = () => {
   const [categoryToDelete, setCategoryToDelete] = useState(null)
   const [sortAscending, setSortAscending] = useState(true) // สถานะการเรียงลำดับ
 
-  const API_BASE_URL = 'http://127.0.0.1:8080/api/categories' // URL ของ API
+  // const API_BASE_URL = 'http://127.0.0.1:8080/api/categories' // URL ของ API
+  const API_BASE_URL = `${import.meta.env.VITE_APP_API_URL}/api/categories`
 
   // ฟังก์ชันเพื่อดึงข้อมูลหมวดหมู่ที่ถูกลบ
   const fetchDeletedCategories = async () => {

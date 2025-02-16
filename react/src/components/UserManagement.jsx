@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { ShieldCheck, Plus, Search, Filter, X, User, Edit, Trash2 } from 'lucide-react';
 
-const API_BASE_URL = 'http://127.0.0.1:8080/api/member'; // URL ของ API
+const API_BASE_URL = `${import.meta.env.VITE_APP_API_URL}/api/member`; // URL ของ API
 
 // กำหนดค่า role ที่อนุญาตให้ใช้งาน
 const userRoles = ['staff', 'manager', 'owner'];

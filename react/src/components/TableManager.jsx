@@ -9,11 +9,11 @@ import ReservationCheckin from './ReservationCheckin'
 import QRCodeReprint from './QRCodeReprint'
 import OrderSummaryDetail from './OrderSummaryDetail'
 
-const API_BASE_URL_TABLES = 'http://127.0.0.1:8080/api/tables'
-const API_BASE_URL_TABLE = 'http://127.0.0.1:8080/api/table'
-const API_BASE_URL_PAYMENT = 'http://127.0.0.1:8080/api/payment'
-const API_BASE_URL_RESERVATION = 'http://127.0.0.1:8080/api/v2/reservation'
-const API_BASE_URL_QR = 'http://127.0.0.1:8080/api/qr'
+const API_BASE_URL_TABLES = `${import.meta.env.VITE_APP_API_URL}/api/tables`
+const API_BASE_URL_TABLE = `${import.meta.env.VITE_APP_API_URL}/api/table`
+const API_BASE_URL_PAYMENT = `${import.meta.env.VITE_APP_API_URL}/api/payment`
+const API_BASE_URL_RESERVATION = `${import.meta.env.VITE_APP_API_URL}/api/v2/reservation`
+const API_BASE_URL_QR = `${import.meta.env.VITE_APP_API_URL}/api/qr`
 const WS_TABLE_KEY = import.meta.env.VITE_WS_TABLE_KEY
 
 // Helper component for displaying table info
@@ -103,7 +103,7 @@ const TableManager = ({ posToken , user }) => {
       try {
         // เพิ่ม API Key ใน query parameter
         const wsTableKey = import.meta.env.VITE_WS_TABLE_KEY
-        const socket = new WebSocket(`ws://localhost:8080/ws/tables?api_key=${wsTableKey}`)
+        const socket = new WebSocket(`${import.meta.env.VITE_APP_WS_URL}/ws/tables?api_key=${wsTableKey}`)
 
         socket.onopen = () => {
           console.log('WebSocket เชื่อมต่อสำเร็จ!')

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { Check, Clock } from 'lucide-react'
 
-const API_BASE_URL = 'http://127.0.0.1:8080/api/orders'
+const API_BASE_URL = `${import.meta.env.VITE_APP_API_URL}/api/orders`
 
 const OrderConfirmation = () => {
   const [orders, setOrders] = useState([])

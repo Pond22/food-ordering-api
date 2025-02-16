@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import axios from 'axios'
 
-const API_BASE_URL = 'http://127.0.0.1:8080/api/orders'
+const API_BASE_URL = `${import.meta.env.VITE_APP_API_URL}/api/orders`
 
 const OrderSummaryDetail = ({ 
   billableItems, 
@@ -96,12 +96,17 @@ const OrderSummaryDetail = ({
 
   const handleCancelOption = async (item, option) => {
     try {
-      const token = localStorage.getItem('token')
+      const posToken = localStorage.getItem('posToken')
+      if (!user) {
+        alert('กรุณาเข้าสู่ระบบใหม่')
+        return
+      }
+
       const response = await axios.post(
         `${API_BASE_URL}/finalize`, 
         {
           table_id: tableID,
-          staff_id: user.id,
+          staff_id: user,
           reason: 'ยกเลิกตัวเลือกเสริม',
           options: [{
             order_item_id: item.id,
@@ -110,7 +115,7 @@ const OrderSummaryDetail = ({
         },
         {
           headers: {
-            Authorization: `Bearer ${token}`
+            Authorization: `Bearer ${posToken}`
           }
         }
       )
@@ -133,12 +138,17 @@ const OrderSummaryDetail = ({
 
   const handleCancelItem = async (item) => {
     try {
-      const token = localStorage.getItem('token')
+      const posToken = localStorage.getItem('posToken')
+      if (!user) {
+        alert('กรุณาเข้าสู่ระบบใหม่')
+        return
+      }
+
       const response = await axios.post(
         `${API_BASE_URL}/finalize`, 
         {
           table_id: tableID,
-          staff_id: user.id,
+          staff_id: user,
           reason: 'ยกเลิกรายการอาหาร',
           items: [{
             order_item_id: item.id,
@@ -147,7 +157,7 @@ const OrderSummaryDetail = ({
         },
         {
           headers: {
-            Authorization: `Bearer ${token}`
+            Authorization: `Bearer ${posToken}`
           }
         }
       )

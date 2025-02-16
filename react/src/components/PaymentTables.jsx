@@ -5,10 +5,10 @@ import axios from 'axios'
 import OrderSummaryDetail from './OrderSummaryDetail'
 import PrintBillCheckModal from './PrintBillCheckModal'
 
-const API_BASE_URL = 'http://127.0.0.1:8080/api/payment'
-const API_BASE_URL_V2 = 'http://127.0.0.1:8080/api/v2/payment'
-const API_BASE_URL_TABLE = 'http://127.0.0.1:8080/api/table'
-const API_URL = 'http://127.0.0.1:8080'
+const API_BASE_URL = `${import.meta.env.VITE_APP_API_URL}/api/payment`
+const API_BASE_URL_V2 = `${import.meta.env.VITE_APP_API_URL}/api/v2/payment`
+const API_BASE_URL_TABLE = `${import.meta.env.VITE_APP_API_URL}/api/table`
+const API_URL = `${import.meta.env.VITE_APP_API_URL}`
 
 
 const PaymentTables = () => {
@@ -50,19 +50,19 @@ const PaymentTables = () => {
 
   useEffect(() => {
     const fetchBillableItems = async () => {
-      const token = localStorage.getItem('posToken')
-      if (!token) {
-        alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
-        window.location.href = '/login'
+      if (!posToken) {
+        alert('กรุณาเข้าสู่ระบบใหม่')
+        navigate('/pos/verify')
+        return
       }
 
       try {
         const response = await axios.get(
-          `${API_BASE_URL}/table/billable/${uuid}`,
+          `${API_BASE_URL_TABLE}/billable/${uuid}`,
           {
             headers: {
               accept: 'application/json',
-              Authorization: `Bearer ${token}`,
+              Authorization: `Bearer ${posToken}`,
             },
           }
         )
@@ -71,23 +71,32 @@ const PaymentTables = () => {
         }
       } catch (error) {
         console.error('Error fetching billable items:', error)
+        if (error.response?.status === 401) {
+          alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
+          navigate('/pos/verify')
+        }
       }
     }
 
     if (uuid) fetchBillableItems()
-  }, [uuid])
+  }, [uuid, posToken, navigate])
 
 
   useEffect(() => {
     const fetchDiscounts = async () => {
       try {
-        const token = localStorage.getItem('token')
+        if (!posToken) {
+          alert('กรุณาเข้าสู่ระบบใหม่')
+          navigate('/pos/verify')
+          return
+        }
+
         const response = await axios.get(
-          `${API_BASE_URL}/discount-types/Active`,
+          `${API_BASE_URL}/discount-types/active`,
           {
             headers: {
               accept: 'application/json',
-              Authorization: `Bearer ${token}`,
+              Authorization: `Bearer ${posToken}`,
             },
           }
         )
@@ -96,22 +105,31 @@ const PaymentTables = () => {
         }
       } catch (error) {
         console.error('Error fetching discount types:', error)
+        if (error.response?.status === 401) {
+          alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
+          navigate('/pos/verify')
+        }
       }
     }
 
     fetchDiscounts()
-  }, [])
+  }, [posToken, navigate])
 
   useEffect(() => {
     const fetchCharges = async () => {
       try {
-        const token = localStorage.getItem('token')
+        if (!posToken) {
+          alert('กรุณาเข้าสู่ระบบใหม่')
+          navigate('/pos/verify')
+          return
+        }
+
         const response = await axios.get(
-          `${API_BASE_URL}/charge-types/Active`,
+          `${API_BASE_URL}/charge-types/active`,
           {
             headers: {
               accept: 'application/json',
-              Authorization: `Bearer ${token}`,
+              Authorization: `Bearer ${posToken}`,
             },
           }
         )
@@ -120,11 +138,15 @@ const PaymentTables = () => {
         }
       } catch (error) {
         console.error('Error fetching charge types:', error)
+        if (error.response?.status === 401) {
+          alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
+          navigate('/pos/verify')
+        }
       }
     }
 
     fetchCharges()
-  }, [])
+  }, [posToken, navigate])
 
   // Add a function to handle selecting a table
   const handleTableSelection = async (table) => {
@@ -276,32 +298,31 @@ const PaymentTables = () => {
 
   const handlePayment = async () => {
     if (!selectedPayment) {
-      alert('Please select a payment method')
+      alert('กรุณาเลือกวิธีการชำระเงิน')
       return
     }
 
-    // const totalAmount = calculateTotal()
+    if (!posToken) {
+      alert('กรุณาเข้าสู่ระบบใหม่')
+      navigate('/pos/verify')
+      return
+    }
 
     setIsProcessing(true)
     try {
-      const token = localStorage.getItem('token')
-
-      // ตรวจสอบการเลือกโต๊ะ
       const paymentData = {
         uuid: uuid,
-        payment_method: selectedPayment, // วิธีการชำระเงิน
-        service_charge: vat, // vat
-        staff_id: user, // รหัสพนักงาน (เปลี่ยนให้เหมาะสม)
-
+        payment_method: selectedPayment,
+        service_charge: vat,
+        staff_id: user,
         discounts: selectedDiscounts
-          .filter((discount) => discount.discountID) // กรองส่วนลดที่ถูกเลือก
+          .filter((discount) => discount.discountID)
           .map((discount) => ({
             discount_type_id: Number(discount.discountID),
-            reason: discount.discountName || '', // ใช้ชื่อส่วนลด หรือ null หากไม่มีชื่อ
+            reason: discount.discountName || '',
           })),
-
         extra_charges: selectedCharges
-          .filter((charge) => charge.chargeID) // กรองค่าใช้จ่ายที่ถูกเลือก
+          .filter((charge) => charge.chargeID)
           .map((charge) => ({
             charge_type_id: Number(charge.chargeID),
             note: charge.chargeOption || '',
@@ -309,23 +330,22 @@ const PaymentTables = () => {
           })),
       }
 
-      let apiEndpoint = `${API_BASE_URL}/process` // API สำหรับกรณีไม่มีโต๊ะที่เลือก
+      let apiEndpoint = `${API_BASE_URL}/process`
       if (selectedTables && selectedTables.length > 0) {
-        apiEndpoint = `${API_BASE_URL_V2}/merge` // API สำหรับกรณีเลือกโต๊ะหลายโต๊ะ
-        paymentData.table_ids = selectedTables // ส่ง array ของ ID โต๊ะที่เลือกไป
+        apiEndpoint = `${API_BASE_URL_V2}/merge`
+        paymentData.table_ids = selectedTables
       } else {
-        paymentData.table_id = tableID // ถ้าไม่มีโต๊ะที่เลือก ให้ส่ง tableID
+        paymentData.table_id = tableID
       }
 
-      // ตรวจสอบการส่งข้อมูล
-      console.log(paymentData)
+      console.log('Payment Data:', paymentData)
 
       const response = await axios.post(
-        `${API_URL}${apiEndpoint}`,
+        apiEndpoint,
         paymentData,
         {
           headers: {
-            accept: 'application/json',
+            'Content-Type': 'application/json',
             Authorization: `Bearer ${posToken}`,
           },
         }
@@ -334,13 +354,16 @@ const PaymentTables = () => {
       if (response.data.success) {
         setShowSuccessModal(true)
       } else {
-        // alert('Payment failed. Please try again.')
         setShowSuccessModal(true)
       }
     } catch (error) {
       console.error('Error during payment:', error)
-      // alert('Payment failed. Please try again.')
-      setShowSuccessModal(true)
+      if (error.response?.status === 401) {
+        alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
+        navigate('/pos/verify')
+      } else {
+        alert(error.response?.data?.error || 'การชำระเงินล้มเหลว กรุณาลองใหม่อีกครั้ง')
+      }
     } finally {
       setIsProcessing(false)
     }
@@ -368,13 +391,18 @@ const PaymentTables = () => {
 
   const fetchTableBillableItems = async (tableId, uuid) => {
     try {
-      const token = localStorage.getItem('token')
+      if (!posToken) {
+        alert('กรุณาเข้าสู่ระบบใหม่')
+        navigate('/pos/verify')
+        return
+      }
+
       const response = await axios.get(
         `${API_BASE_URL_TABLE}/billable/${uuid}`,
         {
           headers: {
             accept: 'application/json',
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${posToken}`,
           },
         }
       )
@@ -387,6 +415,10 @@ const PaymentTables = () => {
       }
     } catch (error) {
       console.error('Error fetching table billable items:', error)
+      if (error.response?.status === 401) {
+        alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
+        navigate('/pos/verify')
+      }
     }
   }
 
@@ -480,6 +512,7 @@ const PaymentTables = () => {
       user={user}
       discounts={discounts}
       charges={charges}
+      posToken={posToken}
     />
   )}
   
@@ -522,10 +555,12 @@ const PaymentTables = () => {
       if (!showPrintModal || !occupiedTables) return;
 
       try {
-        const token = localStorage.getItem('token')
-        if (!token) return;
+        if (!posToken) {
+          alert('กรุณาเข้าสู่ระบบใหม่')
+          navigate('/pos/verify')
+          return
+        }
 
-        // ดึงข้อมูลเฉพาะโต๊ะที่ยังไม่มีข้อมูล
         for (const table of occupiedTables) {
           if (table.ID !== tableID && !tableBillableItems[table.ID]) {
             try {
@@ -533,7 +568,7 @@ const PaymentTables = () => {
                 `${API_BASE_URL_TABLE}/billable/${table.UUID}`,
                 {
                   headers: {
-                    accept: 'application/json',
+                    'Content-Type': 'application/json',
                     Authorization: `Bearer ${posToken}`,
                   },
                 }
@@ -546,24 +581,32 @@ const PaymentTables = () => {
               }
             } catch (error) {
               console.error(`Error fetching items for table ${table.ID}:`, error)
+              if (error.response?.status === 401) {
+                alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
+                navigate('/pos/verify')
+                break
+              }
             }
           }
         }
       } catch (error) {
         console.error('Error fetching other tables billable items:', error)
+        if (error.response?.status === 401) {
+          alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
+          navigate('/pos/verify')
+        }
       }
     }
 
     fetchOtherTablesBillableItems()
-  }, [showPrintModal, occupiedTables, tableID, tableBillableItems, posToken])
+  }, [showPrintModal, occupiedTables, tableID, tableBillableItems, posToken, navigate])
 
   const handleCloseTable = async () => {
     setIsClosingTable(true)
     try {
-      const token = localStorage.getItem('token')
-      if (!token) {
-        alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
-        window.location.href = '/login'
+      if (!posToken) {
+        alert('กรุณาเข้าสู่ระบบใหม่')
+        navigate('/pos/verify')
         return
       }
 
@@ -573,7 +616,7 @@ const PaymentTables = () => {
         {
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${posToken}`,
           },
         }
       )
@@ -584,7 +627,10 @@ const PaymentTables = () => {
       }
     } catch (error) {
       console.error('Error closing table:', error)
-      if (error.response) {
+      if (error.response?.status === 401) {
+        alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
+        navigate('/pos/verify')
+      } else if (error.response) {
         alert(error.response.data.error || 'ไม่สามารถปิดโต๊ะได้')
       } else {
         alert('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์')
@@ -618,6 +664,7 @@ const PaymentTables = () => {
           user={user}
           discounts={discounts}
           charges={charges}
+          posToken={posToken}
         />
       )}
       {showCloseConfirmModal && <CloseTableConfirmModal />}

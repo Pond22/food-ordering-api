@@ -112,8 +112,7 @@ const Section = ({ isLoggedIn, user, handleLogout, token }) => {
   }, [isSidebarOpen])
 
   useEffect(() => {
-    const ws = new WebSocket(`ws://localhost:8080/ws/staff?api_key=${import.meta.env.VITE_APP_WS_STAFF_KEY}`);
-    
+    const ws = new WebSocket(`${import.meta.env.VITE_APP_WS_URL}/ws/staff?api_key=${import.meta.env.VITE_APP_WS_STAFF_KEY}`);
     ws.onmessage = (event) => {
       const notification = JSON.parse(event.data);
       

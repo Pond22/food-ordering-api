@@ -61,7 +61,7 @@ const CardContent = ({ children, className = '' }) => (
 const fetchCategories = async () => {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch('http://localhost:8080/api/categories', {
+    const response = await fetch(`${import.meta.env.VITE_APP_API_URL}/api/categories`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -221,7 +221,7 @@ const MenuImportPage = () => {
         formData.append('file', file);
         const token = localStorage.getItem('token');
     
-        const response = await fetch('http://localhost:8080/api/menu/import', {
+        const response = await fetch(`${import.meta.env.VITE_APP_API_URL}/api/menu/import`, {
             method: 'POST',
             body: formData,
             headers: {

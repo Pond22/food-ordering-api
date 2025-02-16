@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { Plus, X, Ellipsis, Trash2, Edit, Image, Search, Calendar, Tag, Clock } from 'lucide-react'
 
-const API_BASE_URL_PROMOTIONS = 'http://127.0.0.1:8080/api/promotions'
-const API_BASE_URL_MENU = 'http://127.0.0.1:8080/api/menu'
+const API_BASE_URL_PROMOTIONS = `${import.meta.env.VITE_APP_API_URL}/api/promotions`
+const API_BASE_URL_MENU = `${import.meta.env.VITE_APP_API_URL}/api/menu`
 
 const Promotions = () => {
   const [promotionData, setPromotionData] = useState({

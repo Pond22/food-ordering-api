@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, AlertCircle } from 'lucide-react';
 
-const API_BASE_URL = 'http://127.0.0.1:8080/api/reservation'
+const API_BASE_URL = `${import.meta.env.VITE_APP_API_URL}/api/reservation`
 
 const ReservationConfig = () => {
   const [rules, setRules] = useState({
@@ -41,10 +41,12 @@ const ReservationConfig = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/rules`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           grace_period_minutes: parseInt(rules.gracePeriodMinutes),
@@ -56,6 +58,9 @@ const ReservationConfig = () => {
         alert('บันทึกการตั้งค่าสำเร็จ');
         setIsEditing(false);
         fetchActiveRule();
+      } else {
+        const errorData = await response.json();
+        alert(`เกิดข้อผิดพลาด: ${errorData.error || 'ไม่สามารถบันทึกการตั้งค่าได้'}`);
       }
     } catch (error) {
       console.error('Error saving rules:', error);

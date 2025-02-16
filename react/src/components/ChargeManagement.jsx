@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import Discount from './Discount'
 
-const API_BASE_URL = 'http://127.0.0.1:8080/api/payment'
-
+const API_BASE_URL = `${import.meta.env.VITE_APP_API_URL}/api/payment`
 const ChargeTypeManagement = () => {
   const [chargeTypes, setChargeTypes] = useState([]) // รายการประเภทค่าใช้จ่าย
   const [filteredChargeTypes, setFilteredChargeTypes] = useState([]) // ข้อมูลที่กรองตามคำค้นหา

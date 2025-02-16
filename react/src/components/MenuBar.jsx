@@ -14,7 +14,7 @@ import {
 import useCartStore from '../hooks/cart-store'
 import MenuList from './MenuList2'
 
-const API_BASE_URL = 'http://127.0.0.1:8080/api'
+const API_BASE_URL = `${import.meta.env.VITE_APP_API_URL}/api`
 
 export default function MenuBar({ tableID, uuid }) {
   const [openCallModal, setOpenCallModal] = useState(false)

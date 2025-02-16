@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { CalendarDays } from 'lucide-react';
 
-const API_BASE_URL = 'http://127.0.0.1:8080/api/v2/reservation'
+const API_BASE_URL = `${import.meta.env.VITE_APP_API_URL}/api/v2/reservation`
 
 const ReservationCheckin = ({ table, onCheckinSuccess, onUnreserve }) => {
   const [isLoading, setIsLoading] = useState(false);
