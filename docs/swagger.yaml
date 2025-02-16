@@ -807,11 +807,11 @@ definitions:
     properties:
       discounts:
         items:
-          $ref: '#/definitions/api_v2.PaymentDiscountRequest'
+          $ref: '#/definitions/api_v2.paymentDiscountRequest'
         type: array
       extra_charges:
         items:
-          $ref: '#/definitions/api_v2.PaymentExtraChargeRequest'
+          $ref: '#/definitions/api_v2.paymentExtraChargeRequest'
         type: array
       payment_method:
         type: string
@@ -829,7 +829,7 @@ definitions:
     - staff_id
     - table_ids
     type: object
-  api_v2.PaymentDiscountRequest:
+  api_v2.paymentDiscountRequest:
     properties:
       discount_type_id:
         type: integer
@@ -839,7 +839,7 @@ definitions:
     required:
     - discount_type_id
     type: object
-  api_v2.PaymentExtraChargeRequest:
+  api_v2.paymentExtraChargeRequest:
     properties:
       charge_type_id:
         type: integer
@@ -852,16 +852,6 @@ definitions:
     required:
     - charge_type_id
     - quantity
-    type: object
-  api_v2.PrintBillCheckRequest:
-    properties:
-      table_ids:
-        items:
-          type: integer
-        minItems: 1
-        type: array
-    required:
-    - table_ids
     type: object
   models.AdditionalChargeType:
     properties:
@@ -4986,29 +4976,6 @@ paths:
       summary: ชำระเงินรวมหลายโต๊ะ
       tags:
       - Payment_V2
-  /api/v2/printers/bill-check:
-    post:
-      consumes:
-      - application/json
-      description: พิมพ์ใบรายการอาหารสำหรับตรวจทานก่อนชำระเงิน สามารถพิมพ์ได้ทั้งแบบโต๊ะเดี่ยวและรวมโต๊ะ
-      parameters:
-      - description: ข้อมูลสำหรับพิมพ์ใบรายการอาหาร
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/api_v2.PrintBillCheckRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      summary: พิมพ์ใบรายการอาหารก่อนชำระเงิน
-      tags:
-      - Printer
   /api/v2/printers/pending-jobs:
     get:
       description: ดึงรายการงานพิมพ์ที่ยังไม่ได้พิมพ์สำหรับเครื่องพิมพ์ที่ระบุ (รองรับทั้ง
