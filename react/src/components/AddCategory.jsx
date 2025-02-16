@@ -411,7 +411,7 @@ const AddCategory = () => {
             </table>
 
             {/* ข้อความแสดงผลลัพธ์ */}
-            {successMessage && (
+            {/* {successMessage && (
               <div className="mt-4 text-green-600 font-medium text-center">
                 {successMessage}
               </div>
@@ -420,7 +420,7 @@ const AddCategory = () => {
               <div className="mt-4 text-red-600 font-medium text-center">
                 {errorMessage}
               </div>
-            )}
+            )} */}
           </div>
         )}
 

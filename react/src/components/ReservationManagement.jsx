@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+const API_BASE_URL = 'http://127.0.0.1:8080/api/table'
+const API_BASE_URL_RESERVATION = 'http://127.0.0.1:8080/api/v2/reservation'
+
 const ReservationManagement = ({ isOpen, onClose }) => {
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,7 +19,7 @@ const ReservationManagement = ({ isOpen, onClose }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8080/api/table/reservations', {
+      const response = await fetch(`${API_BASE_URL}/reservations`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -42,7 +45,7 @@ const ReservationManagement = ({ isOpen, onClose }) => {
   
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8080/api/v2/reservation/cancel/${reservationId}`, {
+      const response = await fetch(`${API_BASE_URL_RESERVATION}/cancel/${reservationId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

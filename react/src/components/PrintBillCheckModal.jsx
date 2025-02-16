@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { X, Plus, Trash2 } from 'lucide-react'
 import axios from 'axios'
 
+const API_BASE_URL = 'http://127.0.0.1:8080/api/printers'
+
 const PrintBillCheckModal = ({
   isOpen,
   onClose,
@@ -107,7 +109,7 @@ const PrintBillCheckModal = ({
       }
 
       const response = await axios.post(
-        'http://localhost:8080/api/printers/bill-check',
+        `${API_BASE_URL}/bill-check`,
         requestBody,
         {
           headers: {

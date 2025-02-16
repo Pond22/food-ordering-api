@@ -2,6 +2,9 @@ import React, { useState } from 'react'
 import { Plus, Minus, PlusIcon } from 'lucide-react'
 import useCartStore from '../hooks/cart-store'
 import { Carousel } from 'flowbite-react'
+
+const API_BASE_URL = 'http://127.0.0.1:8080/api/promotions'
+
 const PromotionItem = ({ item, promotion }) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false) // Popup state
   const [note, setNote] = useState('') // Note for the kitchen

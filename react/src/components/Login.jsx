@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Lock, User, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+
+const API_BASE_URL = 'http://127.0.0.1:8080/api/auth'
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -9,6 +11,35 @@ const Login = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
+  // เพิ่ม useEffect เพื่อตรวจสอบ token เมื่อโหลดหน้า
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const userResponse = await axios.get(`${API_BASE_URL}/verify-token`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (userResponse.status === 200) {
+            const { role } = userResponse.data;
+            if (role === "manager") {
+              window.location.href = "/dashboard";
+            } else if (role === "staff") {
+              window.location.href = "/home";
+            }
+          }
+        } catch (err) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+      }
+    };
+    
+    checkAuth();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,7 +52,7 @@ const Login = () => {
       }
   
       // เรียก API Login
-      const response = await axios.post('http://127.0.0.1:8080/api/auth/login', {
+      const response = await axios.post(`${API_BASE_URL}/login`, {
         username: username,
         password: password,
       });
@@ -31,7 +62,7 @@ const Login = () => {
         localStorage.setItem('token', token);
   
         // เรียก API เพื่อดึงข้อมูลผู้ใช้
-        const userResponse = await axios.get('http://127.0.0.1:8080/api/auth/verify-token', {
+        const userResponse = await axios.get(`${API_BASE_URL}/verify-token`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { CalendarDays } from 'lucide-react';
 
+const API_BASE_URL = 'http://127.0.0.1:8080/api/v2/reservation'
+
 const ReservationCheckin = ({ table, onCheckinSuccess, onUnreserve }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [qrImage, setQrImage] = useState(null);
@@ -14,7 +16,7 @@ const ReservationCheckin = ({ table, onCheckinSuccess, onUnreserve }) => {
       
       // เรียกใช้ API endpoint ใหม่
       const response = await axios.post(
-        `http://localhost:8080/api/v2/reservation/checkin/${table.ID}`,
+        `${API_BASE_URL}/checkin/${table.ID}`,
         {},
         {
           responseType: 'blob' // รับ response เป็น blob เพราะเป็นรูปภาพ

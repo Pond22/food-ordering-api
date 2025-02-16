@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { Check, Clock } from 'lucide-react'
 
+const API_BASE_URL = 'http://127.0.0.1:8080/api/orders'
+
 const OrderConfirmation = () => {
   const [orders, setOrders] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -25,7 +27,7 @@ const OrderConfirmation = () => {
  const fetchOrders = () => {
   const token = localStorage.getItem('token')
   axios
-    .get('http://localhost:8080/api/orders/active', {
+    .get(`${API_BASE_URL}/active`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -81,7 +83,7 @@ const OrderConfirmation = () => {
       setIsModalOpen(false) 
 
       await axios.post(
-        `http://localhost:8080/api/orders/items/serve/${orderItemId}`,
+        `${API_BASE_URL}/items/serve/${orderItemId}`,
         {}, 
         { headers: { Authorization: `Bearer ${token}` } }
       )
@@ -97,7 +99,7 @@ const OrderConfirmation = () => {
   const handleCancelDish = (ItemId, tableId, uuid) => {
     const token = localStorage.getItem('token')
     axios
-      .post('http://localhost:8080/api/orders/items/cancel', {
+      .post(`${API_BASE_URL}/items/cancel`, {
         id: tableId,
         items: [
           {
@@ -109,6 +111,8 @@ const OrderConfirmation = () => {
       }, {
         headers: {
           Authorization: `Bearer ${token}`,
+          accept: 'application/json',
+          'Content-Type': 'application/json',
         },
       })
       .then(() => {

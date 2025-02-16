@@ -13,6 +13,8 @@ import {
 } from 'lucide-react'
 import TableManager from '../components/TableManager'
 
+const API_BASE_URL = 'http://127.0.0.1:8080/api/pos'
+
 const POS = () => {
   const navigate = useNavigate()
   const [sessionStatus, setSessionStatus] = useState(null)
@@ -25,10 +27,12 @@ const POS = () => {
     const checkSession = async () => {
       try {
         const response = await fetch(
-          'http://localhost:8080/api/pos/session-status',
+          `${API_BASE_URL}/session-status`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem('posToken')}`,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
             },
           }
         )
@@ -121,7 +125,7 @@ const POS = () => {
       const deviceInfo = getDeviceInfo();
       console.log('Logging out with device info:', deviceInfo);
 
-      const response = await fetch('http://localhost:8080/api/pos/logout', {
+      const response = await fetch(`${API_BASE_URL}/logout`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('posToken')}`,
@@ -191,9 +195,15 @@ const POS = () => {
                   <span className="font-medium">Session</span>
                 </div>
                 <div className="text-sm space-y-1">
-                  <p>Started: {new Date(sessionStatus?.start_time).toLocaleTimeString()}</p>
+                  <p>
+                    Started:{' '}
+                    {new Date(sessionStatus?.start_time).toLocaleTimeString()}
+                  </p>
                   <p className="text-gray-500">
-                    Last Activity: {new Date(sessionStatus?.last_activity).toLocaleTimeString()}
+                    Last Activity:{' '}
+                    {new Date(
+                      sessionStatus?.last_activity
+                    ).toLocaleTimeString()}
                   </p>
                 </div>
               </div>
@@ -206,7 +216,10 @@ const POS = () => {
                 </div>
                 <div className="text-sm space-y-1">
                   <p>{sessionStatus?.device_info?.platform}</p>
-                  <p className="text-gray-500 text-xs truncate" title={sessionStatus?.device_info?.user_agent}>
+                  <p
+                    className="text-gray-500 text-xs truncate"
+                    title={sessionStatus?.device_info?.user_agent}
+                  >
                     {sessionStatus?.device_info?.user_agent}
                   </p>
                   <p className="text-gray-500">
@@ -228,7 +241,10 @@ const POS = () => {
                 <div className="text-sm space-y-1">
                   <div className="flex items-center">
                     <Globe className="h-4 w-4 mr-1 text-gray-400" />
-                    <span className="truncate" title={sessionStatus?.ip_address}>
+                    <span
+                      className="truncate"
+                      title={sessionStatus?.ip_address}
+                    >
                       {sessionStatus?.ip_address}
                     </span>
                   </div>
@@ -236,8 +252,8 @@ const POS = () => {
                     <div className="flex items-center">
                       <Cpu className="h-4 w-4 mr-1 text-gray-400" />
                       <span>
-                        {sessionStatus?.device_info?.network_type.type} 
-                        ({sessionStatus?.device_info?.network_type.downlink}Mbps, 
+                        {sessionStatus?.device_info?.network_type.type}(
+                        {sessionStatus?.device_info?.network_type.downlink}Mbps,
                         RTT: {sessionStatus?.device_info?.network_type.rtt}ms)
                       </span>
                     </div>
@@ -268,7 +284,10 @@ const POS = () => {
       {/* Main POS content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Add your POS content here */}
-        <TableManager posToken={localStorage.getItem('posToken')} />
+        <TableManager
+          user={sessionStatus?.staff_id}
+          posToken={localStorage.getItem('posToken')}
+        />
       </main>
 
       {/* Logout confirmation dialog */}

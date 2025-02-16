@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { Plus, X, Ellipsis, Trash2, Edit, Image, Search, Calendar, Tag, Clock } from 'lucide-react'
 
+const API_BASE_URL_PROMOTIONS = 'http://127.0.0.1:8080/api/promotions'
+const API_BASE_URL_MENU = 'http://127.0.0.1:8080/api/menu'
+
 const Promotions = () => {
   const [promotionData, setPromotionData] = useState({
     name: '',
@@ -43,10 +46,11 @@ const Promotions = () => {
 
   const fetchPromotions = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/promotions', {
-        headers: { accept: 'application/json',
-           Authorization: `Bearer ${token}` },
-        
+      const response = await axios.get(API_BASE_URL_PROMOTIONS, {
+        headers: {
+          accept: 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
       })
 
       if (response.data) {
@@ -69,7 +73,7 @@ const Promotions = () => {
   const fetchPromotionsActive = async () => {
     try {
       const response = await fetch(
-        'http://localhost:8080/api/promotions/Active',
+        `${API_BASE_URL_PROMOTIONS}/Active`,
         {
           method: 'GET',
           headers: {
@@ -93,7 +97,7 @@ const Promotions = () => {
   // ฟังก์ชันดึงข้อมูลเมนู
   const fetchMenuItems = async (action = 'getAll', params = {}) => {
     try {
-      const response = await axios.get('http://localhost:8080/api/menu', {
+      const response = await axios.get(API_BASE_URL_MENU, {
         headers: {
           accept: 'application/json',
           Authorization: `Bearer ${token}`,
@@ -118,10 +122,28 @@ const Promotions = () => {
   // ฟังก์ชันจัดการการเปลี่ยนแปลงในรายการสินค้า
   const handleItemChange = (index, e) => {
     const { name, value } = e.target
-    const updatedItems = [...promotionData.items]
+    
+    setPromotionData(prevData => {
+      const updatedItems = [...prevData.items]
+      
+      // สร้าง item ใหม่ถ้ายังไม่มี
+      if (!updatedItems[index]) {
+        updatedItems[index] = { menu_item_id: '', quantity: 1 }
+      }
+      
+      // อัพเดทค่าใน item
+      updatedItems[index] = {
+        ...updatedItems[index],
+        [name]: value
+      }
 
-    updatedItems[index][name] = value // อัพเดตค่าใน state ของ items
-    setPromotionData((prevData) => ({ ...prevData, items: updatedItems }))
+      console.log('Updated items in state:', updatedItems) // ตรวจสอบการอัพเดต state
+      
+      return {
+        ...prevData,
+        items: updatedItems
+      }
+    })
   }
 
   // ฟังก์ชันอัพเดทสถานะการใช้งานโปรโมชั่น
@@ -129,7 +151,7 @@ const Promotions = () => {
     try {
       const newStatus = !currentStatus // สลับสถานะของโปรโมชั่น
       const response = await axios.patch(
-        `http://localhost:8080/api/promotions/status/${id}`,
+        `${API_BASE_URL_PROMOTIONS}/status/${id}`,
         {
           is_active: newStatus,
         },
@@ -188,13 +210,19 @@ const Promotions = () => {
         items,
       } = promotionData
 
-      // ตรวจสอบว่ามีการเลือกรายการสินค้าอย่างน้อย 1 รายการ
       if (!items || items.length === 0) {
         alert('กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ')
         return
       }
 
-      // ตรวจสอบว่าทุกรายการมีการเลือกเมนูและระบุจำนวน
+      // ตรวจสอบเมนูซ้ำ
+      const menuIds = items.map(item => item.menu_item_id)
+      const hasDuplicates = menuIds.length !== new Set(menuIds).size
+      if (hasDuplicates) {
+        alert('ไม่สามารถเพิ่มเมนูซ้ำในโปรโมชันเดียวกันได้')
+        return
+      }
+
       const isValidItems = items.every(
         (item) => item.menu_item_id && item.quantity > 0
       )
@@ -222,7 +250,7 @@ const Promotions = () => {
       console.log('Sending payload:', promotionPayload) // เพิ่ม log เพื่อตรวจสอบข้อมูล
 
       const response = await axios.post(
-        'http://localhost:8080/api/promotions',
+        `${API_BASE_URL_PROMOTIONS}`,
         promotionPayload,
         {
           headers: { accept: 'application/json',
@@ -271,12 +299,14 @@ const Promotions = () => {
       description: promotion.Description,
       descriptionEn: promotion.DescriptionEn,
       descriptionCh: promotion.DescriptionCh,
-      startDate: new Date(promotion.StartDate).toISOString().slice(0, 16), // datetime-local
-      endDate: new Date(promotion.EndDate).toISOString().slice(0, 16), // datetime-local
+      startDate: new Date(promotion.StartDate).toISOString().slice(0, 16),
+      endDate: new Date(promotion.EndDate).toISOString().slice(0, 16),
       price: promotion.Price,
       isActive: promotion.IsActive,
+      maxSelections: promotion.MaxSelections,
+      minSelections: promotion.MinSelections,
       items: promotion.Items.map((item) => ({
-        menu_item_id: item.MenuItemID,
+        menu_item_id: item.MenuItemID.toString(),
         quantity: item.Quantity,
       })),
     })
@@ -317,11 +347,13 @@ const Promotions = () => {
 
     try {
       const response = await axios.put(
-        `http://localhost:8080/api/promotions/image/${selectedPromotion.ID}`,
+        `${API_BASE_URL_PROMOTIONS}/image/${selectedPromotion.ID}`,
         formData,
         {
           headers: {
             'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${token}`,
+            accept: 'application/json',
           },
         }
       )
@@ -360,15 +392,38 @@ const Promotions = () => {
         endDate,
         price,
         isActive,
+        maxSelections,
+        minSelections,
         items,
       } = promotionData
 
-      const start_date = new Date(startDate).toISOString()
-      const end_date = new Date(endDate).toISOString()
+      // ตรวจสอบว่ามีรายการสินค้า
+      if (!items || items.length === 0) {
+        alert('กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ')
+        return
+      }
 
+      // ตรวจสอบความถูกต้องของข้อมูล
+      const isValidItems = items.every(
+        (item) => item.menu_item_id && item.quantity > 0
+      )
+      if (!isValidItems) {
+        alert('กรุณาระบุเมนูและจำนวนให้ครบทุกรายการ')
+        return
+      }
+
+      // ตรวจสอบเมนูซ้ำ
+      const menuIds = items.map(item => item.menu_item_id)
+      const hasDuplicates = menuIds.length !== new Set(menuIds).size
+      if (hasDuplicates) {
+        alert('ไม่สามารถเพิ่มเมนูซ้ำในโปรโมชันเดียวกันได้')
+        return
+      }
+
+      // แปลงข้อมูลให้ตรงกับ API
       const formattedItems = items.map((item) => ({
-        menu_item_id: parseInt(item.menu_item_id, 10),
-        quantity: parseInt(item.quantity, 10),
+        menu_item_id: Number(item.menu_item_id), // แปลงเป็น number อย่างชัดเจน
+        quantity: Number(item.quantity),
       }))
 
       const promotionPayload = {
@@ -378,31 +433,40 @@ const Promotions = () => {
         description,
         descriptionEn,
         descriptionCh,
-        start_date,
-        end_date,
-        price: parseFloat(price),
-        is_active: isActive,
+        start_date: new Date(startDate).toISOString(),
+        end_date: new Date(endDate).toISOString(),
+        price: Number(price),
+        is_active: Boolean(isActive),
+        max_selections: Number(maxSelections),
+        min_selections: Number(minSelections),
         items: formattedItems,
       }
 
+      console.log('Sending payload:', promotionPayload) // ตรวจสอบข้อมูลที่ส่ง
+
       const response = await axios.put(
-        `http://localhost:8080/api/promotions/${selectedPromotionId}`,
+        `${API_BASE_URL_PROMOTIONS}/${selectedPromotionId}`,
         promotionPayload,
         {
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            accept: 'application/json',
+          },
         }
       )
 
       if (response.status === 200) {
+        console.log('API Response:', response.data) // ตรวจสอบการตอบกลับจาก API
+        await fetchPromotions() // รอให้การดึงข้อมูลใหม่เสร็จสิ้น
         alert('แก้ไขโปรโมชั่นสำเร็จ')
         setIsEditPopupOpen(false)
-        fetchPromotions() // รีเฟรชข้อมูลหลังแก้ไข
-      } else {
-        alert(`เกิดข้อผิดพลาด: ${response.data.error}`)
       }
     } catch (error) {
       console.error('Error updating promotion:', error)
-      alert('เกิดข้อผิดพลาดในการแก้ไขโปรโมชั่น')
+      console.error('Error response:', error.response) // เพิ่มการแสดงรายละเอียดข้อผิดพลาด
+      const errorMessage = error.response?.data?.message || 'เกิดข้อผิดพลาดในการแก้ไขโปรโมชั่น'
+      alert(errorMessage)
     }
   }
 
@@ -415,7 +479,13 @@ const Promotions = () => {
   const handleDelete = async (id) => {
     try {
       const response = await axios.delete(
-        `http://localhost:8080/api/promotions/${id}`
+        `${API_BASE_URL_PROMOTIONS}/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            accept: 'application/json',
+          },
+        }
       )
       if (response.status === 200) {
         alert('ลบโปรโมชั่นสำเร็จ')

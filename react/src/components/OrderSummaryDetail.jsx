@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import axios from 'axios'
 
+const API_BASE_URL = 'http://127.0.0.1:8080/api/orders'
+
 const OrderSummaryDetail = ({ 
   billableItems, 
   user,
@@ -96,7 +98,7 @@ const OrderSummaryDetail = ({
     try {
       const token = localStorage.getItem('token')
       const response = await axios.post(
-        'http://localhost:8080/api/orders/finalize', 
+        `${API_BASE_URL}/finalize`, 
         {
           table_id: tableID,
           staff_id: user.id,
@@ -133,7 +135,7 @@ const OrderSummaryDetail = ({
     try {
       const token = localStorage.getItem('token')
       const response = await axios.post(
-        'http://localhost:8080/api/orders/finalize', 
+        `${API_BASE_URL}/finalize`, 
         {
           table_id: tableID,
           staff_id: user.id,

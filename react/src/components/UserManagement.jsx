@@ -74,7 +74,8 @@ const UserManagement = () => {
       const response = await axios.post(`${API_BASE_URL}`, userData, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'accept': 'application/json'
         }
       });
       
@@ -111,7 +112,8 @@ const UserManagement = () => {
       const response = await axios.delete(`${API_BASE_URL}/${userId}/delete-member`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'accept': 'application/json'
         }
       });
       console.log('User deleted:', response.data); // ตรวจสอบข้อมูลที่ตอบกลับจาก server

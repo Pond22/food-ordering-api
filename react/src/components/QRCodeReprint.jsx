@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Printer } from 'lucide-react';
 
+const API_BASE_URL = 'http://127.0.0.1:8080/api/qr'
+
+
 const QRCodeReprint = ({ tableId, uuid }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -12,7 +15,7 @@ const QRCodeReprint = ({ tableId, uuid }) => {
       setError(null);
       
       const response = await axios.post(
-        `http://localhost:8080/api/qr/reprint/${tableId}`,
+        `${API_BASE_URL}/reprint/${tableId}`,
         { uuid }
       );
 

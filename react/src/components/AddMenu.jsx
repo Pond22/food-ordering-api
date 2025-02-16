@@ -658,20 +658,23 @@ const MenuManagement = () => {
 
   // ฟังก์ชันแก้ไขข้อมูลของตัวเลือกในกลุ่ม
   const handleOptionChange = (groupIndex, optionIndex, field, value) => {
-    const updatedOptions = [...menuDetails.optionGroups[groupIndex].options]
-    updatedOptions[optionIndex][field] = value
-    console.log('Updated option:', updatedOptions[optionIndex]) // เพิ่ม log เพื่อดูค่าที่อัปเดต
+    const updatedGroups = [...menuDetails.optionGroups];
+    const updatedOptions = [...updatedGroups[groupIndex].options];
+    updatedOptions[optionIndex] = {
+      ...updatedOptions[optionIndex],
+      [field]: value
+    };
+    updatedGroups[groupIndex] = {
+      ...updatedGroups[groupIndex],
+      options: updatedOptions
+    };
+    
     setMenuDetails({
       ...menuDetails,
-      optionGroups: [
-        ...menuDetails.optionGroups.slice(0, groupIndex),
-        {
-          ...menuDetails.optionGroups[groupIndex],
-          options: updatedOptions,
-        },
-        ...menuDetails.optionGroups.slice(groupIndex + 1),
-      ],
-    })
+      optionGroups: updatedGroups
+    });
+    
+    console.log('Updated option:', updatedOptions[optionIndex]); // เพิ่ม log เพื่อดูค่าที่อัปเดต
   }
 
   // ฟังก์ชันลบตัวเลือกในกลุ่ม
@@ -913,7 +916,7 @@ const MenuManagement = () => {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <div className="flex items-center space-x-2">
+                          <div className=" space-x-2">
                             <span className="font-medium text-lg text-gray-800">
                               {menu.Price.toLocaleString()} ฿
                             </span>
@@ -1512,62 +1515,34 @@ const MenuManagement = () => {
                                     type="text"
                                     placeholder="ชื่อ (ไทย)"
                                     value={option.name}
-                                    onChange={(e) => {
-                                      const updatedGroups = [...menuDetails.optionGroups]
-                                      updatedGroups[groupIndex].options[optionIndex].name = e.target.value
-                                      setMenuDetails({
-                                        ...menuDetails,
-                                        optionGroups: updatedGroups,
-                                      })
-                                    }}
+                                    onChange={(e) => handleOptionChange(groupIndex, optionIndex, 'name', e.target.value)}
                                     className="w-full p-2 border border-gray-300 rounded-lg"
                                   />
                                   <input
                                     type="text"
                                     placeholder="ชื่อ (อังกฤษ)"
-                                    value={option.nameEn || ''}
-                                    onChange={(e) =>
-                                      handleOptionChange(
-                                        groupIndex,
-                                        optionIndex,
-                                        'name_en',
-                                        e.target.value
-                                      )
-                                    }
+                                    value={option.nameEn}
+                                    onChange={(e) => handleOptionChange(groupIndex, optionIndex, 'nameEn', e.target.value)}
                                     className="w-full p-2 border border-gray-300 rounded-lg"
                                   />
                                   <input
                                     type="text"
                                     placeholder="ชื่อ (จีน)"
-                                    value={option.nameCh || ''}
-                                    onChange={(e) =>
-                                      handleOptionChange(
-                                        groupIndex,
-                                        optionIndex,
-                                        'name_ch',
-                                        e.target.value
-                                      )
-                                    }
+                                    value={option.nameCh}
+                                    onChange={(e) => handleOptionChange(groupIndex, optionIndex, 'nameCh', e.target.value)}
                                     className="w-full p-2 border border-gray-300 rounded-lg"
                                   />
                                   <div className="flex items-center space-x-2">
                                     <input
                                       type="number"
                                       placeholder="ราคา"
-                                      value={option.price || 0}
-                                      onChange={(e) =>
-                                        handleOptionChange(
-                                          groupIndex,
-                                          optionIndex,
-                                          'price',
-                                          parseFloat(e.target.value) || 0
-                                        )
-                                      }
+                                      value={option.price}
+                                      onChange={(e) => handleOptionChange(groupIndex, optionIndex, 'price', parseFloat(e.target.value) || 0)}
                                       className="w-full p-2 border border-gray-300 rounded-lg"
                                     />
                                     <button
                                       type="button"
-                                      onClick={() => handleRemoveOption(groupIndex, optionIndex)}
+                                      onClick={() => handleDeleteOption(groupIndex, optionIndex)}
                                       className="text-red-500 hover:text-red-700 transition-colors"
                                     >
                                       <Trash2 className="w-4 h-4" />
@@ -1664,9 +1639,9 @@ const AddMenuModal = ({ onClose, onMenuAdded }) => {
 
   // ฟังก์ชันแก้ไขข้อมูลของกลุ่มตัวเลือก
   const handleOptionGroupChange = (groupIndex, field, value) => {
-    const newOptions = [...options]
-    newOptions[groupIndex][field] = value
-    setOptions(newOptions)
+    const updatedGroups = [...options]
+    updatedGroups[groupIndex][field] = value
+    setOptions(updatedGroups)
   }
 
   // ฟังก์ชันเพิ่มตัวเลือกในกลุ่ม

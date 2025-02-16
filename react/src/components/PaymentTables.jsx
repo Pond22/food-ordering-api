@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronLeft, CreditCard, Wallet, Check, Trash2, X } from 'lucide-react'
 import axios from 'axios'
 import OrderSummaryDetail from './OrderSummaryDetail'
 import PrintBillCheckModal from './PrintBillCheckModal'
 
-const PaymentTables = ({ user, posToken }) => {
+const API_BASE_URL = 'http://127.0.0.1:8080/api/payment'
+const API_BASE_URL_V2 = 'http://127.0.0.1:8080/api/v2/payment'
+const API_BASE_URL_TABLE = 'http://127.0.0.1:8080/api/table'
+const API_URL = 'http://127.0.0.1:8080'
+
+
+const PaymentTables = () => {
   const [selectedPayment, setSelectedPayment] = useState('')
   const [vat, setVat] = useState(7)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -17,7 +23,8 @@ const PaymentTables = ({ user, posToken }) => {
   // const [promoError, setPromoError] = useState('')
   // const [appliedDiscount, setAppliedDiscount] = useState(0)
   const location = useLocation()
-  const { tableID, uuid, tableName, occupiedTables } = location.state || {}
+  const { tableID, uuid, tableName, occupiedTables, posToken, user } =
+    location.state || {}
   const [selectedTables, setSelectedTables] = useState([])
   const [billableItems, setBillableItems] = useState([])
   const [charges, setCharges] = useState([])
@@ -30,7 +37,16 @@ const PaymentTables = ({ user, posToken }) => {
   const [isClosingTable, setIsClosingTable] = useState(false)
   const [showCloseConfirmModal, setShowCloseConfirmModal] = useState(false)
   // console.log('Occupied Tables:', occupiedTables)
-  // console.log('User:', user)
+  console.log('User:', user)
+  console.log('posToken:', posToken)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!posToken) {
+      alert('กรุณาเข้าสู่ระบบใหม่')
+      navigate('/pos/verify')
+    }
+  }, [posToken, navigate])
 
   useEffect(() => {
     const fetchBillableItems = async () => {
@@ -42,7 +58,7 @@ const PaymentTables = ({ user, posToken }) => {
 
       try {
         const response = await axios.get(
-          `http://localhost:8080/api/table/billable/${uuid}`,
+          `${API_BASE_URL}/table/billable/${uuid}`,
           {
             headers: {
               accept: 'application/json',
@@ -67,7 +83,7 @@ const PaymentTables = ({ user, posToken }) => {
       try {
         const token = localStorage.getItem('token')
         const response = await axios.get(
-          'http://localhost:8080/api/payment/discount-types/Active',
+          `${API_BASE_URL}/discount-types/Active`,
           {
             headers: {
               accept: 'application/json',
@@ -91,7 +107,7 @@ const PaymentTables = ({ user, posToken }) => {
       try {
         const token = localStorage.getItem('token')
         const response = await axios.get(
-          'http://localhost:8080/api/payment/charge-types/Active',
+          `${API_BASE_URL}/charge-types/Active`,
           {
             headers: {
               accept: 'application/json',
@@ -275,7 +291,7 @@ const PaymentTables = ({ user, posToken }) => {
         uuid: uuid,
         payment_method: selectedPayment, // วิธีการชำระเงิน
         service_charge: vat, // vat
-        staff_id: user.id, // รหัสพนักงาน (เปลี่ยนให้เหมาะสม)
+        staff_id: user, // รหัสพนักงาน (เปลี่ยนให้เหมาะสม)
 
         discounts: selectedDiscounts
           .filter((discount) => discount.discountID) // กรองส่วนลดที่ถูกเลือก
@@ -293,9 +309,9 @@ const PaymentTables = ({ user, posToken }) => {
           })),
       }
 
-      let apiEndpoint = '/api/payment/process' // API สำหรับกรณีไม่มีโต๊ะที่เลือก
+      let apiEndpoint = `${API_BASE_URL}/process` // API สำหรับกรณีไม่มีโต๊ะที่เลือก
       if (selectedTables && selectedTables.length > 0) {
-        apiEndpoint = '/api/v2/payment/merge' // API สำหรับกรณีเลือกโต๊ะหลายโต๊ะ
+        apiEndpoint = `${API_BASE_URL_V2}/merge` // API สำหรับกรณีเลือกโต๊ะหลายโต๊ะ
         paymentData.table_ids = selectedTables // ส่ง array ของ ID โต๊ะที่เลือกไป
       } else {
         paymentData.table_id = tableID // ถ้าไม่มีโต๊ะที่เลือก ให้ส่ง tableID
@@ -305,7 +321,7 @@ const PaymentTables = ({ user, posToken }) => {
       console.log(paymentData)
 
       const response = await axios.post(
-        `http://localhost:8080${apiEndpoint}`,
+        `${API_URL}${apiEndpoint}`,
         paymentData,
         {
           headers: {
@@ -354,7 +370,7 @@ const PaymentTables = ({ user, posToken }) => {
     try {
       const token = localStorage.getItem('token')
       const response = await axios.get(
-        `http://localhost:8080/api/table/billable/${uuid}`,
+        `${API_BASE_URL_TABLE}/billable/${uuid}`,
         {
           headers: {
             accept: 'application/json',
@@ -514,7 +530,7 @@ const PaymentTables = ({ user, posToken }) => {
           if (table.ID !== tableID && !tableBillableItems[table.ID]) {
             try {
               const response = await axios.get(
-                `http://localhost:8080/api/table/billable/${table.UUID}`,
+                `${API_BASE_URL_TABLE}/billable/${table.UUID}`,
                 {
                   headers: {
                     accept: 'application/json',
@@ -552,7 +568,7 @@ const PaymentTables = ({ user, posToken }) => {
       }
 
       const response = await axios.post(
-        `http://localhost:8080/api/table/close/${tableID}?uuid=${uuid}`,
+        `${API_BASE_URL_TABLE}/close/${tableID}?uuid=${uuid}`,
         {},
         {
           headers: {

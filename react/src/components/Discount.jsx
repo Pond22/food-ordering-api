@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react'
 
+const API_BASE_URL = 'http://127.0.0.1:8080/api/payment'
+
 const Discount = () => {
   const [discountTypes, setDiscountTypes] = useState([]) // รายการประเภทส่วนลด
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingDiscountType, setEditingDiscountType] = useState(null)
+  const [filteredDiscountTypes, setFilteredDiscountTypes] = useState([]) // เพิ่ม state สำหรับข้อมูลที่กรอง
+  const [searchQuery, setSearchQuery] = useState('') // เพิ่ม state สำหรับคำค้นหา
+  const [refreshTrigger, setRefreshTrigger] = useState(0) // เพิ่ม state สำหรับ trigger การรีเฟรช
   const [formData, setFormData] = useState({
     name: '',
     value: 0,
@@ -13,40 +18,38 @@ const Discount = () => {
 
   const token = localStorage.getItem('token') || ''
   if (!token) {
-    window.location.href = '/login' 
+    window.location.href = '/login'
   }
-  
+
   // ดึงข้อมูลประเภทส่วนลดทั้งหมดจาก API
   useEffect(() => {
     const fetchDiscountTypes = async () => {
       try {
         const token = localStorage.getItem('token')
         if (!token) throw new Error('No token found')
-  
-        const response = await fetch(
-          'http://localhost:8080/api/payment/discount-types',
-          {
-            method: 'GET',
-            headers: {
-              Accept: 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        )
-  
+
+        const response = await fetch(`${API_BASE_URL}/discount-types`, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`)
         }
-  
+
         const data = await response.json()
         setDiscountTypes(data)
+        setFilteredDiscountTypes(data)
       } catch (error) {
         console.error('Error fetching discount types:', error)
       }
     }
-  
+
     fetchDiscountTypes()
-  }, [])
+  }, [refreshTrigger]) // เพิ่ม dependency
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -87,21 +90,18 @@ const Discount = () => {
     if (window.confirm('คุณแน่ใจหรือไม่ที่จะลบประเภทส่วนลดนี้?')) {
       try {
         const token = localStorage.getItem('token')
-        const response = await fetch(
-          `http://localhost:8080/api/payment/discount-types/${id}`,
-          {
-            method: 'DELETE',
-            headers: { Accept: 'application/json',
-              Authorization: `Bearer ${token}`,},
-          }
-        )
+        const response = await fetch(`${API_BASE_URL}/discount-types/${id}`, {
+          method: 'DELETE',
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        })
 
         if (response.ok) {
           const result = await response.json()
           alert(result.message) // แสดงข้อความจาก API ("Discount type deleted successfully")
-          setDiscountTypes((prev) =>
-            prev.filter((discountType) => discountType.ID !== id)
-          )
+          setRefreshTrigger(prev => prev + 1) // trigger การรีเฟรช
         } else {
           alert('ไม่สามารถลบประเภทส่วนลดได้')
         }
@@ -118,33 +118,23 @@ const Discount = () => {
 
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(
-        `http://localhost:8080/api/payment/discount-types/${id}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            is_active: updatedStatus, // ส่งข้อมูลสถานะ is_active ที่อัปเดต
-            name: '', // ชื่อที่ไม่เปลี่ยนแปลง
-            type: '', // ประเภทที่ไม่เปลี่ยนแปลง
-            value: 0, // ค่า value ที่ไม่เปลี่ยนแปลง
-          }),
-        }
-      )
+      const response = await fetch(`${API_BASE_URL}/discount-types/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          is_active: updatedStatus, // ส่งข้อมูลสถานะ is_active ที่อัปเดต
+          name: '', // ชื่อที่ไม่เปลี่ยนแปลง
+          type: '', // ประเภทที่ไม่เปลี่ยนแปลง
+          value: 0, // ค่า value ที่ไม่เปลี่ยนแปลง
+        }),
+      })
 
       if (response.ok) {
-        const updatedDiscountType = await response.json()
-        setDiscountTypes((prev) =>
-          prev.map((discountType) =>
-            discountType.ID === id
-              ? { ...discountType, IsActive: updatedStatus }
-              : discountType
-          )
-        )
+        setRefreshTrigger(prev => prev + 1) // trigger การรีเฟรช
       } else {
         alert('เกิดข้อผิดพลาดในการอัปเดตสถานะการเปิดใช้งาน')
       }
@@ -166,8 +156,8 @@ const Discount = () => {
 
     const method = editingDiscountType ? 'PUT' : 'POST'
     const url = editingDiscountType
-      ? `http://localhost:8080/api/payment/discount-types/${editingDiscountType.ID}`
-      : 'http://localhost:8080/api/payment/discount-types'
+      ? `${API_BASE_URL}/discount-types/${editingDiscountType.ID}`
+      : `${API_BASE_URL}/discount-types`
 
     try {
       const token = localStorage.getItem('token')
@@ -182,24 +172,30 @@ const Discount = () => {
       })
 
       if (response.ok) {
-        const data = await response.json()
-
-        setDiscountTypes((prev) => {
-          if (editingDiscountType) {
-            return prev.map((dt) =>
-              dt.ID === editingDiscountType.ID ? data : dt
-            )
-          }
-          return [...prev, data]
-        })
-
         setIsModalOpen(false)
         resetForm()
+        setRefreshTrigger(prev => prev + 1) // trigger การรีเฟรช
       } else {
         alert('ไม่สามารถบันทึกข้อมูลประเภทส่วนลด')
       }
     } catch (error) {
       console.error('Error submitting discount type:', error)
+      alert('เกิดข้อผิดพลาดในการบันทึกข้อมูลประเภทส่วนลด')
+    }
+  }
+
+  // เพิ่มฟังก์ชันสำหรับการค้นหา
+  const handleSearch = (e) => {
+    const query = e.target.value.toLowerCase()
+    setSearchQuery(query)
+
+    if (query === '') {
+      setFilteredDiscountTypes(discountTypes)
+    } else {
+      const filtered = discountTypes.filter((discountType) =>
+        discountType.Name.toLowerCase().includes(query)
+      )
+      setFilteredDiscountTypes(filtered)
     }
   }
 
@@ -215,6 +211,7 @@ const Discount = () => {
             จัดการประเภทส่วนลดสำหรับระบบการชำระเงิน
           </p>
         </div>
+
         <button
           onClick={handleAddNew}
           className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
@@ -223,63 +220,73 @@ const Discount = () => {
           เพิ่มประเภทส่วนลดใหม่
         </button>
       </div>
+      <div className="mb-6">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={handleSearch}
+          placeholder="ค้นหาตามชื่อส่วนลด"
+          className="p-2 border border-gray-300 rounded-md w-full"
+        />
+      </div>
 
       {/* Discount Type Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {discountTypes.map((discountType) => (
-          <div
-            key={discountType.ID}
-            className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">
-                  {discountType.ID}
-                  {discountType.Name}
-                </h3>
-                <p className="mt-2 text-gray-600">
-                  ส่วนลด: {discountType.Value}{' '}
-                  {discountType.Type === 'percentage' ? '%' : 'บาท'}
-                </p>
+        {discountTypes.map &&
+          filteredDiscountTypes.map((discountType) => (
+            <div
+              key={discountType.ID}
+              className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    {/* {discountType.ID} */}
+                    {discountType.Name}
+                  </h3>
+                  <p className="mt-2 text-gray-600">
+                    ส่วนลด: {discountType.Value}{' '}
+                    {discountType.Type === 'percentage' ? '%' : 'บาท'}
+                  </p>
+                </div>
+                <div
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    discountType.IsActive
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}
+                >
+                  {discountType.IsActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                </div>
               </div>
-              <div
-                className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  discountType.IsActive
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-gray-100 text-gray-800'
-                }`}
-              >
-                {discountType.IsActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
-              </div>
-            </div>
 
-            <div className="flex items-center justify-between mt-4">
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleEdit(discountType)}
-                  className="px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  แก้ไข
-                </button>
-                <button
-                  onClick={() => handleDelete(discountType.ID)}
-                  className="px-3 py-1 border border-red-300 text-red-600 rounded-md hover:bg-red-50"
-                >
-                  ลบ
-                </button>
-                {/* ปุ่มสำหรับเปิด/ปิดใช้งาน */}
-                <button
-                  onClick={() =>
-                    toggleActiveStatus(discountType.ID, discountType.IsActive)
-                  }
-                  className="px-3 py-1 border border-blue-300 text-blue-600 rounded-md hover:bg-blue-50"
-                >
-                  {discountType.IsActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
-                </button>
+              <div className="flex items-center justify-between mt-4">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEdit(discountType)}
+                    className="px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    แก้ไข
+                  </button>
+                  <button
+                    onClick={() => handleDelete(discountType.ID)}
+                    className="px-3 py-1 border border-red-300 text-red-600 rounded-md hover:bg-red-50"
+                  >
+                    ลบ
+                  </button>
+                  {/* ปุ่มสำหรับเปิด/ปิดใช้งาน */}
+                  <button
+                    onClick={() =>
+                      toggleActiveStatus(discountType.ID, discountType.IsActive)
+                    }
+                    className="px-3 py-1 border border-blue-300 text-blue-600 rounded-md hover:bg-blue-50"
+                  >
+                    {discountType.IsActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
       </div>
 
       {/* Modal */}

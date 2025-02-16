@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { Printer as PrinterIcon, Save, Plus, Trash2 } from 'lucide-react'
 
+const API_BASE_URL = 'http://127.0.0.1:8080/api/printers'
+const API_BASE_URL_CATEGORIES = 'http://127.0.0.1:8080/api/categories'
+
 const Printer = () => {
   const [printers, setPrinters] = useState([])
   const [categories, setCategories] = useState([])
@@ -19,11 +22,13 @@ const Printer = () => {
         if (!token) return
   
         const [printersRes, categoriesRes] = await Promise.all([
-          axios.get('http://localhost:8080/api/printers', {
+          axios.get(`${API_BASE_URL}`, {
             headers: { Authorization: `Bearer ${token}` },
+            accept: 'application/json',
           }),
-          axios.get('http://localhost:8080/api/categories', {
+          axios.get(`http://127.0.0.1:8080/api/categories`, {
             headers: { Authorization: `Bearer ${token}` },
+            Accept: 'application/json',
           }),
         ])
   
@@ -32,7 +37,7 @@ const Printer = () => {
   
         // Fetch categories for all printers in one request
         const categoryRequests = printersRes.data.map((printer) =>
-          axios.get(`http://localhost:8080/api/printers/categories/${printer.ID}`, {
+          axios.get(`${API_BASE_URL}/categories/${printer.ID}`, {
             headers: { Authorization: `Bearer ${token}` },
           })
         )
@@ -58,7 +63,7 @@ const Printer = () => {
   useEffect(() => {
     const token = localStorage.getItem('token')
     axios
-      .get('http://localhost:8080/api/categories', {
+      .get(`${API_BASE_URL_CATEGORIES}`, {
         headers: {
           Accept: 'application/json',
           Authorization: `Bearer ${token}`,
@@ -114,7 +119,7 @@ const Printer = () => {
       const apiCalls = Object.entries(printersToCategoriesMap).map(
         ([printerId, categoryIds]) =>
           axios.post(
-            `http://localhost:8080/api/printers/categories/${printerId}`,
+            `${API_BASE_URL}/categories/${printerId}`,
             { category_ids: [...new Set(categoryIds)] }
           )
       )
@@ -148,7 +153,7 @@ const Printer = () => {
   const handleDeletePrinter = async (printerId) => {
     try {
       const token = localStorage.getItem('token')
-      await axios.delete(`http://localhost:8080/api/printers/${printerId}`)
+      await axios.delete(`${API_BASE_URL}/${printerId}`)
       setPrinters(printers.filter((printer) => printer.ID !== printerId))
     } catch (error) {
       console.error('Error deleting printer:', error)

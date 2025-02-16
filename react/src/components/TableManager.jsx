@@ -9,6 +9,13 @@ import ReservationCheckin from './ReservationCheckin'
 import QRCodeReprint from './QRCodeReprint'
 import OrderSummaryDetail from './OrderSummaryDetail'
 
+const API_BASE_URL_TABLES = 'http://127.0.0.1:8080/api/tables'
+const API_BASE_URL_TABLE = 'http://127.0.0.1:8080/api/table'
+const API_BASE_URL_PAYMENT = 'http://127.0.0.1:8080/api/payment'
+const API_BASE_URL_RESERVATION = 'http://127.0.0.1:8080/api/v2/reservation'
+const API_BASE_URL_QR = 'http://127.0.0.1:8080/api/qr'
+const WS_TABLE_KEY = import.meta.env.VITE_WS_TABLE_KEY
+
 // Helper component for displaying table info
 const TableInfo = ({ label, value }) => (
   <div className="flex justify-between mb-2">
@@ -17,7 +24,7 @@ const TableInfo = ({ label, value }) => (
   </div>
 )
 
-const TableManager = ({ posToken }) => {
+const TableManager = ({ posToken , user }) => {
   const [tables, setTables] = useState([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [newTableName, setNewTableName] = useState('')
@@ -30,6 +37,7 @@ const TableManager = ({ posToken }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [tableToDelete, setTableToDelete] = useState(null)
   const [showSplitPopup, setShowSplitPopup] = useState(false) // สำหรับแสดง Popup การแยกโต๊ะ
+  
 
   // Reservation Dialog States
   const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false)
@@ -54,6 +62,17 @@ const TableManager = ({ posToken }) => {
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false)
 
   const navigate = useNavigate()
+  useEffect(() => {
+    if (!posToken) {
+      alert('กรุณาเข้าสู่ระบบใหม่')
+      navigate('/pos/verify')
+    }
+  }, [posToken, navigate])
+
+  // ถ้าไม่มี posToken ให้แสดง loading หรือ return null
+  if (!posToken) {
+    return null
+  }
   const handleCheckBillClick = (tableID) => {
     // กรองโต๊ะที่มีสถานะ 'occupied' จาก list ของโต๊ะ
     const occupiedTables = tables.filter((table) => table.Status === 'occupied')
@@ -63,9 +82,12 @@ const TableManager = ({ posToken }) => {
     const table = tables.find((t) => t.ID === tableID) // หาตัวโต๊ะที่ตรงกับ tableID
     const tableName = table ? table.Name : 'ไม่พบชื่อโต๊ะ'
 
+    // เพิ่ม useEffect สำหรับตรวจสอบ posToken
+    
+
     // ส่งข้อมูลโต๊ะทั้งหมดที่มีสถานะ occupied พร้อมกับ tableID และ uuid ไปยังหน้า PaymentTables
     navigate('/payment-tables', {
-      state: { tableID, uuid, tableName, occupiedTables, posToken },
+      state: { tableID, uuid, tableName, occupiedTables, posToken, user },
     })
   }
 
@@ -129,7 +151,7 @@ const TableManager = ({ posToken }) => {
   // Check if table name is duplicated
   const checkTableNameConflict = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/tables')
+      const response = await axios.get(`${API_BASE_URL_TABLES}`)
       const data = response.data
       return data.some((table) => table.Name === newTableName)
     } catch (error) {
@@ -191,9 +213,9 @@ const TableManager = ({ posToken }) => {
 
     const endpoint =
       action === 'reserve'
-        ? `http://localhost:8080/api/table/reservedTable/${table.ID}`
+        ? `${API_BASE_URL_TABLE}/reservedTable/${table.ID}`
         : action === 'unreserve'
-        ? `http://localhost:8080/api/table/unreservedTable/${table.ID}`
+        ? `${API_BASE_URL_TABLE}/unreservedTable/${table.ID}`
         : null
 
     if (!endpoint) {
@@ -274,7 +296,7 @@ const TableManager = ({ posToken }) => {
 
     try {
       const response = await axios.post(
-        'http://localhost:8080/api/table',
+        `${API_BASE_URL_TABLE}`,
         tableData,
         {
           headers: {
@@ -303,7 +325,7 @@ const TableManager = ({ posToken }) => {
     if (tableToDelete && tableToDelete.ID) {
       try {
         const response = await axios.delete(
-          `http://localhost:8080/api/table/${tableToDelete.ID}`,
+          `${API_BASE_URL_TABLE}/${tableToDelete.ID}`,
           {
             headers: {
               Authorization: `Bearer ${posToken}`,
@@ -349,7 +371,7 @@ const TableManager = ({ posToken }) => {
     try {
       // ส่งข้อมูลไปยัง API
       const response = await axios.post(
-        'http://localhost:8080/api/table/moveTable',
+        `${API_BASE_URL_TABLE}/moveTable`,
         {
           from_table_id: fromTableId,
           to_table_id: toTableId,
@@ -357,6 +379,7 @@ const TableManager = ({ posToken }) => {
         {
           headers: {
             Authorization: `Bearer ${posToken}`,
+            'Content-Type': 'application/json',
           },
         }
       )
@@ -406,7 +429,7 @@ const TableManager = ({ posToken }) => {
 
     try {
       const response = await axios.post(
-        'http://localhost:8080/api/table/mergeTable',
+        `${API_BASE_URL_TABLE}/mergeTable`,
         {
           table_ids: selectedTables,
         },
@@ -464,9 +487,10 @@ const TableManager = ({ posToken }) => {
   const handleSplitTable = async (groupId) => {
     try {
       const response = await axios.post(
-        `http://localhost:8080/api/table/splitTable/${groupId}`,
+        `${API_BASE_URL_TABLE}/splitTable/${groupId}`,
         {
           Authorization: `Bearer ${posToken}`,
+
         }
       )
 
@@ -504,7 +528,7 @@ const TableManager = ({ posToken }) => {
       return
     }
 
-    const endpoint = `http://localhost:8080/api/table/setstatus/${table.ID}`
+    const endpoint = `${API_BASE_URL_TABLE}/setstatus/${table.ID}`
 
     try {
       // ใช้ PUT request แทน POST
@@ -547,7 +571,7 @@ const TableManager = ({ posToken }) => {
 
       // ดึงข้อมูล QR code จาก API
       const qrResponse = await axios.get(
-        `http://localhost:8080/api/qr/${table.ID}`,
+        `${API_BASE_URL_QR}/${table.ID}`,
         {
           headers: {
             Authorization: `Bearer ${posToken}`,

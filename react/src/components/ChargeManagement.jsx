@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import Discount from './Discount'
 
+const API_BASE_URL = 'http://127.0.0.1:8080/api/payment'
+
 const ChargeTypeManagement = () => {
   const [chargeTypes, setChargeTypes] = useState([]) // รายการประเภทค่าใช้จ่าย
   const [filteredChargeTypes, setFilteredChargeTypes] = useState([]) // ข้อมูลที่กรองตามคำค้นหา
@@ -8,6 +10,7 @@ const ChargeTypeManagement = () => {
   const [editingChargeType, setEditingChargeType] = useState(null)
   const [activeTab, setActiveTab] = useState('Discount') // เปลี่ยนค่าเป็น 'Discount'
   const [searchQuery, setSearchQuery] = useState('') // ค่าค้นหาจากผู้ใช้
+  const [refreshTrigger, setRefreshTrigger] = useState(0) // เพิ่ม state สำหรับ trigger การรีเฟรช
   const [formData, setFormData] = useState({
     name: '',
     default_amount: 0,
@@ -17,38 +20,40 @@ const ChargeTypeManagement = () => {
   // ดึงข้อมูลประเภทค่าใช้จ่ายทั้งหมดจาก API
   useEffect(() => {
     const token = localStorage.getItem('token')
-    fetch('http://localhost:8080/api/payment/charge-types', {
+    fetch(`${API_BASE_URL}/charge-types`, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
       },
     })
       .then((response) => response.json())
       .then((data) => {
-        setChargeTypes(data)
-        setFilteredChargeTypes(data) // ตั้งค่าข้อมูลที่กรองแล้วเป็นข้อมูลทั้งหมดตอนแรก
+        // เรียงข้อมูลตาม ID จากน้อยไปมาก
+        const sortedData = data.sort((a, b) => a.ID - b.ID)
+        setChargeTypes(sortedData)
+        setFilteredChargeTypes(sortedData)
       })
       .catch((error) => console.error('Error fetching charge types:', error))
-  }, [])
+  }, [refreshTrigger])
 
- const handleInputChange = (e) => {
-   const { name, value, type, checked } = e.target
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target
 
-   // อัปเดตข้อมูลใน formData เมื่อมีการเปลี่ยนแปลง
-   setFormData((prev) => ({
-     ...prev,
-     [name]:
-       type === 'checkbox'
-         ? checked
-         : name === 'defaultAmount'
-         ? isNaN(parseFloat(value)) // ตรวจสอบว่าค่าเป็นตัวเลขหรือไม่
-           ? 0 // ถ้าไม่ใช่ตัวเลข จะตั้งค่าเป็น 0
-           : parseFloat(value) // แปลงเป็นตัวเลข
-         : value,
-   }))
- }
-
+    // อัปเดตข้อมูลใน formData เมื่อมีการเปลี่ยนแปลง
+    setFormData((prev) => ({
+      ...prev,
+      [name]:
+        type === 'checkbox'
+          ? checked
+          : name === 'defaultAmount'
+          ? isNaN(parseFloat(value)) // ตรวจสอบว่าค่าเป็นตัวเลขหรือไม่
+            ? 0 // ถ้าไม่ใช่ตัวเลข จะตั้งค่าเป็น 0
+            : parseFloat(value) // แปลงเป็นตัวเลข
+          : value,
+    }))
+  }
 
   const resetForm = () => {
     setFormData({
@@ -61,7 +66,6 @@ const ChargeTypeManagement = () => {
 
   const handleAddNew = () => {
     setIsModalOpen(true)
-    
   }
 
   const handleEdit = (chargeType) => {
@@ -75,30 +79,29 @@ const ChargeTypeManagement = () => {
   }
 
   // ฟังก์ชันสำหรับลบประเภทค่าใช้จ่าย
-  const handleDelete = (id) => {
+  // แก้ไขฟังก์ชัน handleDelete
+  const handleDelete = async (id) => {
     if (window.confirm('คุณแน่ใจหรือไม่ที่จะลบประเภทค่าใช้จ่ายนี้?')) {
-      const token = localStorage.getItem('token')
-      fetch(`http://localhost:8080/api/payment/charge-types/${id}`, {
-        method: 'DELETE',
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      })
-        .then((response) => {
-          if (response.ok) {
-            setChargeTypes((prev) =>
-              prev.filter((chargeType) => chargeType.ID !== id)
-            )
-            alert('ลบประเภทค่าใช้จ่ายสำเร็จ')
-          } else {
-            alert('ไม่สามารถลบประเภทค่าใช้จ่ายได้')
-          }
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch(`${API_BASE_URL}/charge-types/${id}`, {
+          method: 'DELETE',
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
         })
-        .catch((error) => {
-          console.error('Error deleting charge type:', error)
-          alert('เกิดข้อผิดพลาดในการลบประเภทค่าใช้จ่าย')
-        })
+
+        if (response.ok) {
+          alert('ลบประเภทค่าใช้จ่ายสำเร็จ')
+          setRefreshTrigger((prev) => prev + 1) // trigger การรีเฟรช
+        } else {
+          alert('ไม่สามารถลบประเภทค่าใช้จ่ายได้')
+        }
+      } catch (error) {
+        console.error('Error deleting charge type:', error)
+        alert('เกิดข้อผิดพลาดในการลบประเภทค่าใช้จ่าย')
+      }
     }
   }
 
@@ -106,7 +109,7 @@ const ChargeTypeManagement = () => {
   const toggleActiveStatus = (id, currentStatus) => {
     const updatedStatus = !currentStatus // เปลี่ยนสถานะเปิด/ปิดใช้งาน
     const token = localStorage.getItem('token')
-    fetch(`http://localhost:8080/api/payment/charge-types/${id}`, {
+    fetch(`${API_BASE_URL}/charge-types/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -135,68 +138,67 @@ const ChargeTypeManagement = () => {
   }
 
   const handleSubmit = async (e) => {
-  e.preventDefault()
+    e.preventDefault()
 
-  // ข้อมูลที่ต้องการบันทึกหรือแก้ไข
-  const updatedChargeType = {
-    name: formData.name, // ชื่อประเภทค่าใช้จ่าย
-    defaultAmount: formData.defaultAmount, // ใช้ defaultAmount สำหรับ POST หรือ PUT API
-    isActive: formData.isActive, // ใช้ isActive
-  }
-
-  const method = editingChargeType ? 'PUT' : 'POST' // กำหนดวิธีการ (POST สำหรับเพิ่ม, PUT สำหรับแก้ไข)
-  const url = editingChargeType
-    ? `http://localhost:8080/api/payment/charge-types/${editingChargeType.ID}` // ถ้าเป็นการแก้ไขข้อมูล
-    : 'http://localhost:8080/api/payment/charge-types' // ถ้าเป็นการเพิ่มข้อมูลใหม่
-
-  try {
-    const token = localStorage.getItem('token')
-    const response = await fetch(url, {
-      method: method,
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(updatedChargeType),
-    })
-
-    if (response.ok) {
-      const data = await response.json()
-
-      // อัปเดตข้อมูลใน state
-      setChargeTypes((prev) => {
-        if (editingChargeType) {
-          // ถ้าเป็นการแก้ไขข้อมูล ให้แทนที่ข้อมูลเดิม
-          return prev.map((ct) =>
-            ct.ID === editingChargeType.ID ? data : ct
-          )
-        }
-        // ถ้าเป็นการเพิ่มข้อมูลใหม่ ให้เพิ่มเข้าไป
-        return [...prev, data]
-      })
-
-      // อัปเดตข้อมูลใน filteredChargeTypes
-      setFilteredChargeTypes((prev) => {
-        if (editingChargeType) {
-          return prev.map((ct) =>
-            ct.ID === editingChargeType.ID ? data : ct
-          )
-        }
-        return [...prev, data]
-      })
-
-      setIsModalOpen(false) // ปิด Modal
-      resetForm() // รีเซ็ตฟอร์ม
-    } else {
-      alert('ไม่สามารถบันทึกข้อมูลประเภทค่าใช้จ่าย')
+    // ข้อมูลที่ต้องการบันทึกหรือแก้ไข
+    const updatedChargeType = {
+      name: formData.name, // ชื่อประเภทค่าใช้จ่าย
+      defaultAmount: formData.defaultAmount, // ใช้ defaultAmount สำหรับ POST หรือ PUT API
+      isActive: formData.isActive, // ใช้ isActive
     }
-  } catch (error) {
-    console.error('Error submitting charge type:', error)
-    alert('เกิดข้อผิดพลาดในการบันทึกข้อมูลประเภทค่าใช้จ่าย')
-  }
-}
 
+    const method = editingChargeType ? 'PUT' : 'POST' // กำหนดวิธีการ (POST สำหรับเพิ่ม, PUT สำหรับแก้ไข)
+    const url = editingChargeType
+      ? `${API_BASE_URL}/charge-types/${editingChargeType.ID}` // ถ้าเป็นการแก้ไขข้อมูล
+      : `${API_BASE_URL}/charge-types` // ถ้าเป็นการเพิ่มข้อมูลใหม่
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updatedChargeType),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+
+        // อัปเดตข้อมูลใน state
+        setChargeTypes((prev) => {
+          if (editingChargeType) {
+            // ถ้าเป็นการแก้ไขข้อมูล ให้แทนที่ข้อมูลเดิม
+            return prev.map((ct) =>
+              ct.ID === editingChargeType.ID ? data : ct
+            )
+          }
+          // ถ้าเป็นการเพิ่มข้อมูลใหม่ ให้เพิ่มเข้าไป
+          return [...prev, data]
+        })
+
+        // อัปเดตข้อมูลใน filteredChargeTypes
+        setFilteredChargeTypes((prev) => {
+          if (editingChargeType) {
+            return prev.map((ct) =>
+              ct.ID === editingChargeType.ID ? data : ct
+            )
+          }
+          return [...prev, data]
+        })
+
+        setIsModalOpen(false) // ปิด Modal
+        resetForm() // รีเซ็ตฟอร์ม
+      } else {
+        alert('ไม่สามารถบันทึกข้อมูลประเภทค่าใช้จ่าย')
+      }
+    } catch (error) {
+      console.error('Error submitting charge type:', error)
+      alert('เกิดข้อผิดพลาดในการบันทึกข้อมูลประเภทค่าใช้จ่าย')
+    }
+  }
 
   // ฟังก์ชันสำหรับการค้นหาข้อมูล
   const handleSearch = (e) => {
@@ -293,7 +295,7 @@ const ChargeTypeManagement = () => {
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="text-xl font-bold text-gray-900">
-                      {chargeType.ID}
+                      {/* {chargeType.ID} */}
                       {chargeType.Name}
                     </h3>
                     <p className="mt-2 text-gray-600">

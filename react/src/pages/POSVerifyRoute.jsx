@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
 
+const API_BASE_URL = 'http://127.0.0.1:8080/api/pos'
+
 const POSVerifyRoute = () => {
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -43,7 +45,7 @@ const POSVerifyRoute = () => {
       const deviceInfo = getDeviceInfo();
       console.log('Sending verification with device info:', deviceInfo);
 
-      const response = await fetch('http://localhost:8080/api/pos/verify-code', {
+      const response = await fetch(`${API_BASE_URL}/verify-code`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, AlertCircle } from 'lucide-react';
 
+const API_BASE_URL = 'http://127.0.0.1:8080/api/reservation'
+
 const ReservationConfig = () => {
   const [rules, setRules] = useState({
     gracePeriodMinutes: 0,
@@ -16,7 +18,7 @@ const ReservationConfig = () => {
   const fetchActiveRule = async () => {
     try {
       const token = localStorage.getItem('token'); // หรือดึง token จากที่เก็บอื่นๆ
-      const response = await fetch('http://localhost:8080/api/reservation/rules/active', {
+      const response = await fetch(`${API_BASE_URL}/rules/active`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -39,7 +41,7 @@ const ReservationConfig = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:8080/api/reservation/rules', {
+      const response = await fetch(`${API_BASE_URL}/rules`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

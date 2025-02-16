@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Printer, Search, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import InfiniteScroll from 'react-infinite-scroll-component';
 
+const API_BASE_URL = 'http://127.0.0.1:8080/api/printers'
+
 // Subcomponents
 const Table = ({ children, className = "" }) => (
   <table className={`w-full text-sm text-left ${className}`}>{children}</table>
@@ -97,8 +99,8 @@ const Reprint = () => {
     setError(null);
     try {
       const endpoint = jobType === 'failed' 
-        ? 'http://localhost:8080/api/printers/failed-jobs'
-        : 'http://localhost:8080/api/printers/reprintable-jobs';
+        ? `${API_BASE_URL}/failed-jobs`
+        : `${API_BASE_URL}/reprintable-jobs`;
 
       const params = new URLSearchParams({
         page: pageNum,
@@ -155,7 +157,7 @@ const Reprint = () => {
   const handleReprint = async (jobId) => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:8080/api/printers/reprint/${jobId}`, {
+      const response = await fetch(`${API_BASE_URL}/reprint/${jobId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

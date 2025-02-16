@@ -3,10 +3,12 @@ import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Login from './components/Login';
 import Section from './Section';
 import Menu from './pages/Menu';
+
 import Pos from './pages/POS';
 import POSVerifyRoute from './pages/POSVerifyRoute';
 import PaymentTables from './components/PaymentTables';
-
+import PosSection from './PosSection';
+import TableManager from './components/TableManager';
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
@@ -40,6 +42,7 @@ const App = () => {
   return (
     <Routes>
       {/* POS Routes (ไม่ต้องการการล็อกอิน) */}
+      {/* <Route path="/" element={<PosSection />} /> */}
       <Route path="/pos/verify" element={<POSVerifyRoute />} />
       <Route path="/pos" element={<Pos />} />
       {/* <Route path="/payment-tables" element={<PaymentTables user={user} />} /> */}
@@ -67,8 +70,8 @@ const App = () => {
           )
         }
       />
-      {/* <Route path="/tables" /> */}
-      <Route path="/payment-tables" element={<PaymentTables user={user} />} />
+      {/* <Route path="/tables" element={<TableManager  />} /> */}
+      <Route path="/payment-tables" element={<PaymentTables  />} />
     </Routes>
   )
 };
