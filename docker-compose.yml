@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   app:
-    build: .
+    build: .  # เพิ่มจุดตรงนี้ด้วย
     ports:
       - "8080:8080"
     environment:
@@ -21,35 +21,16 @@ services:
     depends_on:
       - postgres
 
-  frontend:
-    build: 
-      context: ./react
-      dockerfile: Dockerfile
-    container_name: react
-    ports:
-      - "3000:3000"
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-      - VITE_APP_API_URL=${VITE_APP_API_URL}
-      - VITE_WS_TABLE_KEY=${VITE_WS_TABLE_KEY}
-      - VITE_APP_WS_PRINTER_KEY=${VITE_APP_WS_PRINTER_KEY}
-      - VITE_APP_WS_STAFF_KEY=${VITE_APP_WS_STAFF_KEY}
-      - VITE_APP_WS_URL=${VITE_APP_WS_URL}
-    depends_on:
-      - app
 
-  nginx:
+  nginx:  # แก้ indentation ตรงนี้
     image: nginx:alpine
     container_name: nginx
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      # ใช้ไฟล์ nginx.conf ที่เตรียมไว้ (วางใน ./nginx/nginx.conf)
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      # mount โฟลเดอร์ build ของ React
       - ./react/dist:/usr/share/nginx/html:ro
-      # mount โฟลเดอร์ใบรับรอง SSL
       - ./ssl:/etc/nginx/ssl:ro
     depends_on:
       - app
