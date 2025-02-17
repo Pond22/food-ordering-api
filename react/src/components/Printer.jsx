@@ -26,9 +26,10 @@ const Printer = () => {
             headers: { Authorization: `Bearer ${token}` },
             accept: 'application/json',
           }),
-          axios.get(`http://127.0.0.1:8080/api/categories`, {
+          axios.get(`${API_BASE_URL_CATEGORIES}`, {
             headers: { Authorization: `Bearer ${token}` },
-            Accept: 'application/json',
+            accept: 'application/json',
+
           }),
         ])
   
@@ -39,6 +40,7 @@ const Printer = () => {
         const categoryRequests = printersRes.data.map((printer) =>
           axios.get(`${API_BASE_URL}/categories/${printer.ID}`, {
             headers: { Authorization: `Bearer ${token}` },
+            accept: 'application/json',
           })
         )
   
@@ -65,8 +67,9 @@ const Printer = () => {
     axios
       .get(`${API_BASE_URL_CATEGORIES}`, {
         headers: {
-          Accept: 'application/json',
+          accept: 'application/json',
           Authorization: `Bearer ${token}`,
+
         },
       })
       .then((response) => {
@@ -78,6 +81,7 @@ const Printer = () => {
   }, [])
 
   const handleSaveSettings = async () => {
+    const token = localStorage.getItem('token')
     setIsLoading(true)
     try {
       // Prepare category assignments with existing and new categories
@@ -120,6 +124,12 @@ const Printer = () => {
         ([printerId, categoryIds]) =>
           axios.post(
             `${API_BASE_URL}/categories/${printerId}`,
+            {
+              headers: {
+                accept: 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+            },
             { category_ids: [...new Set(categoryIds)] }
           )
       )

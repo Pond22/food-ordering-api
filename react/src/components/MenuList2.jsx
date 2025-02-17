@@ -187,7 +187,7 @@ export default function MenuList({ language }) {
   return (
     <div className="mt-[4.5rem] bg-gradient-to-br from-[#1c2025] via-[#34393f] to-[#6f757c] max-w-screen-xl mx-auto">
       <div className="bg-[#1c2025] border-b border-[#3D3038]/30">
-        <div 
+        <div
           className="flex items-center gap-1.5 overflow-x-auto scrollbar-hidden py-2 px-3"
           ref={scrollRef}
         >
@@ -200,7 +200,11 @@ export default function MenuList({ language }) {
             onClick={() => handleCategoryClick(0)}
           >
             <span className="text-xs font-medium">
-              {language === 'th' ? 'ทั้งหมด' : language === 'en' ? 'All' : '全部'}
+              {language === 'th'
+                ? 'ทั้งหมด'
+                : language === 'en'
+                ? 'All'
+                : '全部'}
             </span>
           </button>
 
@@ -253,21 +257,26 @@ export default function MenuList({ language }) {
           </Carousel>
         </div>
 
-        {menus.some(menu => menu.IsRecommended) && (
+        {menus.some((menu) => menu.IsRecommended) && (
           <div className="mx-2 my-4">
             <h2 className="text-base font-medium text-white/90 mb-2 px-1">
-              {language === 'th' 
-                ? 'เมนูแนะนำ' 
-                : language === 'en' 
-                ? 'Recommended Menu' 
+              {language === 'th'
+                ? 'เมนูแนะนำ'
+                : language === 'en'
+                ? 'Recommended Menu'
                 : '推荐菜单'}
             </h2>
-            
+
             <div className="grid grid-cols-2 gap-2">
               {menus
-                .filter(menu => menu.IsRecommended)
-                .map(menu => (
-                  <MenuItem key={menu.ID} item={menu} language={language} isPremium />
+                .filter((menu) => menu.IsRecommended)
+                .map((menu) => (
+                  <MenuItem
+                    key={menu.ID}
+                    item={menu}
+                    language={language}
+                    isPremium
+                  />
                 ))}
             </div>
           </div>
@@ -275,11 +284,20 @@ export default function MenuList({ language }) {
 
         <div className="mx-2 my-4">
           {categories.map((category) => {
-            const filteredMenus = activeLink === 0
-              ? menus.filter(menu => menu.CategoryID === category.ID && !menu.IsRecommended)
-              : menus.filter(menu => menu.CategoryID === category.ID && menu.CategoryID === activeLink && !menu.IsRecommended);
+            const filteredMenus =
+              activeLink === 0
+                ? menus.filter(
+                    (menu) =>
+                      menu.CategoryID === category.ID && !menu.IsRecommended
+                  )
+                : menus.filter(
+                    (menu) =>
+                      menu.CategoryID === category.ID &&
+                      menu.CategoryID === activeLink &&
+                      !menu.IsRecommended
+                  )
 
-            if (filteredMenus.length === 0) return null;
+            if (filteredMenus.length === 0) return null
 
             return (
               <div key={category.ID} className="mb-6">
@@ -290,14 +308,14 @@ export default function MenuList({ language }) {
                     ? category.NameEn
                     : category.NameCh}
                 </h2>
-                
+
                 <div className="grid grid-cols-2 gap-2">
-                  {filteredMenus.map(menu => (
+                  {filteredMenus.map((menu) => (
                     <MenuItem key={menu.ID} item={menu} language={language} />
                   ))}
                 </div>
               </div>
-            );
+            )
           })}
         </div>
       </div>
@@ -338,23 +356,27 @@ export default function MenuList({ language }) {
                 <p className="text-black text-xl font-semibold mb-6">
                   {displayItem.Price} THB
                 </p>
+                {/* แสดงข้อความเกี่ยวกับ MinSelections และ MaxSelections เฉพาะเมื่อค่ามากกว่า 0 */}
+                {(displayItem.MinSelections > 0 ||
+                  displayItem.MaxSelections > 0) && (
+                  <div className="mb-4 p-3 bg-gray-100 rounded-lg">
+                    <p className="text-sm text-gray-600">
+                      {language === 'th'
+                        ? `ต้องเลือกอย่างน้อย ${displayItem.MinSelections} รายการ และไม่เกิน ${displayItem.MaxSelections} รายการ`
+                        : language === 'en'
+                        ? `Select minimum ${displayItem.MinSelections} and maximum ${displayItem.MaxSelections} items`
+                        : `最少选择 ${displayItem.MinSelections} 项，最多选择 ${displayItem.MaxSelections} 项`}
+                    </p>
 
-                <div className="mb-4 p-3 bg-gray-100 rounded-lg">
-                  <p className="text-sm text-gray-600">
-                    {language === 'th'
-                      ? `ต้องเลือกอย่างน้อย ${displayItem.MinSelections} รายการ และไม่เกิน ${displayItem.MaxSelections} รายการ`
-                      : language === 'en'
-                      ? `Select minimum ${displayItem.MinSelections} and maximum ${displayItem.MaxSelections} items`
-                      : `最少选择 ${displayItem.MinSelections} 项，最多选择 ${displayItem.MaxSelections} 项`}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {language === 'th'
-                      ? `เลือกแล้ว: ${selectedOptions.length} รายการ`
-                      : language === 'en'
-                      ? `Selected: ${selectedOptions.length} items`
-                      : `已选择: ${selectedOptions.length} 项`}
-                  </p>
-                </div>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {language === 'th'
+                        ? `เลือกแล้ว: ${selectedOptions.length} รายการ`
+                        : language === 'en'
+                        ? `Selected: ${selectedOptions.length} items`
+                        : `已选择: ${selectedOptions.length} 项`}
+                    </p>
+                  </div>
+                )}
 
                 {displayItem &&
                   displayItem.Items &&

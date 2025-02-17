@@ -30,6 +30,8 @@ const OrderConfirmation = () => {
     .get(`${API_BASE_URL}/active`, {
       headers: {
         Authorization: `Bearer ${token}`,
+        accept: 'application/json',
+        'Content-Type': 'application/json',
       },
     })
     .then((response) => {

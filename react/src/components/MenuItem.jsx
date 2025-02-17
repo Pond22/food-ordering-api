@@ -77,8 +77,34 @@ const MenuItem = ({ item, language, isPremium }) => {
 
     if (quantity > 0) {
       // ตรวจสอบ required options ก่อน
-      if (!validateRequiredOptions()) {
-        return
+      const missingRequiredGroups = item.OptionGroups
+        .filter(group => group.IsRequired)
+        .filter(group => {
+          const selectedInGroup = Object.values(selectedOptions).filter(
+            opt => opt.group_id === group.ID
+          ).length;
+          return selectedInGroup === 0;
+        });
+
+      if (missingRequiredGroups.length > 0) {
+        const groupNames = missingRequiredGroups
+          .map(group => 
+            language === 'th' 
+              ? group.Name 
+              : language === 'en' 
+              ? group.NameEn 
+              : group.NameCh
+          )
+          .join(', ');
+
+        alert(
+          language === 'th'
+            ? `กรุณาเลือกตัวเลือกที่จำเป็น: ${groupNames}`
+            : language === 'en'
+            ? `Please select required options: ${groupNames}`
+            : `请选择必需的选项: ${groupNames}`
+        );
+        return;
       }
 
       const currentOrdered = getMenuItemOrderedQuantity(item.ID)
@@ -105,15 +131,73 @@ const MenuItem = ({ item, language, isPremium }) => {
 
   // Handle option selection change
   const handleOptionChange = (groupID, option) => {
-    setSelectedOptions((prev) => ({
-      ...prev,
-      [groupID]: {
-        menu_option_id: option.ID,
-        name: option.Name, // เพิ่มชื่อ option
-        price: option.Price, // เพิ่มราคาของ option
-      },
-    }))
-  }
+    setSelectedOptions((prev) => {
+      const currentGroup = item.OptionGroups.find(g => g.ID === groupID);
+      const currentGroupSelections = Object.values(prev).filter(opt => 
+        opt.group_id === groupID
+      ).length;
+
+      // ถ้าตัวเลือกนี้ถูกเลือกอยู่แล้ว ให้ลบออก
+      if (Object.values(prev).some(opt => 
+        opt.menu_option_id === option.ID && opt.group_id === groupID
+      )) {
+        const newOptions = {};
+        Object.entries(prev).forEach(([key, value]) => {
+          if (!(value.menu_option_id === option.ID && value.group_id === groupID)) {
+            newOptions[key] = value;
+          }
+        });
+        return newOptions;
+      }
+
+      // ตรวจสอบว่าเลือกเกิน MaxSelections หรือไม่
+      if (currentGroupSelections >= currentGroup.MaxSelections) {
+        if (currentGroup.MaxSelections === 1) {
+          // ถ้า MaxSelections เป็น 1 ให้แทนที่ตัวเลือกเดิม
+          const newOptions = {};
+          Object.entries(prev).forEach(([key, value]) => {
+            if (value.group_id !== groupID) {
+              newOptions[key] = value;
+            }
+          });
+          return {
+            ...newOptions,
+            [Date.now()]: {
+              menu_option_id: option.ID,
+              group_id: groupID,
+              name: option.Name,
+              name_en: option.NameEn,
+              name_ch: option.NameCh,
+              price: option.Price,
+            },
+          };
+        } else {
+          // แจ้งเตือนถ้าเลือกเกินจำนวนที่กำหนด
+          alert(
+            language === 'th'
+              ? `สามารถเลือกได้สูงสุด ${currentGroup.MaxSelections} รายการ`
+              : language === 'en'
+              ? `Can select up to ${currentGroup.MaxSelections} items`
+              : `最多可选 ${currentGroup.MaxSelections} 项`
+          );
+          return prev;
+        }
+      }
+
+      // เพิ่มตัวเลือกใหม่
+      return {
+        ...prev,
+        [Date.now()]: {
+          menu_option_id: option.ID,
+          group_id: groupID,
+          name: option.Name,
+          name_en: option.NameEn,
+          name_ch: option.NameCh,
+          price: option.Price,
+        },
+      };
+    });
+  };
 
   return (
     <div className={`relative bg-[#F8F3F2] rounded-lg overflow-hidden border-b border-[#3D3038] hover:bg-[#312B37] transition-colors`}>
@@ -281,46 +365,50 @@ const MenuItem = ({ item, language, isPremium }) => {
                               : '(必需)'}
                           </span>
                         )}
+                        {group.MaxSelections > 0 && (
+                          <span className="text-gray-500 text-sm">
+                            {language === 'th'
+                              ? `(เลือกได้ ${group.MaxSelections} รายการ)`
+                              : language === 'en'
+                              ? `(Select up to ${group.MaxSelections} items)`
+                              : `(最多可选 ${group.MaxSelections} 项)`}
+                          </span>
+                        )}
                       </h4>
-                      <div className="flex flex-col gap-2 mt-2">
-                        {group.Options.map((option) => (
-                          <div
-                            key={option.ID}
-                            className="flex justify-start items-center gap-3 text-black/70 text-base"
-                          >
-                            <input
-                              type="radio"
-                              name={`group-${group.ID}`}
-                              value={option.ID}
-                              checked={
-                                selectedOptions[group.ID]?.menu_option_id ===
-                                option.ID
-                              }
-                              onChange={() =>
-                                handleOptionChange(group.ID, option)
-                              }
-                              className="cursor-pointer"
-                            />
-                            <label className="flex-1 cursor-pointer">
-                              {language === 'th'
-                                ? option.Name
-                                : language === 'en'
-                                ? option.NameEn
-                                : option.NameCh}{' '}
-                              {option.Price > 0 && `(+${option.Price}฿)`}
-                            </label>
-                          </div>
-                        ))}
+                      <div className="space-y-2 mt-2">
+                        {group.Options.map((option) => {
+                          const isSelected = Object.values(selectedOptions).some(
+                            opt => opt.menu_option_id === option.ID && opt.group_id === group.ID
+                          );
+                          const selectedCount = Object.values(selectedOptions).filter(
+                            opt => opt.group_id === group.ID
+                          ).length;
+
+                          return (
+                            <div key={option.ID} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type={group.MaxSelections === 1 ? "radio" : "checkbox"}
+                                  name={`group-${group.ID}`}
+                                  checked={isSelected}
+                                  onChange={() => handleOptionChange(group.ID, option)}
+                                  className="w-4 h-4"
+                                />
+                                <label className="text-sm">
+                                  {language === 'th'
+                                    ? option.Name
+                                    : language === 'en'
+                                    ? option.NameEn
+                                    : option.NameCh}
+                                  {option.Price > 0 && ` (+${option.Price} ${
+                                    language === 'th' ? 'บาท' : language === 'en' ? 'THB' : '泰铢'
+                                  })`}
+                                </label>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                      {group.IsRequired && !selectedOptions[group.ID] && (
-                        <p className="text-red-500 text-sm mt-1">
-                          {language === 'th'
-                            ? 'กรุณาเลือกตัวเลือก'
-                            : language === 'en'
-                            ? 'Please select an option'
-                            : '请选择一个选项'}
-                        </p>
-                      )}
                     </div>
                   ))}
                 </div>

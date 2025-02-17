@@ -96,22 +96,25 @@ const OrderSummaryDetail = ({
 
   const handleCancelOption = async (item, option) => {
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('posToken')
       const response = await axios.post(
-        `${API_BASE_URL}/finalize`, 
+        `${API_BASE_URL}/finalize`,
         {
           table_id: tableID,
-          staff_id: user.id,
+          staff_id: user,
           reason: 'ยกเลิกตัวเลือกเสริม',
-          options: [{
-            order_item_id: item.id,
-            option_id: option.id
-          }]
+          options: [
+            {
+              order_item_id: item.id,
+              option_id: option.id,
+            },
+          ],
         },
         {
           headers: {
-            Authorization: `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
         }
       )
   
@@ -133,12 +136,12 @@ const OrderSummaryDetail = ({
 
   const handleCancelItem = async (item) => {
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('posToken')
       const response = await axios.post(
         `${API_BASE_URL}/finalize`, 
         {
           table_id: tableID,
-          staff_id: user.id,
+          staff_id: user,
           reason: 'ยกเลิกรายการอาหาร',
           items: [{
             order_item_id: item.id,
@@ -221,7 +224,7 @@ const OrderSummaryDetail = ({
             </h3>
             {item.notes && (
               <p className="text-xs text-gray-500 italic">
-                {item.notes}
+                หมายเหตุ : {item.notes}
               </p>
             )}
           </div>

@@ -58,7 +58,7 @@ const PaymentTables = () => {
 
       try {
         const response = await axios.get(
-          `${API_BASE_URL}/table/billable/${uuid}`,
+          `${API_BASE_URL_TABLE}/billable/${uuid}`,
           {
             headers: {
               accept: 'application/json',
@@ -560,7 +560,7 @@ const PaymentTables = () => {
   const handleCloseTable = async () => {
     setIsClosingTable(true)
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('posToken')
       if (!token) {
         alert('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่')
         window.location.href = '/login'
