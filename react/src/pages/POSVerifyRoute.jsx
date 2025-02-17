@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
 
-const API_BASE_URL = 'http://127.0.0.1:8080/api/pos'
+const API_BASE_URL = `${import.meta.env.VITE_APP_API_URL}/api/pos`
 
 const POSVerifyRoute = () => {
   const [verificationCode, setVerificationCode] = useState('');

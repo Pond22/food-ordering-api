@@ -48,7 +48,7 @@ services:
       # ใช้ไฟล์ nginx.conf ที่เตรียมไว้ (วางใน ./nginx/nginx.conf)
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       # mount โฟลเดอร์ build ของ React
-      - ./react/build:/usr/share/nginx/html:ro
+      - ./react/dist:/usr/share/nginx/html:ro
       # mount โฟลเดอร์ใบรับรอง SSL
       - ./ssl:/etc/nginx/ssl:ro
     depends_on:
