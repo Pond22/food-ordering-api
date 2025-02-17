@@ -927,7 +927,7 @@ const MenuImportPage = () => {
                         นำเข้าไฟล์ใหม่
                     </button>
                     <button
-                        onClick={() => window.location.href = '/menu'}
+                        onClick={() => window.location.href = '/addmenu'}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     >
                         ไปที่หน้าจัดการเมนู
