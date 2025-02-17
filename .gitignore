@@ -4,7 +4,7 @@ react/.env
 /node_modules
 /vendor
 *.log.env
-scripts/create_first_user.go
+scripts/generate_hash.go
 
 /react
 /.vscode
