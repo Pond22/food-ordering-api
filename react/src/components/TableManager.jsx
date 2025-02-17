@@ -121,16 +121,17 @@ const TableManager = ({ posToken , user }) => {
         socket.onmessage = (event) => {
           const message = JSON.parse(event.data)
           if (message.type === 'table_update') {
-            setTables(message.data) // อัพเดตข้อมูลของโต๊ะ
+            const tableData = message.data || [] // ถ้า data เป็น null ให้ใช้ array ว่าง
+            setTables(tableData)
 
             // เก็บ UUID สำหรับแต่ละโต๊ะ
             const newUuidMap = {}
-            message.data.forEach((table) => {
+            tableData.forEach((table) => {
               if (table.UUID) {
                 newUuidMap[table.ID] = table.UUID
               }
             })
-            setUuidMap(newUuidMap) // อัพเดต uuidMap
+            setUuidMap(newUuidMap)
           }
         }
 
@@ -897,7 +898,7 @@ const TableManager = ({ posToken , user }) => {
       </button> */}
       {/* Render tables */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {tables
+        {(tables || []) // ถ้า tables เป็น null ให้ใช้ array ว่าง
           .sort((a, b) => a.ID - b.ID) // จัดเรียงโต๊ะตาม ID (ascending)
           .map((table) => (
             <div
