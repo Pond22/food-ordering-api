@@ -671,15 +671,19 @@ type OrderItemResponse struct {
 }
 
 type MenuItemResponseMin struct {
-	ID    uint   `json:"id"`
-	Name  string `json:"name"`
-	Price int16  `json:"price"`
+	ID     uint   `json:"id"`
+	Name   string `json:"name"`
+	NameEn string `json:"name_en"`
+	NameCh string `json:"name_ch"`
+	Price  int16  `json:"price"`
 }
 
 type OrderItemOptionResponse struct {
-	ID    uint    `json:"id"`
-	Name  string  `json:"name"`
-	Price float64 `json:"price"`
+	ID     uint    `json:"id"`
+	Name   string  `json:"name"`
+	NameEn string  `json:"name_en"`
+	NameCh string  `json:"name_ch"`
+	Price  float64 `json:"price"`
 }
 
 // @Summary ดึงรายการออเดอร์ที่กำลังดำเนินการ
@@ -716,9 +720,11 @@ func GetActiveOrders(c *fiber.Ctx) error {
 				ID:         item.ID,
 				MenuItemID: item.MenuItemID,
 				MenuItem: MenuItemResponseMin{
-					ID:    item.MenuItem.ID,
-					Name:  item.MenuItem.Name,
-					Price: item.MenuItem.Price,
+					ID:     item.MenuItem.ID,
+					Name:   item.MenuItem.Name,
+					NameEn: item.MenuItem.NameEn,
+					NameCh: item.MenuItem.NameCh,
+					Price:  item.MenuItem.Price,
 				},
 				Quantity: item.Quantity,
 				Price:    item.Price,
@@ -729,9 +735,11 @@ func GetActiveOrders(c *fiber.Ctx) error {
 			// เพิ่ม Options ถ้ามี
 			for _, opt := range item.Options {
 				orderItem.Options = append(orderItem.Options, OrderItemOptionResponse{
-					ID:    opt.ID,
-					Name:  opt.MenuOption.Name,
-					Price: opt.Price,
+					ID:     opt.ID,
+					Name:   opt.MenuOption.Name,
+					NameEn: opt.MenuOption.NameEn,
+					NameCh: opt.MenuOption.NameCh,
+					Price:  opt.Price,
 				})
 			}
 
@@ -786,9 +794,11 @@ func GetOrdersByid(c *fiber.Ctx) error {
 				ID:         item.ID,
 				MenuItemID: item.MenuItemID,
 				MenuItem: MenuItemResponseMin{
-					ID:    item.MenuItem.ID,
-					Name:  item.MenuItem.Name,
-					Price: item.MenuItem.Price,
+					ID:     item.MenuItem.ID,
+					Name:   item.MenuItem.Name,
+					NameEn: item.MenuItem.NameEn,
+					NameCh: item.MenuItem.NameCh,
+					Price:  item.MenuItem.Price,
 				},
 				Quantity: item.Quantity,
 				Price:    item.Price,
@@ -799,9 +809,11 @@ func GetOrdersByid(c *fiber.Ctx) error {
 			// เพิ่ม Options ถ้ามี
 			for _, opt := range item.Options {
 				orderItem.Options = append(orderItem.Options, OrderItemOptionResponse{
-					ID:    opt.ID,
-					Name:  opt.MenuOption.Name,
-					Price: opt.Price,
+					ID:     opt.ID,
+					Name:   opt.MenuOption.Name,
+					NameEn: opt.MenuOption.NameEn,
+					NameCh: opt.MenuOption.NameCh,
+					Price:  opt.Price,
 				})
 			}
 
