@@ -183,13 +183,10 @@ export default function MenuBar({ tableID, uuid }) {
         throw new Error('Table ID is required')
       }
 
-      const response = await axios.post(
-        `${API_BASE_URL}/notifications/call`,
-        {
-          table_id: tableID.toString(),
-          type: type,
-        }
-      )
+      const response = await axios.post(`${API_BASE_URL}/notifications/call`, {
+        table_id: tableID.toString(),
+        type: type,
+      })
 
       if (response.status === 200) {
         let message = ''
@@ -236,9 +233,7 @@ export default function MenuBar({ tableID, uuid }) {
   // Function to fetch order items using the UUID
   const fetchOrderData = async () => {
     try {
-      const response = await axios.get(
-        `${API_BASE_URL}/orders/table/${uuid}`
-      )
+      const response = await axios.get(`${API_BASE_URL}/orders/table/${uuid}`)
       if (response.status === 200) {
         setOrderData(response.data) // Store the fetched data
       } else {
@@ -255,6 +250,52 @@ export default function MenuBar({ tableID, uuid }) {
     fetchOrderData() // Fetch the data when opening the modal
   }
 
+  // เพิ่มฟังก์ชันคำนวณยอดรวมทั้งหมดของออเดอร์
+  const calculateTotalOrders = () => {
+    if (!orderData) return 0
+    return orderData.reduce((total, order) => total + (order.total || 0), 0)
+  }
+
+  // เพิ่มฟังก์ชันแปลงสถานะเป็นภาษาต่างๆ
+  const getStatusText = (status, language) => {
+    switch (status) {
+      case 'pending':
+        return language === 'th'
+          ? 'รอดำเนินการ'
+          : language === 'en'
+          ? 'Pending'
+          : '待处理'
+      case 'preparing':
+        return language === 'th'
+          ? 'กำลังปรุง'
+          : language === 'en'
+          ? 'Preparing'
+          : '准备中'
+      case 'ready':
+        return language === 'th'
+          ? 'พร้อมเสิร์ฟ'
+          : language === 'en'
+          ? 'Ready'
+          : '可以服务'
+      default:
+        return status
+    }
+  }
+
+  // เพิ่มฟังก์ชันสำหรับสีของสถานะ
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'preparing':
+        return 'bg-blue-100 text-blue-800'
+      case 'ready':
+        return 'bg-green-100 text-green-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
   return (
     <div>
       <nav className="bg-[#1C2B41] shadow-sm fixed top-0 w-full z-50">
@@ -264,7 +305,12 @@ export default function MenuBar({ tableID, uuid }) {
               EasyOrder
             </span>
             <span className="text-base font-semibold whitespace-nowrap">
-              โต๊ะที่ {tableID.Name}
+              {language === 'th'
+                ? 'โต๊ะ'
+                : language === 'en'
+                ? 'Table'
+                : '桌子'}
+              {tableID}
             </span>
           </div>
           <div className="block w-auto">
@@ -362,9 +408,9 @@ export default function MenuBar({ tableID, uuid }) {
                   </div>
                 </button>
                 {openCartModal && (
-                  <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white px-2 pt-2 pb-4 border border-gray/50 rounded-xl w-full max-w-xl min-h-full max-h-screen flex flex-col">
-                      <div className="flex top-0 justify-between items-center">
+                  <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50  ">
+                    <div className="fixed bg-white pt-2 border rounded-t-md border-gray/50 mt-[8.5rem] pb-[5rem] w-full max-w-2xl min-h-full max-h-screen flex flex-col">
+                      <div className="flex top-0 justify-between items-center px-2">
                         <h4 className="text-xl font-semibold text-black">
                           {language === 'th'
                             ? 'รายการอาหารที่สั่ง'
@@ -400,20 +446,37 @@ export default function MenuBar({ tableID, uuid }) {
                           >
                             <div className="flex flex-col gap-1">
                               <h6 className="text-lg font-medium">
-                                {item.menuItem.ID}
-                                {item.menuItem.Name}
+                                {language === 'th'
+                                  ? item.menuItem.Name
+                                  : language === 'en'
+                                  ? item.menuItem.NameEn
+                                  : item.menuItem.NameCh}
                               </h6>
                               <span className="text-sm text-gray-600">
-                                หมายเหตุ : {item.notes || '-'}
+                                {language === 'th'
+                                  ? 'หมายเหตุ : '
+                                  : language === 'en'
+                                  ? 'Note : '
+                                  : '备注 : '}
+                                {item.notes || '-'}
                               </span>
                               <div className="text-sm text-gray-500 mt-1">
                                 {item.options.map((option, index) => (
                                   <div key={index}>
-                                    <span>{option.name}</span> (+{option.price}
-                                    ฿)
-                                    <span className="text-xs text-gray-400">
-                                      (ID: {option.menu_option_id})
-                                    </span>
+                                    <span>
+                                      {language === 'th'
+                                        ? option.name
+                                        : language === 'en'
+                                        ? option.name_en
+                                        : option.name_ch}
+                                    </span>{' '}
+                                    (+{option.price}
+                                    {language === 'th'
+                                      ? ' บาท'
+                                      : language === 'en'
+                                      ? ' THB'
+                                      : ' 泰铢'}
+                                    )
                                   </div>
                                 ))}
                               </div>
@@ -427,7 +490,11 @@ export default function MenuBar({ tableID, uuid }) {
                                     0
                                   )) *
                                   item.quantity}{' '}
-                                บาท
+                                {language === 'th'
+                                  ? 'บาท'
+                                  : language === 'en'
+                                  ? 'THB'
+                                  : '泰铢'}
                               </span>
                               <div className="flex justify-between items-center gap-3">
                                 <button
@@ -500,8 +567,8 @@ export default function MenuBar({ tableID, uuid }) {
                                             {language === 'th'
                                               ? option.name
                                               : language === 'en'
-                                              ? option.nameEn
-                                              : option.nameCh}
+                                              ? option.name_en
+                                              : option.name_ch}
                                             (+{option.price}{' '}
                                             {language === 'th'
                                               ? 'บาท'
@@ -576,7 +643,7 @@ export default function MenuBar({ tableID, uuid }) {
                           </span>
                         </div>
                         <button
-                          className="px-4 py-3 w-full rounded-md text-white font-semibold bg-[#4bcc37] hover:bg-[#4aac3b]"
+                          className="px-4 py-3 w-full rounded-md text-white font-semibold bg-[#0b0b0b] hover:bg-[#222522]"
                           onClick={confirmOrder}
                         >
                           {language === 'th'
@@ -593,63 +660,200 @@ export default function MenuBar({ tableID, uuid }) {
             </ul>
           </div>
         </div>
-      </nav>
-      {/* Modal for Menu */}
-      <Modal
-        show={openMenuModal}
-        size="3xl"
-        onClose={() => setOpenMenuModal(false)}
-        popup
-        className="max-w-[1025px] min-w-[200px] h-screen" // Adjust width between 200px and 1025px
-      >
-        <Modal.Header className="bg-gray-200" />
-        <Modal.Body className="bg-gray-200 rounded-md h-full overflow-y-auto">
-          <div className="flex flex-col items-center justify-center">
-            <h3 className="text-xl font-semibold mb-4">รายการอาหาร</h3>
 
-            {/* Render order data */}
-            {orderData && orderData.length > 0 ? (
-              <div className="flex flex-col gap-4">
-                {/* Iterate over all orders */}
-                {orderData.map((order) => (
-                  <div key={order.id} className="mb-4">
-                    <h4 className="text-lg font-semibold">
-                      Order ID: {order.id}
-                    </h4>
-                    <p>Status: {order.status}</p>
-                    <p>Total: {order.total} ฿</p>
-                    <div className="flex flex-col gap-4">
-                      {/* Iterate over items in each order */}
-                      {order.items.map((item, index) => (
+        {/* Modal for Menu */}
+
+        <Modal
+          show={openMenuModal}
+          size="md"
+          onClose={() => setOpenMenuModal(false)}
+          popup
+        >
+          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+            <div className="fixed bg-white pt-2 border rounded-t-md border-gray/50 mt-[8.5rem] pb-[5rem] w-full max-w-2xl min-h-full max-h-screen flex flex-col">
+              <div className="flex top-0 justify-between items-center px-2">
+                <h4 className="text-xl font-semibold text-black">
+                  {language === 'th'
+                    ? 'รายการอาหารที่สั่งแล้ว'
+                    : language === 'en'
+                    ? 'Ordered Items'
+                    : '已订购的食物'}
+                </h4>
+                <button
+                  onClick={() => setOpenMenuModal(false)}
+                  className="text-white/70 hover:text-white z-10 bg-black/30 rounded-full p-2"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <hr className="mt-4" />
+              <div className="flex-1 overflow-y-auto py-2">
+                {orderData && orderData.length > 0 ? (
+                  orderData.map((order) => (
+                    <div
+                      key={order.id}
+                      className="p-4 border-b last:border-none"
+                    >
+                      <div className="mb-2">
+                        <span className="text-sm text-gray-500">
+                          {language === 'th'
+                            ? 'หมายเลขออเดอร์: '
+                            : language === 'en'
+                            ? 'Order ID: '
+                            : '订单号: '}
+                          {order.id}
+                        </span>
+                      </div>
+                      {order.items.map((item) => (
                         <div
                           key={item.id}
-                          className="flex justify-between items-center"
+                          className="mb-4 bg-gray-50 p-3 rounded-lg"
                         >
-                          <div className="flex flex-col">
-                            <h5 className="text-md">{item.menu_item.name}</h5>
-                            <span className="text-sm">
-                              Price: {item.menu_item.price} ฿
-                            </span>
-                            <span className="text-sm">
-                              Quantity: {item.quantity}
-                            </span>
-                          </div>
-                          <div className="flex flex-col items-center gap-2">
-                            {/* Optional actions can be added here */}
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h4 className="text-lg font-medium">
+                                {language === 'th'
+                                  ? item.menu_item.name
+                                  : language === 'en'
+                                  ? item.menu_item.name_en ||
+                                    item.menu_item.name
+                                  : item.menu_item.name_ch ||
+                                    item.menu_item.name}
+                              </h4>
+                              <p className="text-sm text-gray-600">
+                                {language === 'th'
+                                  ? 'จำนวน: '
+                                  : language === 'en'
+                                  ? 'Quantity: '
+                                  : '数量: '}
+                                {item.quantity}
+                              </p>
+                              {item.notes && (
+                                <p className="text-sm text-gray-500 mt-1">
+                                  {language === 'th'
+                                    ? 'หมายเหตุ: '
+                                    : language === 'en'
+                                    ? 'Note: '
+                                    : '备注: '}
+                                  {item.notes}
+                                </p>
+                              )}
+                              {item.options && item.options.length > 0 && (
+                                <div className="mt-2">
+                                  <p className="text-sm text-gray-600">
+                                    {language === 'th'
+                                      ? 'ตัวเลือกเพิ่มเติม:'
+                                      : language === 'en'
+                                      ? 'Additional Options:'
+                                      : '附加选项:'}
+                                  </p>
+                                  {item.options.map((option, index) => (
+                                    <p
+                                      key={index}
+                                      className="text-sm text-gray-500"
+                                    >
+                                      - {option.name} (+{option.price}
+                                      {language === 'th'
+                                        ? ' บาท'
+                                        : language === 'en'
+                                        ? ' THB'
+                                        : ' 泰铢'}
+                                      )
+                                    </p>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex flex-col items-end gap-2">
+                              <span className="text-base font-medium">
+                                {item.price}
+                                {language === 'th'
+                                  ? ' บาท'
+                                  : language === 'en'
+                                  ? ' THB'
+                                  : ' 泰铢'}
+                              </span>
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs ${getStatusColor(
+                                  item.status
+                                )}`}
+                              >
+                                {getStatusText(item.status, language)}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       ))}
+                      <div className="flex justify-between items-center mt-2 pt-2 border-t">
+                        <span className="font-semibold">
+                          {language === 'th'
+                            ? 'ยอดรวม'
+                            : language === 'en'
+                            ? 'Total'
+                            : '总计'}
+                        </span>
+                        <span className="font-semibold">
+                          {order.total}
+                          {language === 'th'
+                            ? ' บาท'
+                            : language === 'en'
+                            ? ' THB'
+                            : ' 泰铢'}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center text-gray-500 py-4">
+                    {language === 'th'
+                      ? 'ไม่มีรายการอาหาร'
+                      : language === 'en'
+                      ? 'No orders found'
+                      : '没有订单'}
+                  </div>
+                )}
+                {/* เพิ่มส่วนแสดงยอดรวมทั้งหมดด้านล่าง */}
+                {orderData && orderData.length > 0 && (
+                  <div className="flex flex-col gap-4 px-4 pt-4 border-t border-gray-200 bg-white mb-[20px]">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xl font-bold">
+                        {language === 'th'
+                          ? 'ยอดรวมทั้งหมด'
+                          : language === 'en'
+                          ? 'Grand Total'
+                          : '总金额'}
+                      </span>
+                      <span className="text-xl font-bold">
+                        {orderData.reduce(
+                          (total, order) => total + order.total,
+                          0
+                        )}{' '}
+                        {language === 'th'
+                          ? 'บาท'
+                          : language === 'en'
+                          ? 'THB'
+                          : '泰铢'}
+                      </span>
                     </div>
                   </div>
-                ))}
+                )}
               </div>
-            ) : (
-              <div className="text-center text-lg">ไม่มีรายการอาหาร</div>
-            )}
+            </div>
           </div>
-        </Modal.Body>
-      </Modal>
-
+        </Modal>
+      </nav>
       <MenuList language={language} />
     </div>
   )

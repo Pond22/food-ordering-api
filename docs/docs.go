@@ -5168,41 +5168,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v2/printers/bill-check": {
-            "post": {
-                "description": "พิมพ์ใบรายการอาหารสำหรับตรวจทานก่อนชำระเงิน สามารถพิมพ์ได้ทั้งแบบโต๊ะเดี่ยวและรวมโต๊ะ",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Printer"
-                ],
-                "summary": "พิมพ์ใบรายการอาหารก่อนชำระเงิน",
-                "parameters": [
-                    {
-                        "description": "ข้อมูลสำหรับพิมพ์ใบรายการอาหาร",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api_v2.PrintBillCheckRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
         "/api/v2/printers/pending-jobs": {
             "get": {
                 "description": "ดึงรายการงานพิมพ์ที่ยังไม่ได้พิมพ์สำหรับเครื่องพิมพ์ที่ระบุ (รองรับทั้ง IP และ USB)",
@@ -6722,13 +6687,13 @@ const docTemplate = `{
                 "discounts": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api_v2.PaymentDiscountRequest"
+                        "$ref": "#/definitions/api_v2.paymentDiscountRequest"
                     }
                 },
                 "extra_charges": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api_v2.PaymentExtraChargeRequest"
+                        "$ref": "#/definitions/api_v2.paymentExtraChargeRequest"
                     }
                 },
                 "payment_method": {
@@ -6749,7 +6714,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api_v2.PaymentDiscountRequest": {
+        "api_v2.paymentDiscountRequest": {
             "type": "object",
             "required": [
                 "discount_type_id"
@@ -6764,7 +6729,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api_v2.PaymentExtraChargeRequest": {
+        "api_v2.paymentExtraChargeRequest": {
             "type": "object",
             "required": [
                 "charge_type_id",
@@ -6781,21 +6746,6 @@ const docTemplate = `{
                     "description": "Amount       float64 ` + "`" + `json:\"amount\" binding:\"required\"` + "`" + `",
                     "type": "integer",
                     "minimum": 1
-                }
-            }
-        },
-        "api_v2.PrintBillCheckRequest": {
-            "type": "object",
-            "required": [
-                "table_ids"
-            ],
-            "properties": {
-                "table_ids": {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                        "type": "integer"
-                    }
                 }
             }
         },

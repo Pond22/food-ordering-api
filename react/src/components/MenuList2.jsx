@@ -187,7 +187,7 @@ export default function MenuList({ language }) {
   return (
     <div className="mt-[4.5rem] bg-gradient-to-br from-[#1c2025] via-[#34393f] to-[#6f757c] max-w-screen-xl mx-auto">
       <div className="bg-[#1c2025] border-b border-[#3D3038]/30">
-        <div 
+        <div
           className="flex items-center gap-1.5 overflow-x-auto scrollbar-hidden py-2 px-3"
           ref={scrollRef}
         >
@@ -200,7 +200,11 @@ export default function MenuList({ language }) {
             onClick={() => handleCategoryClick(0)}
           >
             <span className="text-xs font-medium">
-              {language === 'th' ? 'ทั้งหมด' : language === 'en' ? 'All' : '全部'}
+              {language === 'th'
+                ? 'ทั้งหมด'
+                : language === 'en'
+                ? 'All'
+                : '全部'}
             </span>
           </button>
 
@@ -253,21 +257,26 @@ export default function MenuList({ language }) {
           </Carousel>
         </div>
 
-        {menus.some(menu => menu.IsRecommended) && (
+        {menus.some((menu) => menu.IsRecommended) && (
           <div className="mx-2 my-4">
             <h2 className="text-base font-medium text-white/90 mb-2 px-1">
-              {language === 'th' 
-                ? 'เมนูแนะนำ' 
-                : language === 'en' 
-                ? 'Recommended Menu' 
+              {language === 'th'
+                ? 'เมนูแนะนำ'
+                : language === 'en'
+                ? 'Recommended Menu'
                 : '推荐菜单'}
             </h2>
-            
+
             <div className="grid grid-cols-2 gap-2">
               {menus
-                .filter(menu => menu.IsRecommended)
-                .map(menu => (
-                  <MenuItem key={menu.ID} item={menu} language={language} isPremium />
+                .filter((menu) => menu.IsRecommended)
+                .map((menu) => (
+                  <MenuItem
+                    key={menu.ID}
+                    item={menu}
+                    language={language}
+                    isPremium
+                  />
                 ))}
             </div>
           </div>
@@ -275,11 +284,20 @@ export default function MenuList({ language }) {
 
         <div className="mx-2 my-4">
           {categories.map((category) => {
-            const filteredMenus = activeLink === 0
-              ? menus.filter(menu => menu.CategoryID === category.ID && !menu.IsRecommended)
-              : menus.filter(menu => menu.CategoryID === category.ID && menu.CategoryID === activeLink && !menu.IsRecommended);
+            const filteredMenus =
+              activeLink === 0
+                ? menus.filter(
+                    (menu) =>
+                      menu.CategoryID === category.ID && !menu.IsRecommended
+                  )
+                : menus.filter(
+                    (menu) =>
+                      menu.CategoryID === category.ID &&
+                      menu.CategoryID === activeLink &&
+                      !menu.IsRecommended
+                  )
 
-            if (filteredMenus.length === 0) return null;
+            if (filteredMenus.length === 0) return null
 
             return (
               <div key={category.ID} className="mb-6">
@@ -290,21 +308,21 @@ export default function MenuList({ language }) {
                     ? category.NameEn
                     : category.NameCh}
                 </h2>
-                
+
                 <div className="grid grid-cols-2 gap-2">
-                  {filteredMenus.map(menu => (
+                  {filteredMenus.map((menu) => (
                     <MenuItem key={menu.ID} item={menu} language={language} />
                   ))}
                 </div>
               </div>
-            );
+            )
           })}
         </div>
       </div>
 
       {isPopupOpen && displayItem && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-xl overflow-y-auto max-h-screen">
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 ">
+          <div className="bg-white rounded-xl w-full max-w-screen lg:max-w-xl overflow-y-auto max-h-screen mt-[8.5rem]">
             <div className="relative">
               <button
                 onClick={togglePopup}
@@ -332,29 +350,50 @@ export default function MenuList({ language }) {
               />
 
               <div className="p-6">
-                <h3 className="text-black text-2xl font-medium mb-2">
-                  {displayItem.Name}
-                </h3>
-                <p className="text-black text-xl font-semibold mb-6">
-                  {displayItem.Price} THB
-                </p>
-
-                <div className="mb-4 p-3 bg-gray-100 rounded-lg">
-                  <p className="text-sm text-gray-600">
+                <div className="flex justify-between">
+                  <h3 className="text-black text-2xl font-medium mb-2">
+                    {/* {displayItem.Name} */}
                     {language === 'th'
-                      ? `ต้องเลือกอย่างน้อย ${displayItem.MinSelections} รายการ และไม่เกิน ${displayItem.MaxSelections} รายการ`
+                      ? displayItem.Name
                       : language === 'en'
-                      ? `Select minimum ${displayItem.MinSelections} and maximum ${displayItem.MaxSelections} items`
-                      : `最少选择 ${displayItem.MinSelections} 项，最多选择 ${displayItem.MaxSelections} 项`}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {language === 'th'
-                      ? `เลือกแล้ว: ${selectedOptions.length} รายการ`
-                      : language === 'en'
-                      ? `Selected: ${selectedOptions.length} items`
-                      : `已选择: ${selectedOptions.length} 项`}
+                      ? displayItem.NameEn
+                      : displayItem.NameCh}
+                  </h3>
+                  <p className="text-black text-xl font-semibold mb-6">
+                    {displayItem.Price} THB
                   </p>
                 </div>
+                <div className="mb-3 border-b border-gray-300 pb-5">
+                  <p className="text-black text-lg font-medium mb-2">
+                    {/* {displayItem.Description} */}
+                    {language === 'th'
+                      ? displayItem.Description
+                      : language === 'en'
+                      ? displayItem.DescriptionEn
+                      : displayItem.DescriptionCh}
+                  </p>
+                </div>
+                {/* แสดงข้อความเกี่ยวกับ MinSelections และ MaxSelections เฉพาะเมื่อค่ามากกว่า 0 */}
+                {(displayItem.MinSelections > 0 ||
+                  displayItem.MaxSelections > 0) && (
+                  <div className="mb-4 p-3 bg-gray-100 rounded-lg">
+                    <p className="text-sm text-gray-600">
+                      {language === 'th'
+                        ? `ต้องเลือกอย่างน้อย ${displayItem.MinSelections} รายการ และไม่เกิน ${displayItem.MaxSelections} รายการ`
+                        : language === 'en'
+                        ? `Select minimum ${displayItem.MinSelections} and maximum ${displayItem.MaxSelections} items`
+                        : `最少选择 ${displayItem.MinSelections} 项，最多选择 ${displayItem.MaxSelections} 项`}
+                    </p>
+
+                    <p className="text-sm text-gray-600 mt-1">
+                      {language === 'th'
+                        ? `เลือกแล้ว: ${selectedOptions.length} รายการ`
+                        : language === 'en'
+                        ? `Selected: ${selectedOptions.length} items`
+                        : `已选择: ${selectedOptions.length} 项`}
+                    </p>
+                  </div>
+                )}
 
                 {displayItem &&
                   displayItem.Items &&
@@ -363,17 +402,10 @@ export default function MenuList({ language }) {
                     <div className="mb-4">
                       {displayItem.Items.map((item) => (
                         <div key={item.ID} className="mb-2">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="text-black text-lg font-medium">
-                                {item.MenuItem.Name}-{item.MenuItem.ID}
-                              </h4>
-                              <p className="text-sm text-gray-600">
-                                {item.MenuItem.Price} THB
-                              </p>
-                            </div>
+                          <div className="flex items-center ">
                             <div className="flex items-center space-x-2">
                               <input
+                                className="rounded-full w-5 h-5"
                                 type="checkbox"
                                 id={`checkbox-${item.MenuItem.ID}`}
                                 checked={selectedOptions.some(
@@ -390,7 +422,7 @@ export default function MenuList({ language }) {
                                   )
                                 }
                               />
-                              <label
+                              {/* <label
                                 htmlFor={`checkbox-${item.MenuItem.ID}`}
                                 className="text-sm"
                               >
@@ -399,7 +431,20 @@ export default function MenuList({ language }) {
                                 )
                                   ? 'Selected'
                                   : 'Select'}
-                              </label>
+                              </label> */}
+                            </div>
+                            <div className="ml-2">
+                              <h4 className="text-black text-lg font-medium">
+                                {/* {item.MenuItem.Name}-{item.MenuItem.ID} */}
+                                {language === 'th'
+                                  ? item.MenuItem.Name
+                                  : language === 'en'
+                                  ? item.MenuItem.NameEn
+                                  : item.MenuItem.NameCh}
+                              </h4>
+                              <p className="text-sm text-gray-600">
+                                {item.MenuItem.Price} THB
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -434,7 +479,7 @@ export default function MenuList({ language }) {
 
                 <button
                   onClick={handleAddToCart}
-                  className="bg-blue-500 hover:bg-blue-600 text-white py-3 w-full rounded-lg font-medium"
+                  className="bg-blue-500 hover:bg-blue-600 text-white py-3 w-full rounded-lg font-medium mb-[4rem]"
                 >
                   {language === 'th'
                     ? 'เพิ่มไปยังตะกร้า'

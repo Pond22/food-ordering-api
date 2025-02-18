@@ -11,7 +11,7 @@ export default function Menu() {
   const tableId = parseInt(searchParams.get('tableID'), 10)
   const uuid = searchParams.get('uuid')
 
-  console.log(tableId, '+', uuid)
+  // console.log(tableId, '+', uuid)
   useEffect(() => {
     checkCartExpiry()
   }, [])
