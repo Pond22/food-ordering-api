@@ -137,7 +137,7 @@ func HandleQRCodeRequest(c *fiber.Ctx) error {
 
 	// สร้าง QR Code
 	expiryAt := time.Now().Add(2 * time.Hour)
-	url := fmt.Sprintf("http://localhost:5173/menu?tableID=%v&uuid=%v", tableID, UUID)
+	url := fmt.Sprintf("https://www.grandkaze.com/menu?tableID=%v&uuid=%v", tableID, UUID)
 
 	// สร้าง QR Code image
 	qrCode, err := qrcode.New(url, qrcode.Medium)

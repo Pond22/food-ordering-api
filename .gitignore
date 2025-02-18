@@ -10,3 +10,4 @@ scripts/generate_hash.go
 /.vscode
 docker-compose.yml
 Dockerfile
+react/Dockerfile
